@@ -222,6 +222,7 @@ class Core
                 'caching' => $caching ?? 10,
                 'sessionHandler' => $sessionHandler ?? null,
                 'sessionEncryptionKey' => $sessionEncryptionKey ?? null,
+                'sessionSecure'        => $sessionSecure ?? null,
             ];
         }
     }
