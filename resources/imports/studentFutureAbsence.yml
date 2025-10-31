@@ -18,22 +18,22 @@ table:
     name: "Date"
     desc: "Must be unique."
     args: { filter: date, required: true }
-  gibbonAttendanceCodeID:
-    name: "Attendance Status"
-    desc: "Short Name"
-    args: { filter: string, required: true }
-    lookup: { table: gibbonAttendanceCode, key: nameShort, value: gibbonAttendanceCodeID }
   type:
-    name: "Type"
-    desc: "Eg. Absent, Excused Absence"
+    name: "Attendance Status"
+    desc: ""
     args: { filter: string, required: true }
+  gibbonAttendanceCodeID:
+    name: "Attendance Code"
+    desc: ""
+    args: { filter: string, required: true, hidden: true, linked: type }
+    relationship: { table: gibbonAttendanceCode, key: gibbonAttendanceCodeID, field: name }
   reason:
     name: "Reason"
-    desc: "From School Admin > Attendance Settings"
+    desc: ""
     args: { filter: string }
   comment:
     name: "Comment"
-    desc: "Optional note"
+    desc: "Optional"
     args: { filter: string }
   context:
     name: "Context"
@@ -47,6 +47,6 @@ table:
     args: { filter: string, hidden: true }
   gibbonPersonIDTaker:
     name: "Recorded By"
-    desc: "Username of staff recording the absence"
+    desc: "Username or Email (if unique)"
     args: { filter: nospaces, required: true }
-    relationship: { table: gibbonPerson, key: gibbonPersonID, field: username }
+    relationship: { table: gibbonPerson, key: gibbonPersonID, field: username|email }
