@@ -30,6 +30,7 @@ v30.0.00
 
     Changes With Important Notices
         Added a Pastoral heading to the main menu and moved Behaviour, Attendance and Individual Needs
+        The Impersonate User action must be manually enabled in the config file
 
     Tweaks & Additions
         System: added the option for administrators to impersonate other user accounts
