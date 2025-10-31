@@ -730,12 +730,10 @@ class Form implements OutputableInterface
      */
     public function getOutput()
     {
-        if ($this->hasMeta()) {
-            if (count($this->sections) <= 2) $this->resetSections();
+        if (count($this->sections) <= 2) $this->resetSections();
 
-            if ($this->sections > 2) {
-                $this->getMeta()->addSectionList($this->getSections());
-            }
+        if ($this->hasMeta() && $this->sections > 2) {
+            $this->getMeta()->addSectionList($this->getSections());
         }
 
         return $this->renderer->renderForm($this);
