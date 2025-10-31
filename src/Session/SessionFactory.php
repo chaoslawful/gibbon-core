@@ -79,7 +79,7 @@ class SessionFactory
 
             session_start([
                 'name'             => 'G'.substr(hash('sha256', $_guid), 0, 16),
-                'cookie_samesite'  => 'Strict',
+                'cookie_samesite'  => 'Lax',
                 'cookie_httponly'  => true,
                 'cookie_secure'    => $config['sessionSecure'] ?? isset($_SERVER['HTTPS']),
             ]);
