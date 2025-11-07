@@ -71,8 +71,8 @@ class ExceptionsLayer extends AbstractTimetableLayer
 
             $item->set('secondaryAction', [
                 'name'      => 'edit',
-                'label'     => __('Manage Exceptions'),
-                'url'       => Url::fromModuleRoute('Timetable Admin', 'tt_edit_day_edit_class_exception')->withQueryParams(['gibbonSchoolYearID' => $context->get('gibbonSchoolYearID'), 'gibbonTTID' => $exception['gibbonTTID'], 'gibbonTTDayID' => $exception['gibbonTTDayID'], 'gibbonTTDayRowClassID' => $exception['gibbonTTDayRowClassID'], 'gibbonTTColumnRowID' => $exception['gibbonTTColumnRowID'], 'gibbonCourseClassID' => $exception['gibbonCourseClassID'], 'gibbonPersonID' => $context->get('gibbonPersonID')]),
+                'label'     => __('Remove Exception'),
+                'url'       => Url::fromModuleRoute('Timetable Admin', 'tt_edit_day_edit_class_exception_deleteProcess')->withQueryParams(['gibbonSchoolYearID' => $context->get('gibbonSchoolYearID'), 'gibbonTTID' => $exception['gibbonTTID'], 'gibbonTTDayID' => $exception['gibbonTTDayID'], 'gibbonTTDayRowClassID' => $exception['gibbonTTDayRowClassID'], 'gibbonTTColumnRowID' => $exception['gibbonTTColumnRowID'], 'gibbonCourseClassID' => $exception['gibbonCourseClassID'], 'gibbonPersonID' => $context->get('gibbonPersonID'), 'gibbonTTDayRowClassExceptionID' => $exception['gibbonTTDayRowClassExceptionID']])->directLink(),
                 'icon'      => 'user-minus',
                 'iconClass' => 'text-gray-600 hover:text-gray-800',
             ]);
