@@ -164,7 +164,7 @@ class Timetable implements OutputableInterface
         $this->loadLayers()->processLayers()->sortLayers()->checkLayers()->toggleLayers();
 
         return $this->view->fetchFromTemplate('ui/timetable.twig.html', [
-            'apiEndpoint'    => Url::fromHandlerRoute('index_tt_ajax.php')->withQueryParams($this->getUrlParams()),
+            'apiEndpoint'    => $this->context->get('apiEndpoint', Url::fromHandlerRoute('index_tt_ajax.php')->withQueryParams($this->getUrlParams())),
             'preferencesUrl' => Url::fromHandlerRoute('preferences_ajax.php'),
             'gibbonPersonID' => $this->context->get('gibbonPersonID'),
             'gibbonSpaceID'  => $this->context->get('gibbonSpaceID'),

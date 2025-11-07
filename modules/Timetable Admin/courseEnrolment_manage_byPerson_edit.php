@@ -29,6 +29,7 @@ use Gibbon\Domain\Timetable\CourseEnrolmentGateway;
 use Gibbon\UI\Timetable\Layers\ExceptionsLayer;
 use Gibbon\UI\Timetable\TimetableContext;
 use Gibbon\UI\Timetable\Timetable;
+use Gibbon\Http\Url;
 
 //Module includes for Timetable module
 include './modules/Timetable/moduleFunctions.php';
@@ -229,13 +230,23 @@ if (isActionAccessible($guid, $connection2, '/modules/Timetable Admin/courseEnro
             echo '</h2>';
 
             $gibbonTTID = isset($_GET['gibbonTTID'])? $_GET['gibbonTTID'] : null;
-            $ttDate = isset($_POST['ttDate'])? Format::timestamp(Format::dateConvert($_POST['ttDate'])) : null;
+
+            if (!empty($_REQUEST['ttDateNav'])) {
+                $ttDate = $_REQUEST['ttDateNav'];
+            } elseif (!empty($_REQUEST['ttDateChooser'])) {
+                $ttDate = $_REQUEST['ttDateChooser'];
+            } elseif (!empty($_REQUEST['ttDate'])) {
+                $ttDate = Format::dateConvert($_REQUEST['ttDate']);
+            }
+
+            $apiEndpoint = Url::fromHandlerRoute('index.php')->withQueryParams(['q' => $_GET['q'], 'gibbonSchoolYearID' => $gibbonSchoolYearID, 'gibbonTTID' => $gibbonTTID, 'gibbonPersonID' => $gibbonPersonID, 'type' => $type, 'ttDate' => $ttDate]);
 
             // Create timetable context
             $context = $container->get(TimetableContext::class)
                 ->set('gibbonSchoolYearID', $gibbonSchoolYearID)
                 ->set('gibbonPersonID', $gibbonPersonID)
                 ->set('gibbonTTID', $gibbonTTID)
+                ->set('apiEndpoint', $apiEndpoint)
                 ->set('edit', true);
 
             // Build and render timetable
