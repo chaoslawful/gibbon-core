@@ -26,6 +26,7 @@ use Gibbon\Domain\QueryCriteria;
 use Gibbon\Forms\Prefab\BulkActionForm;
 use Gibbon\Domain\Timetable\CourseGateway;
 use Gibbon\Domain\Timetable\CourseEnrolmentGateway;
+use Gibbon\UI\Timetable\Layers\ExceptionsLayer;
 use Gibbon\UI\Timetable\TimetableContext;
 use Gibbon\UI\Timetable\Timetable;
 
@@ -238,10 +239,13 @@ if (isActionAccessible($guid, $connection2, '/modules/Timetable Admin/courseEnro
                 ->set('edit', true);
 
             // Build and render timetable
+            $exceptionsLayer = $container->get(ExceptionsLayer::class);
+            
             echo $container->get(Timetable::class)
                 ->setDate($ttDate)
                 ->setContext($context)
                 ->addCoreLayers($container)
+                ->addLayer($exceptionsLayer)
                 ->getOutput(); 
 
             //SHOW OLD ENROLMENT RECORDS

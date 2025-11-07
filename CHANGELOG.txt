@@ -71,6 +71,7 @@ v30.0.00
         System Admin: added an HTTPS check to the installer and system check
         Timetable: added coverage details for staff duty and activities on the timetable
         Timetable: added a search field in 'Manage Bookings' and 'Mange Facility Changes'
+        Timetable Admin: added an Exceptions layer to Class Enrolment by Person, to see existing exceptions
         User Admin: added a backup table to store person images from previous years
         User Admin: added Sibling as option to Emergency Relationship select
         User Admin: added Prof. as an option in Title select

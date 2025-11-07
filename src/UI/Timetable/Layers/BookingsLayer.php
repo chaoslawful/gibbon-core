@@ -68,7 +68,7 @@ class BookingsLayer extends AbstractTimetableLayer
 
             $this->createItem($booking['date'])->loadData([
                 'type'      => __('Booking'),
-                'title'     => $booking['reason'],
+                'title'     => $booking['reason'] ?: __('Booking'),
                 'subtitle'  => $context->has('gibbonPersonID') ? $booking['name'] : $bookedBy,
                 'timeStart' => $booking['timeStart'],
                 'timeEnd'   => $booking['timeEnd'],
