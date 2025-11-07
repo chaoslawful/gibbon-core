@@ -167,6 +167,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_edit.php')
 
                 $form = Form::create('action', $session->get('absoluteURL').'/modules/'.$session->get('module')."/planner_editProcess.php?gibbonPlannerEntryID=$gibbonPlannerEntryID&viewBy=$viewBy&subView=$subView&address=".$session->get('address'));
                 $form->setFactory(PlannerFormFactory::create($pdo));
+                $form->addMeta()->addDefaultContent('editProcess');
 
                 $form->addHiddenValue('address', $session->get('address'));
                 
