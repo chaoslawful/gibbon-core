@@ -58,6 +58,7 @@ v30.0.00
         Planner: added the option to use smart block names as lesson names in Deploy Lessons
         Planner: added an Online Lesson option in the planner to display a video call link
         Planner: restricted visibility of user photos in Lesson Plans based on planner access permissions
+        Planner: added shortcut buttons to access the Unit Planner and Lesson Planner from each other
         Reports: updated Attendance data source to handle Off Timetable days where no attendance is taken
         Reports: prevented deletion of template assets that are not set to inactive
         Reports: added a way for tracking and displaying who last edited an asset
