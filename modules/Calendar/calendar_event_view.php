@@ -61,10 +61,10 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
         ->setIcon('attendance')
         ->displayLabel();
 
-    $form->addHeaderAction('email', __('Notify Staff'))
+    $form->addHeaderAction('notify', __('Notify Staff'))
         ->setURL('/modules/Calendar/calendar_event_notify.php')
         ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
-        ->setIcon('run')
+        ->setIcon('notify')
         ->displayLabel();
         
     $form->addRow()->addHeading(__('Basic Information'));
