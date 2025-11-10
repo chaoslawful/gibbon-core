@@ -276,6 +276,11 @@ class Structure
         return $this->weekdays;
     }
 
+    public function getSpecialDays()
+    {
+        return $this->specialDays;
+    }
+
     public function getSpecialDay(string $date)
     {
         return $this->specialDays[$date] ?? [];

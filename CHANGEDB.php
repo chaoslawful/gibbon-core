@@ -1038,6 +1038,7 @@ UPDATE `gibbonAction` SET URLList='calendar_event_manage.php, calendar_event_add
 ALTER TABLE `gibbonPerson` CHANGE `username` `username` VARCHAR(40) NULL DEFAULT NULL;end
 ALTER TABLE `gibbonCourse` CHANGE `nameShort` `nameShort` VARCHAR(16) NOT NULL;end
 ALTER TABLE `gibbonCourseClass` CHANGE `nameShort` `nameShort` VARCHAR(16) NOT NULL;end
-
+ALTER TABLE `gibbonSchoolYearSpecialDay` ADD `cancelDuty` ENUM('Y','N') DEFAULT 'N' NULL AFTER `cancelActivities`;end
+ALTER TABLE `gibbonSchoolYearSpecialDay` ADD `cancelBookings` ENUM('Y','N') DEFAULT 'N' NULL AFTER `cancelDuty`;end
 
 ";

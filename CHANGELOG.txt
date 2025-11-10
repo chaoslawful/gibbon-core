@@ -66,6 +66,7 @@ v30.0.00
         Staff: added an option to separate the Staff Duty page into tabs by duty type
         Staff: added an option to accept a Staff Application without creating an account
         Students: added a drop-down filter to the Student Transport report
+        School Admin: added the option to cancel Staff Duty and cancel Bookings for Special Days
         System Admin: added the option to upload user photos in jpeg format
         System Admin: added new loaned items import for Library
         System Admin: added an attendance importer for Future Absences

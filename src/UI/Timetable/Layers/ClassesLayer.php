@@ -80,8 +80,7 @@ class ClassesLayer extends AbstractTimetableLayer
 
     protected function loadItemsByPerson(\DatePeriod $dateRange, TimetableContext $context) 
     {
-        $specialDays = $this->specialDayGateway->selectSpecialDaysByDateRange($dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchGroupedUnique();
-
+        $specialDays = $context->get('specialDays', []);
         $offTimetable = array_reduce($specialDays, function ($group, $item) use ($context) {
             $group[$item['date']] = $this->specialDayGateway->getIsStudentOffTimetableByDate($context->get('gibbonSchoolYearID'), $context->get('gibbonPersonID'), $item['date']) ? $item['name'] : '';
 
@@ -265,7 +264,7 @@ class ClassesLayer extends AbstractTimetableLayer
 
     public function loadItemsByFacility(\DatePeriod $dateRange, TimetableContext $context) 
     {
-        $specialDays = $this->specialDayGateway->selectSpecialDaysByDateRange($dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchGroupedUnique();
+        $specialDays = $context->get('specialDays', []);
 
         $classes = $this->timetableDayDateGateway->selectTimetabledPeriodsByFacilityAndDateRange($context->get('gibbonSpaceID'), $dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchAll();
 

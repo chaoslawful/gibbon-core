@@ -97,7 +97,9 @@ class Timetable implements OutputableInterface
             ? $this->context->get('gibbonTTID')
             : $this->context->get('ttOptions')['gibbonTTID'] ?? null;
         $this->structure->setTimetable($this->context->get('gibbonSchoolYearID'), $gibbonTTID);
+
         $this->context->set('gibbonTTID', $this->structure->getActiveTimetable());
+        $this->context->set('specialDays', $this->structure->getSpecialDays());
 
         return $this;
     }
