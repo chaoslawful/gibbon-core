@@ -1036,5 +1036,8 @@ INSERT INTO `gibboni18n` (`code`, `name`, `version`, `active`, `installed`, `sys
 UPDATE `gibbonAction` SET description='Allows users to create and edit thier own calendar events.' WHERE name='Manage Events_my' AND gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Calendar');end
 UPDATE `gibbonAction` SET URLList='calendar_event_manage.php, calendar_event_add.php, calendar_event_edit.php, calendar_event_delete.php, calendar_event_view.php, calendar_event_participants.php, calendar_event_participants_add.php, calendar_event_participants_edit.php, calendar_event_participants_delete.php' WHERE (name='Manage Events_all' OR name='Manage Events_my') AND gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Calendar');end
 ALTER TABLE `gibbonPerson` CHANGE `username` `username` VARCHAR(40) NULL DEFAULT NULL;end
+ALTER TABLE `gibbonCourse` CHANGE `nameShort` `nameShort` VARCHAR(16) NOT NULL;end
+ALTER TABLE `gibbonCourseClass` CHANGE `nameShort` `nameShort` VARCHAR(16) NOT NULL;end
+
 
 ";
