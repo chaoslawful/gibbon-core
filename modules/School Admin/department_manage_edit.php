@@ -67,7 +67,7 @@ if (isActionAccessible($guid, $connection2, '/modules/School Admin/department_ma
                 'Coordinator'           => __('Coordinator'),
                 'Assistant Coordinator' => __('Assistant Coordinator'),
                 'Teacher (Curriculum)'  => __('Teacher (Curriculum)'),
-                'Teacher'               => __('Teacher'),
+                'Teacher'               => __n('Teacher', 'Teachers', 1),
                 'Other'                 => __('Other'),
             );
 

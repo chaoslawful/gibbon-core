@@ -1618,7 +1618,7 @@ function renderTTDay($guid, $connection2, $gibbonTTID, $schoolOpen, $startDaySta
 
                             if ($resultTeacher->rowCount() > 0) {
                                 $teachers = $resultTeacher->fetchAll();
-                                $title .= __('Teacher').': '.Format::nameList($teachers, 'Staff', false, false, ', ')."<br/>" ;
+                                $title .= __n('Teacher', 'Teachers', count($teachers)).': '.Format::nameList($teachers, 'Staff', false, false, ', ')."<br/>" ;
                             }
                         }
 

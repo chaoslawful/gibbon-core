@@ -94,7 +94,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Timetable Admin/courseEnro
 			$roles = array(
                 'Student'        => __('Student'),
                 'Student - Left' => __('Student - Left'),
-                'Teacher'        => __('Teacher'),
+                'Teacher'        => __n('Teacher', 'Teachers', 1),
                 'Teacher - Left' => __('Teacher - Left'),
                 'Assistant'      => __('Assistant'),
                 'Technician'     => __('Technician'),

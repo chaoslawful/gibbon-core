@@ -144,7 +144,7 @@ function getBehaviourRecord(ContainerInterface $container, $gibbonPersonID, $gib
                 $table->addColumn('level', __('Level'))->width('15%');
             }
 
-            $table->addColumn('teacher', __('Teacher'))
+            $table->addColumn('teacher', __n('Teacher', 'Teachers', 1))
                 ->context('primary')
                 ->sortable(['preferredNameCreator', 'surnameCreator'])
                 ->width('25%')

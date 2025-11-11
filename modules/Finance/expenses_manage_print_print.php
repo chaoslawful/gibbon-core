@@ -143,7 +143,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_pr
 								</tr>
 								<tr>
 									<td>
-										<b><?php echo __('Title') ?> *</b><br/>
+										<b><?php echo __m('Title') ?> *</b><br/>
 									</td>
 									<td class="right">
 										<input readonly name="name" id="name" maxlength=60 value="<?php echo $row['title']; ?>" type="text" class="standardWidth">
