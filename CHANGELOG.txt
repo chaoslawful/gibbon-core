@@ -93,6 +93,7 @@ v30.0.00
         Activities: fixed Manage Enrolment when participants are part of more than one activity
         Activities: fixed the Activities tab on the parent dashboard to work with new activities system
         Activities: removed activities with registration turned off from sign up list
+        Attendance: fixed Student History display when all seven weekdays are set as school days
         Data Updater: fixed attachments being cleared when new data updates are submitted
         Library: fixed handling of SQL values in Library Browse page
         Markbook: fixed the bug preventing to display user inputs
