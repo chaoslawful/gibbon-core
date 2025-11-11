@@ -89,6 +89,7 @@ v30.0.00
         System: fixed login options not working when using SSO button
         System: fixed login redirect after public registration
         System: fixed redirect logic in Payment class causing unnecessary error logs
+        System: fixed TinyMCE editor not saving content when form is submitted with HTML editor open
         Activities: fixed Manage Enrolment when participants are part of more than one activity
         Activities: fixed the Activities tab on the parent dashboard to work with new activities system
         Activities: removed activities with registration turned off from sign up list
