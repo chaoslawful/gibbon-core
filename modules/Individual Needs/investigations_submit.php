@@ -81,7 +81,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Individual Needs/investiga
             }
         });
 
-    $table->addColumn('teacher', __('Teacher'))
+    $table->addColumn('teacher', __n('Teacher', 'Teachers', 1))
         ->sortable(['preferredNameCreator', 'surnameCreator'])
         ->width('25%')
         ->format(function ($person) {

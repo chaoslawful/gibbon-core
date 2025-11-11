@@ -114,7 +114,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Attendance/report_courseCl
         echo __('History');
         echo '</th>';
         echo '<th>';
-        echo __('Teacher');
+        echo __n('Teacher', 'Teachers', 1);
         echo '</th>';
         echo '</tr>';
 

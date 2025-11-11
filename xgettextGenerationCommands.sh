@@ -172,6 +172,13 @@ do
 
     # Check if PO file exists to determine if we should append
     PO_FILE="$I18N_HOME/$LOCALE/LC_MESSAGES/gibbon.po"
+    
+    # Build array of files to process, handling paths with spaces correctly
+    FILES_ARRAY=()
+    while IFS= read -r -d '' file; do
+        FILES_ARRAY+=("$file")
+    done < <(find . -type f \( -iname "*.php" -o -iname "*.twig.html" \) -print0)
+    
     if [ -f "$PO_FILE" ]; then
         # File exists, use -j to append (join) new entries
         xgettext \
@@ -186,7 +193,7 @@ do
             --package-version="1.0" \
             --msgid-bugs-address="translations@gibbonedu.org" \
             -o "$PO_FILE" \
-            $(find . -type f \( -iname "*.php" -o -iname "*.twig.html" \) | sed 's/ /*/g') \
+            "${FILES_ARRAY[@]}" \
             2>>$LOGFILE >/dev/null
     else
         # File doesn't exist, create new file without -j
@@ -202,7 +209,7 @@ do
             --package-version="1.0" \
             --msgid-bugs-address="translations@gibbonedu.org" \
             -o "$PO_FILE" \
-            $(find . -type f \( -iname "*.php" -o -iname "*.twig.html" \) | sed 's/ /*/g') \
+            "${FILES_ARRAY[@]}" \
             2>>$LOGFILE >/dev/null
     fi
 
@@ -211,6 +218,19 @@ do
 
     # Clean up temporary directory
     rm -rf "$TEMP_DIR"
+
+    # Deduplicate location references in PO file and optionally replace spaces for poedit compatibility
+    if [ -f "$PO_FILE" ]; then
+        SCRIPT_DIR=$(dirname $(realpath "$0"))
+        DEDUP_SCRIPT="$SCRIPT_DIR/scripts/deduplicate_po_locations.pl"
+        if [ -f "$DEDUP_SCRIPT" ]; then
+            # Use --replace-spaces flag to replace spaces with underscores for poedit compatibility
+            perl "$DEDUP_SCRIPT" "$PO_FILE" "$PO_FILE.tmp" --replace-spaces 2>/dev/null
+            if [ -f "$PO_FILE.tmp" ]; then
+                mv "$PO_FILE.tmp" "$PO_FILE"
+            fi
+        fi
+    fi
 
     # Fix PO file header for proper charset and plural forms
     # Only update header if file was just created (not when appending)

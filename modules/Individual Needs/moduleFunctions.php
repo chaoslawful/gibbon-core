@@ -141,7 +141,7 @@ function getInvestigationCriteriaArray($strand)
         );
     } elseif ($strand == 'Memory') {
         $options = array(
-            'The ability to hold and use important information in work­ing mem­ory over a short period of time' => __('The ability to hold and use important information in work­ing mem­ory over a short period of time'),
+            'The ability to hold and use important information in working memory over a short period of time' => __('The ability to hold and use important information in working memory over a short period of time'),
             'The ability to hold several ideas in mind at once' => __('The ability to hold several ideas in mind at once'),
             'The ability to remember what has been learnt in recent lessons' => __('The ability to remember what has been learnt in recent lessons'),
             'The ability to retrieve information from long-term memory' => __('The ability to retrieve information from long-term memory'),
@@ -156,7 +156,7 @@ function getInvestigationCriteriaArray($strand)
         );
     } elseif ($strand == 'Attention') {
         $options = array(
-            'Sus­taining con­cen­tra­tion and attention in lessons' => __('Sus­taining con­cen­tra­tion and attention in lessons'),
+            'Sustaining concentration and attention in lessons' => __('Sustaining concentration and attention in lessons'),
             'Paying attention to relevant information' => __('Paying attention to relevant information'),
             'Shifting attention when needed' => __('Shifting attention when needed'),
             'Monitoring, controlling and self directing aspects of learning for themselves' => __('Monitoring, controlling and self directing aspects of learning for themselves'),
