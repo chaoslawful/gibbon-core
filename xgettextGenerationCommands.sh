@@ -157,7 +157,7 @@ do
     echo -en "* generate locale text file (.po)\r"
     # Create a temporary directory for cleaned files
     TEMP_DIR=$(mktemp -d)
-    
+
     # Copy and clean files with problematic characters
     find . -type f \( -iname "*.php" -o -iname "*.twig.html" \) ! -path "./lib/*" ! -path "./tests/*" ! -path "./vendor/*" ! -path "./.git/*" ! -path "./uploads/*" | while read file; do
         # Create directory structure in temp
@@ -165,36 +165,62 @@ do
         # Clean problematic characters and copy using perl for better Unicode support
         perl -pe 's/\x{00AD}//g; s/\x{201C}/"/g; s/\x{201D}/"/g;' "$file" > "$TEMP_DIR/$file"
     done
-    
+
     # Change to temp directory for xgettext to use relative paths
     OLD_PWD_TEMP=$PWD
     cd "$TEMP_DIR"
-    
-    xgettext \
-        --from-code=utf-8 \
-        --language=PHP \
-        --keyword=__:1 \
-        --keyword=__n:1,2 \
-        --add-comments=TRANSLATORS: \
-        --force-po \
-        --package-name="GibbonEdu Core" \
-        --package-version="1.0" \
-        --msgid-bugs-address="translations@gibbonedu.org" \
-        -o "$I18N_HOME/$LOCALE/LC_MESSAGES/gibbon.po" \
-        $(find . -type f \( -iname "*.php" -o -iname "*.twig.html" \) | sed 's/ /*/g') \
-        2>>$LOGFILE >/dev/null
-    
+
+    # Check if PO file exists to determine if we should append
+    PO_FILE="$I18N_HOME/$LOCALE/LC_MESSAGES/gibbon.po"
+    if [ -f "$PO_FILE" ]; then
+        # File exists, use -j to append (join) new entries
+        xgettext \
+            --from-code=utf-8 \
+            --omit-header -j \
+            --language=PHP \
+            --keyword=__:1 \
+            --keyword=__n:1,2 \
+            --add-comments=TRANSLATORS: \
+            --force-po \
+            --package-name="GibbonEdu Core" \
+            --package-version="1.0" \
+            --msgid-bugs-address="translations@gibbonedu.org" \
+            -o "$PO_FILE" \
+            $(find . -type f \( -iname "*.php" -o -iname "*.twig.html" \) | sed 's/ /*/g') \
+            2>>$LOGFILE >/dev/null
+    else
+        # File doesn't exist, create new file without -j
+        xgettext \
+            --from-code=utf-8 \
+            --omit-header \
+            --language=PHP \
+            --keyword=__:1 \
+            --keyword=__n:1,2 \
+            --add-comments=TRANSLATORS: \
+            --force-po \
+            --package-name="GibbonEdu Core" \
+            --package-version="1.0" \
+            --msgid-bugs-address="translations@gibbonedu.org" \
+            -o "$PO_FILE" \
+            $(find . -type f \( -iname "*.php" -o -iname "*.twig.html" \) | sed 's/ /*/g') \
+            2>>$LOGFILE >/dev/null
+    fi
+
     # Return to original directory
     cd "$OLD_PWD_TEMP"
-    
+
     # Clean up temporary directory
     rm -rf "$TEMP_DIR"
-    
+
     # Fix PO file header for proper charset and plural forms
-    if [ -f "$I18N_HOME/$LOCALE/LC_MESSAGES/gibbon.po" ]; then
-        # Create a temporary file with corrected header
-        TEMP_PO=$(mktemp)
-        cat > "$TEMP_PO" << EOF
+    # Only update header if file was just created (not when appending)
+    if [ -f "$PO_FILE" ]; then
+        # Check if file was just created by checking if it has proper header
+        # If header is missing or incomplete, fix it
+        if ! grep -q "Content-Type: text/plain; charset=UTF-8" "$PO_FILE" 2>/dev/null; then
+            # Create a temporary file with corrected header
+            TEMP_PO=$(mktemp)
+            cat > "$TEMP_PO" << EOF
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the GibbonEdu Core package.
@@ -215,11 +241,12 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\\n"
 
 EOF
-        # Append the rest of the PO file (skip the header)
-        tail -n +17 "$I18N_HOME/$LOCALE/LC_MESSAGES/gibbon.po" >> "$TEMP_PO"
-        mv "$TEMP_PO" "$I18N_HOME/$LOCALE/LC_MESSAGES/gibbon.po"
+            # Append the rest of the PO file (skip the header)
+            tail -n +17 "$PO_FILE" >> "$TEMP_PO"
+            mv "$TEMP_PO" "$PO_FILE"
+        fi
     fi
-    
+
     if [ "$?" -eq 0 ]; then
         echo -e  "* generate locale text file (.po)\t\t\e[32m✓\e[0m"
     else
@@ -230,7 +257,7 @@ EOF
     echo -en "* generate locale binary file (.mo)\r"
     msgfmt --check-header --check-domain -v \
         -o "$I18N_HOME/$LOCALE/LC_MESSAGES/gibbon.mo" \
-        "$I18N_HOME/$LOCALE/LC_MESSAGES/gibbon.po" \
+        "$PO_FILE" \
         2>>$LOGFILE >/dev/null
     if [ "$?" -eq 0 ]; then
         echo -e  "* generate locale binary file (.mo)\t\t\e[32m✓\e[0m"
