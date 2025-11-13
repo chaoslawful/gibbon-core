@@ -307,7 +307,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_add.php') 
                     }
                     while ($rowClassGroup = $resultClassGroup->fetch()) {
                         if ($rowClassGroup['gibbonPersonID'] != $session->get('gibbonPersonID')) {
-                            $notificationSender->addNotification($rowClassGroup['gibbonPersonID'], sprintf(__('Lesson “%1$s” has been created.'), $name), "Planner", "/index.php?q=/modules/Planner/planner_view_full.php&gibbonPlannerEntryID=$AI&viewBy=class&gibbonCourseClassID=$gibbonCourseClassID");
+                            $notificationSender->addNotification($rowClassGroup['gibbonPersonID'], sprintf(__('Lesson "%1$s" has been created.'), $name), "Planner", "/index.php?q=/modules/Planner/planner_view_full.php&gibbonPlannerEntryID=$AI&viewBy=class&gibbonCourseClassID=$gibbonCourseClassID");
                         }
                     }
                     $notificationSender->sendNotifications();

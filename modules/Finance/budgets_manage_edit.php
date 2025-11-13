@@ -98,7 +98,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/budgets_manage_edi
 
                 $header = $table->addHeaderRow();
                 $header->addContent(__('Name'));
-                $header->addContent(__('Access'));
+                $header->addContent(__m('Access'));
                 $header->addContent(__('Action'));
 
                 while ($staff = $results->fetch()) {
@@ -116,12 +116,12 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/budgets_manage_edi
                 $row->addSelectStaff('staff')->selectMultiple();
 
             $access = array(
-                "Full" => __("Full"),
-                "Write" => __("Write"),
-                "Read" => __("Read")
+                "Full" => __m("Full"),
+                "Write" => __m("Write"),
+                "Read" => __m("Read")
             );
             $row = $form->addRow();
-                $row->addLabel('access', __('Access'));
+                $row->addLabel('access', __m('Access'));
                 $row->addSelect('access')->fromArray($access);
 
             $form->loadAllValuesFrom($values);
