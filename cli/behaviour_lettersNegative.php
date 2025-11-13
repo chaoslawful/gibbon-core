@@ -224,8 +224,7 @@ if (!(isCommandLineInterface() OR ($remoteCLIKey != '' AND $remoteCLIKey == $rem
 
                                 if (!empty($gibbonBehaviourLetterID)) {
                                     //Notify tutor(s)
-                                    $notificationText = sprintf(__('A warning has been issued for a student (%1$s) in your form group,
-                                     pending a behaviour letter.'), $studentName);
+                                    $notificationText = sprintf(__('A warning has been issued for a student (%1$s) in your form group, pending a behaviour letter.'), $studentName);
                                     if ($student['gibbonPersonIDTutor'] != '') {
                                         $notificationSender->addNotification($student['gibbonPersonIDTutor'], $notificationText, 'Behaviour', '/index.php?q=/modules/Behaviour/behaviour_letters.php&gibbonPersonID='.$student['gibbonPersonID']);
                                     }

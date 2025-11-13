@@ -163,7 +163,8 @@ do
         # Create directory structure in temp
         mkdir -p "$TEMP_DIR/$(dirname "$file")"
         # Clean problematic characters and copy using perl for better Unicode support
-        perl -pe 's/\x{00AD}//g; s/\x{201C}/"/g; s/\x{201D}/"/g;' "$file" > "$TEMP_DIR/$file"
+        # Remove soft hyphens, replace smart quotes with regular quotes, remove \r characters
+        perl -pe 's/\x{00AD}//g; s/\x{201C}/"/g; s/\x{201D}/"/g; s/\r//g;' "$file" > "$TEMP_DIR/$file"
     done
 
     # Change to temp directory for xgettext to use relative paths
@@ -232,15 +233,61 @@ do
         fi
     fi
 
-    # Fix PO file header for proper charset and plural forms
-    # Only update header if file was just created (not when appending)
+    # Remove duplicate empty msgid entries (keep only the first one in header)
     if [ -f "$PO_FILE" ]; then
-        # Check if file was just created by checking if it has proper header
-        # If header is missing or incomplete, fix it
-        if ! grep -q "Content-Type: text/plain; charset=UTF-8" "$PO_FILE" 2>/dev/null; then
-            # Create a temporary file with corrected header
-            TEMP_PO=$(mktemp)
-            cat > "$TEMP_PO" << EOF
+        # Use perl to remove duplicate empty msgid entries
+        # Keep the first msgid "" (header) and remove all subsequent ones
+        perl -i -0777 -pe '
+            # Split by msgid "" entries
+            my @parts = split(/(?=^msgid ""$)/m, $_);
+            my $result = "";
+            my $first = 1;
+            foreach my $part (@parts) {
+                if ($part =~ /^msgid ""$/m) {
+                    if ($first) {
+                        # Keep first occurrence (header)
+                        $result .= $part;
+                        $first = 0;
+                    } else {
+                        # Remove subsequent empty msgid entries
+                        # Remove msgid "" and its msgstr "" and following blank line
+                        $part =~ s/^msgid ""\nmsgstr ""\n\n?//m;
+                        $result .= $part;
+                    }
+                } else {
+                    $result .= $part;
+                }
+            }
+            $_ = $result;
+        ' "$PO_FILE"
+    fi
+
+    # Fix PO file header for proper charset and plural forms
+    # Ensure charset is always set correctly
+    if [ -f "$PO_FILE" ]; then
+        # Check if charset is missing or incorrect
+        if ! grep -q "Content-Type: text/plain; charset=UTF-8" "$PO_FILE" 2>/dev/null || ! grep -q "charset=UTF-8" "$PO_FILE" 2>/dev/null; then
+            # Use perl to fix the charset in the header msgstr
+            perl -i -pe '
+                if (/^msgstr ""$/) {
+                    $in_msgstr = 1;
+                }
+                if ($in_msgstr && /^"Content-Type: text\/plain; charset=/) {
+                    s/charset=[^"\\n]+/charset=UTF-8/;
+                }
+                if ($in_msgstr && /^"Content-Type: text\/plain;\\n"$/) {
+                    # Missing charset, add it
+                    s/"Content-Type: text\/plain;\\n"/"Content-Type: text\/plain; charset=UTF-8\\n"/;
+                }
+                if ($in_msgstr && /^"Plural-Forms:/) {
+                    $in_msgstr = 0;
+                }
+            ' "$PO_FILE"
+            
+            # If still no charset found, rebuild header
+            if ! grep -q "charset=UTF-8" "$PO_FILE" 2>/dev/null; then
+                TEMP_PO=$(mktemp)
+                cat > "$TEMP_PO" << EOF
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the GibbonEdu Core package.
@@ -261,9 +308,10 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\\n"
 
 EOF
-            # Append the rest of the PO file (skip the header)
-            tail -n +17 "$PO_FILE" >> "$TEMP_PO"
-            mv "$TEMP_PO" "$PO_FILE"
+                # Append the rest of the PO file (skip the header)
+                tail -n +17 "$PO_FILE" >> "$TEMP_PO"
+                mv "$TEMP_PO" "$PO_FILE"
+            fi
         fi
     fi
 

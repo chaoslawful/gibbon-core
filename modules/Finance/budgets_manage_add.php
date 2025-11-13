@@ -76,12 +76,12 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/budgets_manage_add
         $row->addSelectStaff('staff')->selectMultiple();
 
     $access = array(
-        "Full" => __("Full"),
-        "Write" => __("Write"),
-        "Read" => __("Read")
+        "Full" => __m("Full"),
+        "Write" => __m("Write"),
+        "Read" => __m("Read")
     );
     $row = $form->addRow();
-        $row->addLabel('access', __('Access'));
+        $row->addLabel('access', __m('Access'));
         $row->addSelect('access')->fromArray($access);
 
     $row = $form->addRow();
