@@ -81,6 +81,7 @@ class CalendarEventNotificationProcess extends BackgroundProcess
     public function runNotifyStaff($gibbonCalendarEventID, $subject, $notes, $notifyGroups, $allStaff, $notificationList, $gibbonPersonIDSender, $gibbonSchoolYearID, $organisationEmail)
     {
         $staff = [];
+        $staffContexts = [];
         $staffStudentContext = [];
         $event = $this->calendarEventGateway->getByID($gibbonCalendarEventID);
 
@@ -98,7 +99,7 @@ class CalendarEventNotificationProcess extends BackgroundProcess
 
             foreach ($results as $result) {
                 $staff[] = $result['gibbonPersonID'];
-            }            
+            }    
         } else {
             if (!empty($notifyGroups)) {
                 foreach ($students as $student) {
@@ -110,10 +111,11 @@ class CalendarEventNotificationProcess extends BackgroundProcess
                         $gibbonPersonIDHOY = $yearGroup['gibbonPersonIDHOY'] ?? null;
                         if (!empty($gibbonPersonIDHOY)) {
                             $staff[] = $gibbonPersonIDHOY;
+                            $staffContexts[$gibbonPersonIDHOY][] = __('Head of Year');
 
                             // Record Relation
-                            if (!isset($staffStudentContext[$gibbonPersonIDHOY][$gibbonPersonIDStudent]['context']) || !in_array('HOY', $staffStudentContext[$gibbonPersonIDHOY][$gibbonPersonIDStudent]['context'])) {
-                                $staffStudentContext[$gibbonPersonIDHOY][$gibbonPersonIDStudent]['context'][] = 'HOY';
+                            if (!isset($staffStudentContext[$gibbonPersonIDHOY][$gibbonPersonIDStudent]['context']) || !in_array('Head of Year', $staffStudentContext[$gibbonPersonIDHOY][$gibbonPersonIDStudent]['context'])) {
+                                $staffStudentContext[$gibbonPersonIDHOY][$gibbonPersonIDStudent]['context'][] = 'Head of Year';
                             }
                         }
                     }
@@ -130,6 +132,7 @@ class CalendarEventNotificationProcess extends BackgroundProcess
                         foreach ($tutorIDs as $gibbonPersonIDTutor) {
                             if (empty($gibbonPersonIDTutor)) continue;
                             $staff[] = $gibbonPersonIDTutor;
+                            $staffContexts[$gibbonPersonIDTutor][] = __('Form Tutor');
 
                             // Record Relation
                             if (!isset($staffStudentContext[$gibbonPersonIDTutor][$gibbonPersonIDStudent]['context']) || !in_array('Form Tutor', $staffStudentContext[$gibbonPersonIDTutor][$gibbonPersonIDStudent]['context'])) {
@@ -146,6 +149,7 @@ class CalendarEventNotificationProcess extends BackgroundProcess
 
                             if (empty($gibbonPersonIDTeacher)) continue;
                             $staff[] = $gibbonPersonIDTeacher;
+                            $staffContexts[$gibbonPersonIDTeacher][] = __('Class Teacher');
 
                             // Record relation
                             if (!isset($staffStudentContext[$gibbonPersonIDTeacher][$gibbonPersonIDStudent]['context']) || !in_array('Class Teacher', $staffStudentContext[$gibbonPersonIDTeacher][$gibbonPersonIDStudent]['context'])) {
@@ -161,10 +165,11 @@ class CalendarEventNotificationProcess extends BackgroundProcess
 
                             if (empty($gibbonPersonIDAssistant)) continue; 
                             $staff[] = $gibbonPersonIDAssistant;
+                            $staffContexts[$gibbonPersonIDAssistant][] = __('Educational Assistant');
 
                             // Record Relation
-                            if (!isset($staffStudentContext[$gibbonPersonIDAssistant][$gibbonPersonIDStudent]['context']) || !in_array('LSA', $staffStudentContext[$gibbonPersonIDAssistant][$gibbonPersonIDStudent]['context'])) {
-                                $staffStudentContext[$gibbonPersonIDAssistant][$gibbonPersonIDStudent]['context'][] = 'LSA';
+                            if (!isset($staffStudentContext[$gibbonPersonIDAssistant][$gibbonPersonIDStudent]['context']) || !in_array('Educational Assistant', $staffStudentContext[$gibbonPersonIDAssistant][$gibbonPersonIDStudent]['context'])) {
+                                $staffStudentContext[$gibbonPersonIDAssistant][$gibbonPersonIDStudent]['context'][] = 'Educational Assistant';
                             }
                         }
                     }
@@ -172,40 +177,41 @@ class CalendarEventNotificationProcess extends BackgroundProcess
             }
 
             if (!empty($notificationList)) {
-                foreach ($notificationList as $gibbonPersonIDNotify) {
-                    // Add the staff
-                    $staff[] = $gibbonPersonIDNotify;
-                }
+                $staff = array_merge($staff, $notificationList);
             }
         }
 
         $staffPersonIDs = isset($staff) ? array_values(array_filter(array_unique($staff))) : [];
+
+        // Ensure the sender receives a copy
+        array_push($staffPersonIDs, $gibbonPersonIDSender);
+        $staffContexts[$gibbonPersonIDSender][] = __('Sender');
+
         $staffDetails = $this->userGateway->selectNotificationDetailsByPerson($staffPersonIDs)->fetchAll();
 
         $this->mail->SMTPKeepAlive = true;
 
-        $sender = $this->userGateway->getByID($gibbonPersonIDSender);
+        $sender = $this->userGateway->getByID($gibbonPersonIDSender, ['gibbonPersonID', 'title', 'preferredName', 'surname', 'email']);
         $replyTo = $sender['email'];
         $replyToName = Format::name($sender['title'], $sender['preferredName'], $sender['surname'], 'Staff');
         $sendReport = ['emailSent' => 0, 'emailFailed' => 0, 'emailErrors' => ''];
 
         foreach ($staffDetails as $staffDetail) {
+            if (empty($staffDetail['email'])) continue;
+
             $gibbonPersonIDTeacher = $staffDetail['gibbonPersonID'];
 
             // Get the relevant students of this staff
-            $relevantStudents = [];
-            foreach ($students as $student) {
+            $relevantStudents = 0;
+            foreach ($students as $index => $student) {
                 $gibbonPersonIDStudent = $student['gibbonPersonID'];
                 if (isset($staffStudentContext[$gibbonPersonIDTeacher][$gibbonPersonIDStudent]['context'])) {
                     // Get all the roles for this student-teacher pair
                     $contextLabels = implode(', ', $staffStudentContext[$gibbonPersonIDTeacher][$gibbonPersonIDStudent]['context']);
-                    $relevantStudents[] = array_merge($student, [
-                        'context' => $contextLabels
-                    ]);
+                    $students[$index]['context'] = $contextLabels;
+                    $relevantStudents++;
                 } else {
-                    $relevantStudents[] = array_merge($student, [
-                        'context' => $allStaff == 'Y' ? 'All Staff' : 'Other',
-                    ]);
+                    $students[$index]['context'] = '';
                 }
             }
 
@@ -214,22 +220,23 @@ class CalendarEventNotificationProcess extends BackgroundProcess
         
             // Generate content from template
             $content = $this->view->fetchFromTemplate('calendarEvents.twig.html', [
-                'students' => $relevantStudents,
-                'event' => $event ?? [],
-                'notes' => $notes ?? '',
+                'students' => $students,
+                'sender'   => $sender,
+                'allStaff' => $allStaff,
+                'contexts' => !empty($staffContexts[$gibbonPersonIDTeacher]) ? implode(', ', $staffContexts[$gibbonPersonIDTeacher]) : '',
+                'relevant' => $relevantStudents,
+                'event'    => $event ?? [],
+                'notes'    => $notes ?? '',
             ]);
 
-
-            $body = sprintf(__('Dear %1$s'), $staffDetail['preferredName'].' '.$staffDetail['surname']).',<br/><br/>';
-            $body .= $content;
 
             $this->mail->AddReplyTo($replyTo ?? $organisationEmail, $replyToName ?? '');
             $this->mail->AddAddress($staffDetail['email'], $staffDetail['surname'].', '.$staffDetail['preferredName']);
 
             $this->mail->setDefaultSender($subject);
             $this->mail->renderBody('mail/message.twig.html', [
-                'title'  => $event['name'],
-                'body'   => $body,
+                'title'  => $subject,
+                'body'   => $content,
                 'button' => [
                     'url'  => $buttonURL,
                     'text' => __('View Details'),

@@ -68,7 +68,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ed
     // NOTES
     $form->addRow()->addHeading('Message Details', __('Message Details'));
 
-    $subject = __('Event').': '. $values['name'] . ($values['allDay'] != 'Y' ? ', ' .Format::dateRangeReadable($values['dateStart'], $values['dateEnd']) : '');
+    $subject = $values['name'] . ($values['allDay'] != 'Y' ? ', ' .Format::dateRangeReadable($values['dateStart'], $values['dateEnd']) : '');
     $col = $form->addRow()->addColumn();
         $col->addLabel('subject', __('Subject'));
         $col->addTextField('subject')->maxLength(120)->setValue($subject);
