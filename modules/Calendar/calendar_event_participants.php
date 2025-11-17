@@ -26,6 +26,8 @@ use Gibbon\Domain\Calendar\CalendarGateway;
 use Gibbon\Domain\Calendar\CalendarEventGateway;
 use Gibbon\Domain\Calendar\CalendarEventTypeGateway;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
+use Gibbon\Domain\Attendance\AttendanceLogPersonGateway;
+use Gibbon\Support\Facades\Access;
 
 if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_participants.php') == false) {
     // Access denied
@@ -39,11 +41,12 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
         return;
     }
 
+    $calendarGateway = $container->get(CalendarGateway::class);
     $calendarEventGateway = $container->get(CalendarEventGateway::class);
     $calendarEventPersonGateway = $container->get(CalendarEventPersonGateway::class);
-    $calendarGateway = $container->get(CalendarGateway::class);
     $calendarEventTypeGateway = $container->get(CalendarEventTypeGateway::class);
-    
+    $attendanceLogGateway = $container->get(AttendanceLogPersonGateway::class);
+
     $page->breadcrumbs
         ->add(__('Manage Event'), 'calendar_event_manage.php')
         ->add(__('Participants'));
@@ -54,13 +57,30 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
         return;
     }
 
+    $isEventOwner = $session->get('gibbonPersonID') == $event['gibbonPersonIDCreated'] || $session->get('gibbonPersonID') == $event['gibbonPersonIDOrganiser'];
+
     // FORM
     $form = Form::create('eventEnrolment', $session->get('absoluteURL').'/index.php');
 
-     $form->addHeaderAction('view', __('View Event'))
+    $form->addHeaderAction('view', __('View Event'))
         ->setURL('/modules/Calendar/calendar_event_view.php')
         ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
         ->displayLabel();
+
+    if (Access::allows('Calendar', 'calendar_event_edit') && $isEventOwner) {
+        $form->addHeaderAction('edit', __('Edit Event'))
+            ->setURL('/modules/Calendar/calendar_event_edit.php')
+            ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
+            ->displayLabel();
+    }
+
+    if (Access::allows('Calendar', 'calendar_event_edit') && $isEventOwner) {
+        $form->addHeaderAction('notify', __('Notify Staff'))
+            ->setURL('/modules/Calendar/calendar_event_notify.php')
+            ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
+            ->setIcon('notify')
+            ->displayLabel();
+    }
 
     $calendars = $calendarGateway->selectCalendarsBySchoolYear($session->get('gibbonSchoolYearID'))->fetchKeyPair();
     $row = $form->addRow();
@@ -91,6 +111,16 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
 
     $participants = $calendarEventPersonGateway->queryEventAttendees($criteria, $gibbonCalendarEventID);
 
+    // Query all attendance logs for future absence records on the event date and time
+    $futureAbsences = $event['allDay'] == 'Y'
+        ? $attendanceLogGateway->selectFutureAttendanceLogsByDate($event['dateStart'], $event['dateEnd'])->fetchGroupedUnique()
+        : $attendanceLogGateway->selectFutureAttendanceLogsByDateAndTime($event['dateStart'], $event['dateEnd'], $event['timeStart'], $event['timeEnd'])->fetchGroupedUnique();
+
+    $futureAbsenceStudents = array_reduce($participants->toArray(), function ($group, $item) {
+        if ($item['roleCategory'] == 'Student') $group[] = $item['gibbonPersonID'];
+        return $group;
+    }, []);
+
     // BULK ACTION FORM
     $form = BulkActionForm::create('bulkAction', $session->get('absoluteURL').'/modules/Calendar/calendar_event_participantsProcessBulk.php');
     $form->addHiddenValue('gibbonCalendarEventID', $gibbonCalendarEventID);
@@ -106,15 +136,26 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
 
     $table->addMetaData('bulkActions', $col);
 
+    if (Access::allows('Attendance', 'attendance_take_adHoc') && $isEventOwner) {
+        $table->addHeaderAction('setFutureAbsence', __('Set Future Absence'))
+            ->setURL('/modules/Attendance/attendance_future_byPerson.php')
+            ->addParams([
+                'scope'              => 'multiple',
+                'target'             => 'Select',
+                'absenceType'        => $event['allDay'] == 'Y' ? 'full' : 'partial',
+                'date'               => $event['dateStart'],
+                'timeStart'          => $event['timeStart'],
+                'timeEnd'            => $event['timeEnd'],
+                'gibbonPersonIDList' => implode(',', $futureAbsenceStudents),
+            ])
+            ->setIcon('user-plus')
+            ->setAttribute('target', '_blank')
+            ->displayLabel();
+    }
+
     $table->addHeaderAction('add', __('Add Participants'))
         ->setURL('/modules/Calendar/calendar_event_participants_add.php')
         ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
-        ->displayLabel();
-
-    $form->addHeaderAction('notify', __('Notify Staff'))
-        ->setURL('/modules/Calendar/calendar_event_notify.php')
-        ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
-        ->setIcon('notify')
         ->displayLabel();
 
     $table->addColumn('image_240', __('Photo'))
@@ -133,7 +174,19 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
 
     $table->addColumn('role', __('Event Role'));
 
-    $table->addColumn('timestampCreated', __('Timestamp'))->format(Format::using('dateTime', 'timestampCreated'));
+    $table->addColumn('timestampCreated', __('Added On'))->format(Format::using('dateTime', 'timestampCreated'));
+
+    $table->addColumn('futureAbsenceStatus', __('Future Absence'))
+        ->format(function ($values) use ($futureAbsences) {
+            if ($values['roleCategory'] != 'Student') return '';
+            if (isset($futureAbsences[$values['gibbonPersonID']]) && !empty($futureAbsences[$values['gibbonPersonID']])) {
+                $absenceType = $futureAbsences[$values['gibbonPersonID']]['type'] ?? '';
+                $absenceReason = $futureAbsences[$values['gibbonPersonID']]['reason'] ?? '';
+                $absenceComment = $futureAbsences[$values['gibbonPersonID']]['comment'] ?? '';
+                return Format::tag(__($absenceType), 'success', !empty($absenceComment) ? $absenceReason.': '.$absenceComment : $absenceReason  );
+            }
+            return Format::tag(__('N/A'), 'dull');
+        });
 
     // ACTIONS
     $table->addActionColumn()

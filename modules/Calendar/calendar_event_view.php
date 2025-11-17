@@ -28,7 +28,8 @@ use Gibbon\Domain\Calendar\CalendarGateway;
 use Gibbon\Domain\Calendar\CalendarEventGateway;
 use Gibbon\Domain\Calendar\CalendarEventTypeGateway;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
-use Gibbon\Domain\Attendance\AttendanceLogPersonGateway;
+use Gibbon\Support\Facades\Access;
+use Gibbon\Tables\DataTable;
 
 if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_view.php')) {
 	$page->addError(__('You do not have access to this action.'));
@@ -40,33 +41,37 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
 
     $gibbonCalendarEventID = $_GET['gibbonCalendarEventID'] ?? '';
 
+    $calendarGateway = $container->get(CalendarGateway::class);
     $calendarEventGateway = $container->get(CalendarEventGateway::class);
     $calendarEventPersonGateway = $container->get(CalendarEventPersonGateway::class);
-    $calendarGateway = $container->get(CalendarGateway::class);
     $calendarEventTypeGateway = $container->get(CalendarEventTypeGateway::class);
 
-     // Get event details
+    // Get event details
     $event = $calendarEventGateway->getByID($gibbonCalendarEventID);
     if (!empty($gibbonCalendarEventID) && empty($event)) {
         $page->addError(__('The specified record cannot be found.'));
         return;
     }
     $organiser = $container->get(UserGateway::class)->getByID($event['gibbonPersonIDOrganiser'], ['preferredName', 'surname']);
+    $isEventOwner = $session->get('gibbonPersonID') == $event['gibbonPersonIDCreated'] || $session->get('gibbonPersonID') == $event['gibbonPersonIDOrganiser'];
 
     $form = Form::create('viewEvent', '');
     $form->setFactory(DatabaseFormFactory::create($pdo));
 
-    $form->addHeaderAction('participants', __('Participants'))
-        ->setURL('/modules/Calendar/calendar_event_participants.php')
-        ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
-        ->setIcon('attendance')
-        ->displayLabel();
+    if (Access::allows('Calendar', 'calendar_event_edit') && $isEventOwner) {
+        $form->addHeaderAction('edit', __('Edit Event'))
+            ->setURL('/modules/Calendar/calendar_event_edit.php')
+            ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
+            ->displayLabel();
+    }
 
-    $form->addHeaderAction('notify', __('Notify Staff'))
-        ->setURL('/modules/Calendar/calendar_event_notify.php')
-        ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
-        ->setIcon('notify')
-        ->displayLabel();
+    if (Access::allows('Calendar', 'calendar_event_edit') && $isEventOwner) {
+        $form->addHeaderAction('notify', __('Notify Staff'))
+            ->setURL('/modules/Calendar/calendar_event_notify.php')
+            ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
+            ->setIcon('notify')
+            ->displayLabel();
+    }
         
     $form->addRow()->addHeading(__('Basic Information'));
 
@@ -164,31 +169,23 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
         
     $participants = $calendarEventPersonGateway->queryAllEventParticipants($criteria, $gibbonCalendarEventID);
 
-    // Query all attendance logs for futire absence records on the event date and time
-    $futureAbsenceRecords = [];
-    if ($event['allDay'] == 'Y') {
-        $futureAbsenceRecords = $container->get(AttendanceLogPersonGateway::class)->selectFutureAttendanceLogsByDate($event['dateStart'], $event['dateEnd'])->fetchAll();
-    } else {
-        $futureAbsenceRecords = $container->get(AttendanceLogPersonGateway::class)->selectFutureAttendanceLogsByDateAndTime($event['dateStart'], $event['dateEnd'], $event['timeStart'], $event['timeEnd'])->fetchAll();
-    }
-    $futureAbsences = [];
-    if (!empty($futureAbsenceRecords)) {
-        foreach ($futureAbsenceRecords as $absence) {
-            $futureAbsences[$absence['gibbonPersonID']] = $absence;
-        }
-    }
-
-    // BULK ACTION FORM
-    $form = Form::create('participants', '');
-
     // DATA TABLE FOR ALL PARTICIPANTS
-    $table = $form->addRow()->addDataTable('participants', $criteria)->withData($participants);
+    $table = DataTable::createPaginated('participants', $criteria)->withData($participants);
     $table->setTitle(__('All Participants'));
 
-    $table->addHeaderAction('setFutureAbsence', __('Set Future Absence'))
-        ->setURL('/modules/Attendance/attendance_future_byPerson.php')
-        ->setIcon('planner')
-        ->displayLabel();
+    if (Access::allows('Calendar', 'calendar_event_participants')) {
+        $table->addHeaderAction('participants', __('Participants'))
+            ->setURL('/modules/Calendar/calendar_event_participants.php')
+            ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
+            ->setIcon('attendance')
+            ->displayLabel();
+    }
+
+    $table->addColumn('image_240', __('Photo'))
+        ->context('primary')
+        ->width('7%')
+        ->notSortable()
+        ->format(Format::using('userPhoto', ['image_240', 'xs']));
 
     $table->addColumn('name', __('Name'))
         ->sortable(['surname', 'preferredName'])
@@ -200,18 +197,8 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
 
     $table->addColumn('role', __('Event Role'));
 
-    $table->addColumn('timestampCreated', __('Added on'))->format(Format::using('dateTime', 'timestampCreated'));
+    // $table->addColumn('timestampCreated', __('Added on'))->format(Format::using('dateTime', 'timestampCreated'));
 
-    $table->addColumn('futureAbsenceStatus', __('Future Absence'))
-    ->format(function ($row) use ($futureAbsences) {
-        if (isset($futureAbsences[$row['gibbonPersonID']]) && !empty($futureAbsences[$row['gibbonPersonID']])) {
-            $absenceType =$futureAbsences[$row['gibbonPersonID']]['type'] ?? '';
-            $absenceReason =$futureAbsences[$row['gibbonPersonID']]['reason'] ?? '';
-            return Format::tag(__($absenceReason ? $absenceType . ' , ' . $absenceReason : $absenceType), 'success');
-        }
-        return Format::tag(__('N/A'), 'dull');
-    });
-
-    echo $form->getOutput();
+    echo $table->getOutput();
 }
 ?>
