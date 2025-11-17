@@ -87,6 +87,21 @@ class CalendarEventPersonGateway extends QueryableGateway
 
         return $this->runSelect($select);
     }
+
+    public function selectEventParticipantConflicts($gibbonCalendarEventID) {
+        $select = $this
+            ->newSelect()
+            ->cols(['otherPerson.gibbonPersonID as groupBy', 'otherPerson.gibbonPersonID', 'otherEvent.name as event', 'otherPerson.role', 'otherEvent.gibbonCalendarEventID'])
+            ->from('gibbonCalendarEvent')
+            ->innerJoin('gibbonCalendarEvent as otherEvent', 'otherEvent.gibbonCalendarEventID <> gibbonCalendarEvent.gibbonCalendarEventID AND ((otherEvent.dateStart >= gibbonCalendarEvent.dateStart AND otherEvent.dateStart <= gibbonCalendarEvent.dateEnd) OR (gibbonCalendarEvent.dateStart >= otherEvent.dateStart AND gibbonCalendarEvent.dateStart <= otherEvent.dateEnd))')
+            ->innerJoin('gibbonCalendarEventPerson as eventPerson', 'eventPerson.gibbonCalendarEventID=gibbonCalendarEvent.gibbonCalendarEventID')
+            ->innerJoin('gibbonCalendarEventPerson as otherPerson', 'otherPerson.gibbonCalendarEventID=otherEvent.gibbonCalendarEventID AND eventPerson.gibbonPersonID=otherPerson.gibbonPersonID')
+            ->where('gibbonCalendarEvent.gibbonCalendarEventID = :gibbonCalendarEventID')
+            ->where('((otherEvent.timeStart >= gibbonCalendarEvent.timeStart AND otherEvent.timeStart < gibbonCalendarEvent.timeEnd) OR (gibbonCalendarEvent.timeStart >= otherEvent.timeStart AND gibbonCalendarEvent.timeStart < otherEvent.timeEnd) OR (otherEvent.allDay <> gibbonCalendarEvent.allDay))')
+            ->bindValue('gibbonCalendarEventID', $gibbonCalendarEventID);
+
+        return $this->runSelect($select);
+    }
     
     public function selectTargetParticipants($gibbonSchoolYearID, $targetStudents, $targetID)
     {

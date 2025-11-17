@@ -43,7 +43,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
             return;
         }
         
-        $form = DeleteForm::createForm($session->get('absoluteURL').'/modules/Calendar/calendar_event_participants_deleteProcess.php', true, false);
+        $form = DeleteForm::createForm($session->get('absoluteURL').'/modules/Calendar/calendar_event_participants_deleteProcess.php', false, false);
         $form->addHiddenValue('gibbonCalendarEventPersonID', $gibbonCalendarEventPersonID);
         $form->addHiddenValue('gibbonPersonID', $gibbonPersonID);
         $form->addHiddenValue('gibbonCalendarEventID', $gibbonCalendarEventID);

@@ -28,6 +28,7 @@ use Gibbon\Domain\Calendar\CalendarEventTypeGateway;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
 use Gibbon\Domain\Attendance\AttendanceLogPersonGateway;
 use Gibbon\Support\Facades\Access;
+use Gibbon\Http\Url;
 
 if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_participants.php') == false) {
     // Access denied
@@ -121,6 +122,9 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
         return $group;
     }, []);
 
+    // Find conflicts with any other events
+    $conflicts = $calendarEventPersonGateway->selectEventParticipantConflicts($gibbonCalendarEventID)->fetchGroupedUnique();
+
     // BULK ACTION FORM
     $form = BulkActionForm::create('bulkAction', $session->get('absoluteURL').'/modules/Calendar/calendar_event_participantsProcessBulk.php');
     $form->addHiddenValue('gibbonCalendarEventID', $gibbonCalendarEventID);
@@ -165,16 +169,24 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
         ->format(Format::using('userPhoto', ['image_240', 'xs']));
 
     $table->addColumn('name', __('Name'))
+        ->description(__('Role'))
         ->sortable(['surname', 'preferredName'])
-        ->format(Format::using('nameLinked', ['gibbonPersonID', '', 'preferredName', 'surname', 'roleCategory', true, true]));
+        ->format(Format::using('nameLinked', ['gibbonPersonID', '', 'preferredName', 'surname', 'roleCategory', true, true]))
+        ->formatDetails(function ($values) {
+            return Format::small($values['roleCategory']);
+        });
 
     $table->addColumn('formGroup', __('Form Group'));
 
-    $table->addColumn('roleCategory', __('Role'));
-
-    $table->addColumn('role', __('Event Role'));
-
-    $table->addColumn('timestampCreated', __('Added On'))->format(Format::using('dateTime', 'timestampCreated'));
+    $table->addColumn('role', __('Event Role'))
+        ->description(__('Added On'))
+        ->format(function ($values) {
+            $status = $values['role'] != 'Attendee' ? 'message' : 'dull';
+            return Format::tag(__($values['role']), $status);
+        })
+        ->formatDetails(function ($values) {
+            return Format::small(Format::dateTime($values['timestampCreated']));
+        });
 
     $table->addColumn('futureAbsenceStatus', __('Future Absence'))
         ->format(function ($values) use ($futureAbsences) {
@@ -187,6 +199,17 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
             }
             return Format::tag(__('N/A'), 'dull');
         });
+
+    if (!empty($conflicts)) {
+        $table->addColumn('conflict', __('Status'))
+            ->format(function ($values) use ($conflicts) {
+                if (empty($conflicts[$values['gibbonPersonID']])) return '';
+
+                $conflict = $conflicts[$values['gibbonPersonID']];
+                $url = Url::fromModuleRoute('Calendar', 'calendar_event_view')->withQueryParams(['gibbonCalendarEventID' => $conflict['gibbonCalendarEventID']]);
+                return Format::link($url, Format::tag(__('Conflict'), 'warning', $conflict['event']));
+            });
+    }
 
     // ACTIONS
     $table->addActionColumn()

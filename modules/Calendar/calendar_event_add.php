@@ -31,6 +31,10 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
         ->add(__('Manage Events'), 'calendar_event_manage.php')
         ->add(__('Add Event'));
 
+    if (isset($_GET['editID'])) {
+        $page->return->setEditLink($session->get('absoluteURL').'/index.php?q=/modules/Calendar/calendar_event_edit.php&gibbonCalendarEventID='.$_GET['editID']);
+    }
+
     $calendarGateway = $container->get(CalendarGateway::class);
     $calendarEventTypeGateway = $container->get(CalendarEventTypeGateway::class);
 
