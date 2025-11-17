@@ -25,7 +25,7 @@ v30.0.00
     Headlines
         Added a new Calendar module to display events on the timetable
         Added a new Student Alerts module to manage automatic and manual alerts
-        Catalan, Japanese and Portugese are now available interface languages
+        Catalan, Japanese and Portuguese are now available interface languages
 
     Security
 
