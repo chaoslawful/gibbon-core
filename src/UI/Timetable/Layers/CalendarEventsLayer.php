@@ -25,6 +25,7 @@ use Gibbon\Http\Url;
 use Gibbon\Support\Facades\Access;
 use Gibbon\UI\Timetable\TimetableContext;
 use Gibbon\Domain\Calendar\CalendarEventGateway;
+use Gibbon\Contracts\Services\Session;
 
 /**
  * Timetable UI: CalendarEventsLayer
@@ -34,20 +35,48 @@ use Gibbon\Domain\Calendar\CalendarEventGateway;
  */
 class CalendarEventsLayer extends AbstractTimetableLayer
 {
+    protected $session;
     protected $calendarEventGateway;
+    protected $calendar;
 
-    public function __construct(CalendarEventGateway $calendarEventGateway)
+    public function __construct(Session $session, CalendarEventGateway $calendarEventGateway)
     {
+        $this->session = $session;
         $this->calendarEventGateway = $calendarEventGateway;
 
         $this->name = 'Events';
         $this->color = 'green';
+        $this->type = 'calendar';
         $this->order = 10;
+    }
+
+    public function setCalendar(array $calendar)
+    {
+        $this->calendar = $calendar;
+        $this->name = $calendar['name'];
+        $this->color = $calendar['color'];
+        $this->type = 'calendar';
+        $this->order = 10 + $calendar['sequenceNumber'];
+
+        return $this;
+    }
+
+    public function checkCalendarAccess()
+    {
+        $roleCategory = $this->session->get('gibbonRoleIDCurrentCategory');
+
+        if ($this->calendar['public'] == 'Y') return true;
+        if ($roleCategory == 'Staff' && $this->calendar['viewableStaff'] == 'Y') return true;
+        if ($roleCategory == 'Student' && $this->calendar['viewableStudents'] == 'Y') return true;
+        if ($roleCategory == 'Parent' && $this->calendar['viewableParents'] == 'Y') return true;
+        if ($roleCategory == 'Other' && $this->calendar['viewableOther'] == 'Y') return true;
+
+        return false;
     }
 
     public function checkAccess(TimetableContext $context) : bool
     {
-        return Access::allows('Calendar', 'calendar_event_manage') || Access::allows('Calendar', 'calendar_event_view');
+        return $context->get('gibbonPersonID') == $this->session->get('gibbonPersonID') && (Access::allows('Calendar', 'calendar_event_manage') || Access::allows('Calendar', 'calendar_view'));
     }
     
     public function loadItems(\DatePeriod $dateRange, TimetableContext $context)
@@ -55,7 +84,7 @@ class CalendarEventsLayer extends AbstractTimetableLayer
         if (!$context->has('gibbonSchoolYearID')) return;
 
         if ($context->has('gibbonPersonID')) {
-            $eventList = $this->calendarEventGateway->selectActiveEnrolledEvents($context->get('gibbonSchoolYearID'), $context->get('gibbonPersonID'), $dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchAll();
+            $eventList = $this->calendarEventGateway->selectActiveCalendarEvents($this->calendar['gibbonCalendarID'], $context->get('gibbonPersonID'), $dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchAll();
         } elseif ($context->has('gibbonSpaceID')) {
             $eventList = $this->calendarEventGateway->selectEventsByFacility($context->get('gibbonSchoolYearID'), $context->get('gibbonSpaceID'), $dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchAll();
         }
@@ -67,16 +96,31 @@ class CalendarEventsLayer extends AbstractTimetableLayer
             foreach ($eventList as $event) {
                 if ($date < $event['dateStart'] || $date > $event['dateEnd'] ) continue;
 
-                $this->createItem($date, $event['allDay'])->loadData([
-                    'id'        => $event['gibbonCalendarEventID'],
-                    'type'      => __('Event'),
-                    'title'     => $event['name'],
-                    'subtitle'  => $event['locationType']. ': ' .(!empty($event['space']) ? $event['space'] : $event['locationDetail'] ?? ''),
-                    'link'      => $canViewEvents ? Url::fromModuleRoute('Calendar', 'calendar_event_view')->withQueryParam('gibbonCalendarEventID', $event['gibbonCalendarEventID']) : '',
-                    'allDay'      => $event['allDay'] ?? false,
+                $location = !empty($event['locationType']) ? (!empty($event['space']) ? $event['space'] : $event['locationDetail'] ?? '') : '';
+
+                $item = $this->createItem($date, $event['allDay'] == 'Y')->loadData([
+                    'id'          => $event['gibbonCalendarEventID'],
+                    'type'        => $event['type'] ?? __('Event'),
+                    'title'       => $event['name'],
+                    'location' => $location,
+                    'subtitle'    => $location ?: $event['role'],
+                    'description' => $this->calendar['name'],
+                    'link'        => $canViewEvents ? Url::fromModuleRoute('Calendar', 'calendar_event_view')->withQueryParam('gibbonCalendarEventID', $event['gibbonCalendarEventID']) : '',
+                    'allDay'      => $event['allDay'] == 'Y' ?? false,
                     'timeStart'   => $event['timeStart'] ?? null,
                     'timeEnd'     => $event['timeEnd'] ?? null,
                 ]);
+
+                if (!empty($event['role'])) {
+                    $item->addStatus('myEvent');
+                    $item->set('secondaryAction', [
+                        'name'      => 'cover',
+                        'label'     => $event['role'],
+                        'url'       => $canViewEvents ? Url::fromModuleRoute('Calendar', 'calendar_event_view')->withQueryParam('gibbonCalendarEventID', $event['gibbonCalendarEventID']) : '',
+                        'icon'      => 'user',
+                        'iconClass' => 'text-gray-600 hover:text-gray-800',
+                    ]);
+                }
             }
         }
     }

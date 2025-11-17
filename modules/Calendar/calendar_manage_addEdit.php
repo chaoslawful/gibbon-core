@@ -73,7 +73,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_manage_a
 
     $row = $form->addRow();
         $row->addLabel('color', __('Colour'));
-        $row->addColor('color');
+        $row->addColor('color')->setPalette('background');
     
     $col = $form->addRow()->addColumn();
         $col->addLabel('summary', __('Summary'));

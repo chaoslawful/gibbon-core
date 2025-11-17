@@ -298,7 +298,16 @@ class Structure
 
     public function getColors($color = null)
     {
-        return $this->colors[$this->color ?? $color] ?? $this->colors['gray'];
+        if (substr($color, 0, 1) == '#') {
+            $border = $this->adjustColor($color, -0.15);
+            $text = $this->adjustColor($color, -0.7);
+            return [
+                'style'        => "background-color: {$color}; outline-color: {$border}; color: {$text};",
+                'bgStyle'        => "background-color: {$color};",
+                'textStyle'    => "color: {$text};",
+            ];
+        }
+        return $this->colors[$color] ?? $this->colors['gray'];
     }
 
     public function daysInWeek()
@@ -467,5 +476,24 @@ class Structure
             new \DateInterval('P1D'),
             (new \DateTime(date('Y-m-d H:i:s', $this->timestampEnd)))
         );
+    }
+
+    protected function adjustColor($hexCode, $adjustPercent) {
+        $hexCode = ltrim($hexCode, '#');
+    
+        if (strlen($hexCode) == 3) {
+            $hexCode = $hexCode[0] . $hexCode[0] . $hexCode[1] . $hexCode[1] . $hexCode[2] . $hexCode[2];
+        }
+    
+        $hexCode = array_map('hexdec', str_split($hexCode, 2));
+    
+        foreach ($hexCode as & $color) {
+            $adjustableLimit = $adjustPercent < 0 ? $color : 255 - $color;
+            $adjustAmount = ceil($adjustableLimit * $adjustPercent);
+    
+            $color = str_pad(dechex($color + $adjustAmount), 2, '0', STR_PAD_LEFT);
+        }
+    
+        return '#' . implode($hexCode);
     }
 }

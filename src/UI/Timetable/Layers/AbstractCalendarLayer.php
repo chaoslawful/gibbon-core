@@ -39,7 +39,7 @@ use GuzzleHttp\Exception\ConnectException;
 abstract class AbstractCalendarLayer extends AbstractTimetableLayer implements ContainerAwareInterface
 {
     use ContainerAwareTrait;
-    
+
     abstract public function loadItems(\DatePeriod $dateRange, TimetableContext $context);
 
     protected function loadEventsByCalendarFeed($calendarFeed, \DatePeriod $dateRange, $color = null)

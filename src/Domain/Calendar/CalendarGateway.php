@@ -56,7 +56,22 @@ class CalendarGateway extends QueryableGateway
         return $this->runQuery($query, $criteria);
     }
 
-     public function selectCalendarsBySchoolYear($gibbonSchoolYearID)
+    public function selectActiveCalendarsBySchoolYear($gibbonSchoolYearID)
+    {
+        $select = $this
+            ->newSelect()
+            ->from($this->getTableName())
+            ->cols([
+                'gibbonCalendar.gibbonCalendarID', 'gibbonCalendar.name', 'gibbonCalendar.description', 'gibbonCalendar.color', 'gibbonCalendar.sequenceNumber', 'gibbonCalendar.public', 'gibbonCalendar.viewableStaff', 'gibbonCalendar.viewableStudents', 'gibbonCalendar.viewableParents', 'gibbonCalendar.viewableOther'
+            ])
+            ->where('gibbonSchoolYearID=:gibbonSchoolYearID')
+            ->bindValue('gibbonSchoolYearID', $gibbonSchoolYearID)
+            ->orderBy(['gibbonCalendar.sequenceNumber', 'gibbonCalendar.name']);
+
+        return $this->runSelect($select);
+    }
+
+    public function selectCalendarsBySchoolYear($gibbonSchoolYearID)
     {
         $data = ['gibbonSchoolYearID' => $gibbonSchoolYearID];
         $sql = "SELECT gibbonCalendar.gibbonCalendarID as value, gibbonCalendar.name 

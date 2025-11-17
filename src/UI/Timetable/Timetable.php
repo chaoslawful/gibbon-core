@@ -21,6 +21,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 namespace Gibbon\UI\Timetable;
 
+use Gibbon\Domain\Calendar\CalendarGateway;
 use Gibbon\Http\Url;
 use Gibbon\View\View;
 use Gibbon\Services\Format;
@@ -105,6 +106,16 @@ class Timetable implements OutputableInterface
     }
 
     /**
+     * Get the structure object.
+     *
+     * @return Structure
+     */
+    public function getStructure()
+    {
+        return $this->structure;
+    }
+
+    /**
      * Add a custom layer object to the timetable.
      *
      * @param TimetableLayerInterface $layer
@@ -113,7 +124,7 @@ class Timetable implements OutputableInterface
     public function addLayer(TimetableLayerInterface $layer)
     {
         if ($layer->checkAccess($this->context)) {
-            $this->layers[$layer->getName()] = $layer;
+            $this->layers[$layer->getID()] = $layer;
         }
 
         return $this;
@@ -125,9 +136,19 @@ class Timetable implements OutputableInterface
      * @param string $layerName
      * @return TimetableLayerInterface
      */
-    public function getLayer(string $layerName)
+    public function getLayer(string $layerID)
     {
-        return $this->layers[$layerName] ?? null;
+        return $this->layers[$layerID] ?? null;
+    }
+
+    /**
+     * Get all active layers in this timetable.
+     *
+     * @return array
+     */
+    public function getLayers()
+    {
+        return $this->sortLayers()->layers;
     }
 
     /**
@@ -144,10 +165,11 @@ class Timetable implements OutputableInterface
         $this->addLayer($container->get(StaffCoverLayer::class));
         $this->addLayer($container->get(StaffAbsenceLayer::class));
         $this->addLayer($container->get(ActivitiesLayer::class));
-        $this->addLayer($container->get(CalendarEventsLayer::class));
         $this->addLayer($container->get(BookingsLayer::class));
         $this->addLayer($container->get(SchoolCalendarLayer::class));
         $this->addLayer($container->get(PersonalCalendarLayer::class));
+
+        $this->loadCalendars($container);
 
         return $this;
     }
@@ -174,11 +196,33 @@ class Timetable implements OutputableInterface
             'options'        => $this->context->get('ttOptions'),
             'timetables'     => $this->structure->getTimetables(),
             'structure'      => $this->structure,
+            'calendars'      => $this->filterLayers(['calendar']),
+            'layersList'     => $this->filterLayers(['timetabled', 'optional']),
             'layers'         => $this->layers,
             'layersToggle'   => json_encode($this->getLayerStates()),
             'format'         => $this->context->get('format'),
             'edit'           => $this->context->get('edit'),
         ]);
+    }
+
+    /**
+     * Load items within each active layer and update the resulting time range for the timetable.
+     *
+     * @return self
+     */
+    protected function loadCalendars(ContainerInterface $container)
+    {
+        $calendarGateway = $container->get(CalendarGateway::class);
+        $calendars = $calendarGateway->selectActiveCalendarsBySchoolYear($this->context->get('gibbonSchoolYearID'));
+
+        foreach ($calendars as $calendar) {
+            $layer = $container->get(CalendarEventsLayer::class)->setCalendar($calendar);
+            if ($layer->checkCalendarAccess()) {
+                $this->addLayer($layer);
+            }
+        }
+
+        return $this;
     }
 
     /**
@@ -204,7 +248,7 @@ class Timetable implements OutputableInterface
      */
     protected function processLayers()
     {
-        $absenceLayer = $this->getLayer('Staff Absence');
+        $absenceLayer = $this->getLayer('StaffAbsence');
         $absences = !empty($absenceLayer) ? $absenceLayer->getItems() : [];
 
         foreach ($this->layers as $layer) {
@@ -237,6 +281,19 @@ class Timetable implements OutputableInterface
      */
     protected function sortLayers()
     {
+        // Reorder the layers based on user preferences
+        if (!empty($this->context->get('ttOptions')['layerOrder'])) {
+            $orderList = explode(',', $this->context->get('ttOptions')['layerOrder']);
+            foreach ($orderList as $orderInfo) {
+                list($layerName, $order) = explode(':', $orderInfo);
+                
+                if ($layer = $this->getLayer($layerName)) {
+                    $layer->setOrder($order);
+                }
+            }
+        }
+
+        // Sort the layers by order first, then name
         uasort($this->layers, function ($a, $b) {
             if ($a->getOrder() != $b->getOrder()) {
                 return $a->getOrder() <=> $b->getOrder();
@@ -330,6 +387,13 @@ class Timetable implements OutputableInterface
         }
 
         return $this;
+    }
+
+    protected function filterLayers(array $types)
+    {
+        return array_filter($this->layers, function ($item) use ($types) {
+            return in_array($item->getType(), $types);
+        });
     }
 
     /**
