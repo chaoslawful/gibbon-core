@@ -41,17 +41,21 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_view.php
     $dateStart = date('Y-m-d', strtotime($dateStart));
     $dateEnd = date('Y-m-d', strtotime($dateEnd)-86400);
 
+    $gibbonPersonID = $session->get('gibbonPersonID');
     $roleCategory = $session->get('gibbonRoleIDCurrentCategory');
 
     $palette = $container->get(Palette::class);
     $eventGateway = $container->get(CalendarEventGateway::class);
 
-    $events = $eventGateway->selectVisibleCalendarEvents($dateStart, $dateEnd, $roleCategory)->fetchAll();
+    $events = $eventGateway->selectVisibleEventsByPerson($gibbonPersonID, $roleCategory, $dateStart, $dateEnd)->fetchAll();
 
     foreach ($events as $index => $event) {
         $color = $event['color'] ?? '#6a6bef';
         $contrast = $palette->getHexContrastColor($color);
 
+        $events[$index]['description'] = substr(strip_tags($event['description']), 0, 140);
+        $events[$index]['timeRange'] = $event['allDay'] == 'Y' ? __('All Day') : Format::timeRange($event['timeStart'], $event['timeEnd']);
+        $events[$index]['type'] = $event['type'] ?? __('Event');
         $events[$index]['allDay'] = $event['allDay'] == 'Y';
         $events[$index]['palette'] = $palette->getPalette($color);
         $events[$index]['backgroundColor'] = $color;
@@ -59,9 +63,6 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_view.php
         $events[$index]['textColor'] = $contrast == 'white'
             ? $palette->adjustHexColor($event['color'], 0.7)
             : $palette->adjustHexColor($event['color'], -0.7);
-        
-        $events[$index]['description'] = substr(strip_tags($event['description']), 0, 140);
-        $events[$index]['timeRange'] = $event['allDay'] == 'Y' ? __('All Day') : Format::timeRange($event['timeStart'], $event['timeEnd']);
     }
 
     echo json_encode($events);

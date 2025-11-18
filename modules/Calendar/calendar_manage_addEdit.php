@@ -67,18 +67,10 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_manage_a
         $row->addLabel('description', __('Description'));
         $row->addTextField('description')->maxLength(255);
         
-
-    // DISPLAY
-    $form->addRow()->addHeading(__('Display'));
-
     $row = $form->addRow();
         $row->addLabel('color', __('Colour'));
         $row->addColor('color')->setPalette('background');
-    
-    $col = $form->addRow()->addColumn();
-        $col->addLabel('summary', __('Summary'));
-        $col->addEditor('summary', $guid)->showMedia(true);
-
+        
     // ACCESS
     $form->addRow()->addHeading(__('Access'));
 
@@ -106,18 +98,24 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_manage_a
     // EDITORS
     $form->addRow()->addHeading(__('Editors'));
 
+    $row = $form->addRow();
+        $row->addLabel('editableStaff', __('All Staff'))->description(__('Staff can add and edit their own events. They cannot edit other events without full editor access.'));
+        $row->addYesNo('editableStaff')->selected('N');
+    
+
     // Custom Block Template
     $addBlockButton = $form->getFactory()->createButton(__m('Add'))->addClass('addBlock');
 
     $blockTemplate = $form->getFactory()->createTable()->setClass('blank');
-    $row = $blockTemplate->addRow()->addClass('w-full flex justify-between items-center mt-1 ml-2');
+    $row = $blockTemplate->addRow()->addClass('w-full max-w-lg flex justify-between items-center mt-1 ml-2');
         $row->addSelectStaff('gibbonPersonID')->photo(false)->setClass('flex-1 mr-1')->required()->placeholder();
         $row->addCheckbox('editAllEvents')->setLabelClass('w-32')->alignLeft()->setValue('Y')->description(__('Edit All Events?'))
             ->append("<input type='hidden' id='gibbonCalendarEditorID' name='gibbonCalendarEditorID' value=''/>");
 
     // Custom Blocks
-    $row = $form->addRow();
-    $customBlocks = $row->addCustomBlocks('editors', $session)
+    $col = $form->addRow()->addColumn();
+    $col->addLabel('editors', __('Editors'));
+    $customBlocks = $col->addCustomBlocks('editors', $session)
         ->fromTemplate($blockTemplate)
         ->settings(array('inputNameStrategy' => 'object', 'addOnEvent' => 'click'))
         ->placeholder(__('Add a person...'))

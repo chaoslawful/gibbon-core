@@ -27,6 +27,7 @@ use Gibbon\Domain\Students\StudentGateway;
 use Gibbon\Domain\Activities\ActivityGateway;
 use Gibbon\Domain\Calendar\CalendarEventGateway;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
+use Gibbon\Support\Facades\Access;
 
 
 if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_participants.php') == false) {
@@ -42,7 +43,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
 
     $page->breadcrumbs
         ->add(__('Manage Activities'), 'calendar_event_manage.php')
-        ->add(__('Participants'), 'calendar_event_participants.php',  $urlParams)
+        ->add(__('Edit Participants'), 'calendar_event_participants.php',  $urlParams)
         ->add(__('Add Participants'));
 
     if (empty($gibbonCalendarEventID)) {
@@ -50,8 +51,16 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
         return;
     }
 
-    $event = $calendarEventGateway->getByID($gibbonCalendarEventID);
-    if (empty($event)) {
+    // Get event details
+    $event = $calendarEventGateway->getEventDetailsByID($gibbonCalendarEventID, $session->get('gibbonPersonID'));
+    if (empty($gibbonCalendarEventID) || empty($event)) {
+        $page->addError(__('The specified record cannot be found.'));
+        return;
+    }
+
+    // Check for access to edit this event
+    $canEditEvent = $event['editor'] == 'Y' && Access::allows('Calendar', 'calendar_event_edit');
+    if (!$canEditEvent && !Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all')) {
         $page->addError(__('The selected record does not exist, or you do not have access to it.'));
         return;
     }

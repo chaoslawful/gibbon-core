@@ -22,11 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 use Gibbon\Services\Format;
 use Gibbon\Tables\DataTable;
 use Gibbon\Support\Facades\Access;
-use Gibbon\Domain\User\UserGateway;
-use Gibbon\Domain\School\FacilityGateway;
-use Gibbon\Domain\Calendar\CalendarGateway;
 use Gibbon\Domain\Calendar\CalendarEventGateway;
-use Gibbon\Domain\Calendar\CalendarEventTypeGateway;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
 
 if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_view.php')) {
@@ -39,37 +35,29 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
 
     $gibbonCalendarEventID = $_GET['gibbonCalendarEventID'] ?? '';
 
-    $calendarGateway = $container->get(CalendarGateway::class);
     $calendarEventGateway = $container->get(CalendarEventGateway::class);
     $calendarEventPersonGateway = $container->get(CalendarEventPersonGateway::class);
-    $calendarEventTypeGateway = $container->get(CalendarEventTypeGateway::class);
 
     // Get event details
-    $event = $calendarEventGateway->getByID($gibbonCalendarEventID);
+    $event = $calendarEventGateway->getEventDetailsByID($gibbonCalendarEventID, $session->get('gibbonPersonID'));
     if (empty($gibbonCalendarEventID) || empty($event)) {
         $page->addError(__('The specified record cannot be found.'));
         return;
     }
-    // Get organiser name
-    $organiser = $container->get(UserGateway::class)->getByID($event['gibbonPersonIDOrganiser'], ['preferredName', 'surname']);
-    $event['preferredName'] = $organiser['preferredName'];
-    $event['surname'] = $organiser['surname'];
 
-    $isEventOwner = $session->get('gibbonPersonID') == $event['gibbonPersonIDCreated'] || $session->get('gibbonPersonID') == $event['gibbonPersonIDOrganiser'];
+    $canEditEvent = $event['editor'] == 'Y' && Access::allows('Calendar', 'calendar_event_edit');
 
     // DATA TABLE TO VIEW EVENT DETAILS
     $table = DataTable::createDetails('viewEvent');
 
     $table->setTitle(__('View'));
 
-    if (Access::allows('Calendar', 'calendar_event_edit') && $isEventOwner) {
+    if ($canEditEvent) {
         $table->addHeaderAction('edit', __('Edit Event'))
             ->setURL('/modules/Calendar/calendar_event_edit.php')
             ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
             ->displayLabel();
-    }
 
-    if (Access::allows('Calendar', 'calendar_event_edit') && $isEventOwner) {
         $table->addHeaderAction('notify', __('Notify Staff'))
             ->setURL('/modules/Calendar/calendar_event_notify.php')
             ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
@@ -77,94 +65,59 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
             ->displayLabel();
     }
 
-    $table->addColumn('gibbonCalendarID', __('Calendar'))
-            ->format(function($event) use ($calendarGateway) {
-                if (isset($event['gibbonCalendarID'])) {
-                    $calendar = $calendarGateway->getByID($event['gibbonCalendarID']);
-                    $output = '';
-                    if (!empty($calendar)) {
-                        $output .= __($calendar['name']);
-                    }
-                    return $output;
-                }
-            });
+    $table->addColumn('name', __('Event Name'))->addClass('col-span-2');
 
-    $table->addColumn('gibbonCalendarEventType', __('Event Type'))
-            ->format(function($event) use ($calendarEventTypeGateway) {
-                if (isset($event['gibbonCalendarEventTypeID'])) {
-                    $gibbonCalendarEventType = $calendarEventTypeGateway->getByID($event['gibbonCalendarEventTypeID']);
-                    $output = '';
-                    if (!empty($gibbonCalendarEventType)) {
-                        $output .= __($gibbonCalendarEventType['type']);
-                    }
-                    return $output;
-                }
-            });
+    $table->addColumn('status', __('Event Status'));
+
+    $table->addColumn('calendarName', __('Calendar'));
+
+    $table->addColumn('eventType', __('Event Type'));
 
     $table->addColumn('organiser', __('Organiser'))
-        ->format(Format::using('nameLinked', ['gibbonPersonIDOrganiser', '', 'preferredName', 'surname', 'Staff', false, true]));
+        ->format(Format::using('nameLinked', ['gibbonPersonIDOrganiser', '', 'organiserPreferredName', 'organiserSurname', 'Staff', false, true]));
 
-    $table->addColumn('name', __('Name'));
+    if (!empty($event['description'])) {
+        $table->addColumn('description', __('Description'))->addClass('col-span-3');
+    }
 
-    $table->addColumn('status', __('Status'));
+    $col = $table->addColumn('Event Details', __('Event Details'));
 
-    $col = $table->addColumn('School Information', __('Event Information'));
+    $col->addColumn('dateStart', __('Date'))->format(Format::using('dateRange', ['dateStart', 'dateEnd']));
 
-    $col->addColumn('dateStart', __('Start Date'))->format(Format::using('date', 'dateStart'));
-
-    $col->addColumn('dateEnd', __('End Date'))->format(Format::using('date', 'dateEnd'));
-
-    if ($event['allDay'] == 'N') {
-        $col->addColumn('timeStart', __('Start Time'))->format(Format::using('time', 'timeStart'));
-        $col->addColumn('timeEnd', __('End Time'))->format(Format::using('time', 'timeEnd'));
-    } else {
-         $col->addColumn('allDay', __('When'))->format(function() {
+    $col->addColumn('allDay', __('When'))
+        ->format(function($values) {
+            if ($values['allDay'] == 'N') return Format::timeRange($values['timeStart'], $values['timeEnd']);
             return __('All Day');
         });
-    }
-    
-    $col = $table->addColumn('Location Information', __('Location'));
 
-    $col->addColumn('locationType', __('Location Type'));
-
-    $col->addColumn('location', __('Location'))->format(function($event) use ($container) {
-        $output = '';
-        if ($event['locationType'] == 'Internal') {
-            if (!empty($event['gibbonSpaceID'])) {
-                $space = $container->get(FacilityGateway::class)->getByID($event['gibbonCalendarID']);
-                if (!empty($space)) {
-                    $output .= __($space['name']. ' - ' . $space['type']);
-                }
-                return $output;
-            } 
-        } else {
-            if (!empty($event['locationDetail'])) {
-                $output .= ($event['locationDetail']);
+    if (!empty($event['locationType'])) {
+        $col->addColumn('location', __('Location'))->format(function($values)  {
+            if ($values['locationType'] == 'Internal') {
+                return $values['space']; 
             }
-        }
-        return $output;
-    });
 
-    $col->addColumn('locationURL', __('Location URL'))
-        ->format(Format::using('link', ['locationURL', 'View Link']));
-
-    $table->addColumn('description', __('Description'));
+            return !empty($values['locationURL'])
+                ? Format::link($values['locationURL'], $values['locationDetail'])
+                : $values['locationDetail'];
+        });
+    }
 
     echo $table->render([$event]);
 
     // QUERY FOR DATATABLE
     $criteria = $calendarEventPersonGateway->newQueryCriteria()
-        ->sortBy(['role','surname', 'preferredName'])
+        ->sortBy('role', 'DESC')
+        ->sortBy(['roleCategory', 'surname', 'preferredName'])
         ->fromPOST();
         
     $participants = $calendarEventPersonGateway->queryAllEventParticipants($criteria, $gibbonCalendarEventID);
 
     // DATA TABLE FOR ALL PARTICIPANTS
     $table = DataTable::createPaginated('participants', $criteria)->withData($participants);
-    $table->setTitle(__('All Participants'));
+    $table->setTitle(__('All Participants & Staff'));
 
-    if (Access::allows('Calendar', 'calendar_event_participants')) {
-        $table->addHeaderAction('participants', __('Participants'))
+    if ($canEditEvent && Access::allows('Calendar', 'calendar_event_participants')) {
+        $table->addHeaderAction('participants', __('Edit Participants'))
             ->setURL('/modules/Calendar/calendar_event_participants.php')
             ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
             ->setIcon('attendance')
@@ -185,7 +138,11 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
 
     $table->addColumn('formGroup', __('Form Group'));
 
-    $table->addColumn('role', __('Event Role'));
+    $table->addColumn('role', __('Event Role'))
+        ->format(function ($values) {
+            $status = $values['role'] != 'Attendee' ? 'message' : 'dull';
+            return Format::tag(__($values['role']), $status);
+        });
 
     echo $table->getOutput();
 }

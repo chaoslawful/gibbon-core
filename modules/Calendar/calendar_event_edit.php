@@ -24,6 +24,7 @@ use Gibbon\Domain\Calendar\CalendarGateway;
 use Gibbon\Domain\Calendar\CalendarEventGateway;
 use Gibbon\Domain\Calendar\CalendarEventTypeGateway;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
+use Gibbon\Support\Facades\Access;
 
 if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_edit.php') == false) {
     // Access denied
@@ -47,8 +48,15 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ed
 
     // Get event details
     $values = $calendarEventGateway->getByID($gibbonCalendarEventID);
-    if (!empty($gibbonCalendarEventID) && empty($values)) {
+    $event = $calendarEventGateway->getEventDetailsByID($gibbonCalendarEventID, $session->get('gibbonPersonID'));
+    if (empty($values) || empty($event)) {
         $page->addError(__('The specified record cannot be found.'));
+        return;
+    }
+
+    // Check for access to edit this event
+    if ($event['editor'] != 'Y' && !Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all')) {
+        $page->addError(__('The selected record does not exist, or you do not have access to it.'));
         return;
     }
 
@@ -59,7 +67,12 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ed
     $form->addHiddenValue('address', $session->get('address'));
     $form->addHiddenValue('gibbonCalendarEventID', $gibbonCalendarEventID);
 
-    $form->addHeaderAction('participants', __('Participants'))
+    $form->addHeaderAction('view', __('View Event'))
+        ->setURL('/modules/Calendar/calendar_event_view.php')
+        ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
+        ->displayLabel();
+
+    $form->addHeaderAction('participants', __('Edit Participants'))
         ->setURL('/modules/Calendar/calendar_event_participants.php')
         ->addParam('gibbonCalendarEventID', $gibbonCalendarEventID)
         ->setIcon('users')
@@ -74,7 +87,9 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ed
         $form->addSection('Basic Information', __('Basic Information'));
 
     // Get Calendars of the current school year
-    $calendars = $calendarGateway->selectCalendarsBySchoolYear($session->get('gibbonSchoolYearID'))->fetchKeyPair();
+    $gibbonPersonIDEditor = Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all') ? null : $session->get('gibbonPersonID');
+    $calendars = $calendarGateway->selectEditableCalendarsByPerson($session->get('gibbonSchoolYearID'), $gibbonPersonIDEditor)->fetchKeyPair();
+    
     $row = $form->addRow();
         $row->addLabel('gibbonCalendarID', __('Calendar'));
         $row->addSelect('gibbonCalendarID')
@@ -163,7 +178,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ed
 
     $row = $form->addRow()->addClass('external');
         $row->addLabel('locationURL', __('Location URL'));
-        $row->addTextField('locationURL')->maxLength(255);
+        $row->addUrl('locationURL')->maxLength(255);
 
 
     // CURRENT STAFF TABLE

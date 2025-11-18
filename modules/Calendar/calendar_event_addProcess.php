@@ -18,8 +18,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 use Gibbon\Data\Validator;
+use Gibbon\Support\Facades\Access;
 use Gibbon\Domain\Calendar\CalendarEventGateway;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
+use Gibbon\Domain\Calendar\CalendarGateway;
 
 require_once '../../gibbon.php';
 
@@ -40,7 +42,9 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
     // Proceed!
     $partialFail = false;
 
+    $calendarGateway = $container->get(CalendarGateway::class);
     $calendarEventGateway = $container->get(CalendarEventGateway::class);
+    $calendarEventPersonGateway = $container->get(CalendarEventPersonGateway::class);
 
     $gibbonPersonIDOrganiser = $_POST['gibbonPersonIDOrganiser'] ?? '';
 
@@ -68,17 +72,25 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
     
     // Validate the required values are present
     if (empty($data['name']) || empty($data['dateStart']) || empty($data['dateEnd'])) {
-        $URL .= '&return=error1';
-        header("Location: {$URL}");
+        header("Location: {$URL}&return=error1");
+        exit;
+    }
+
+    // Get Calendars of the current school year
+    $gibbonPersonIDEditor = Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all') ? null : $session->get('gibbonPersonID');
+    $calendars = $calendarGateway->selectEditableCalendarsByPerson($session->get('gibbonSchoolYearID'), $gibbonPersonIDEditor)->fetchKeyPair();
+
+    if (empty($calendars) || empty($calendars[$data['gibbonCalendarID']])) {
+        header("Location: {$URL}&return=error0");
+        exit;
     }
 
     // Create the record
     $gibbonCalendarEventID = $calendarEventGateway->insert($data);
 
     if (!$gibbonCalendarEventID) {
-        $URL .= '&return=error2';
-        header("Location: {$URL}");
-        exit();
+        header("Location: {$URL}&return=error2");
+        exit;
     }
 
     // Scan through staff
@@ -88,8 +100,6 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
     if (!is_array($staff)) {
         $staff = [strval($staff)];
     }
-
-    $calendarEventPersonGateway = $container->get(CalendarEventPersonGateway::class);
 
     foreach ($staff as $staffPersonID) {
         $personData = [

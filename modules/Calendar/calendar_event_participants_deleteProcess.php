@@ -19,6 +19,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 use Gibbon\Data\Validator;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
+use Gibbon\Domain\Calendar\CalendarEventGateway;
+use Gibbon\Support\Facades\Access;
 
 require_once '../../gibbon.php';
 
@@ -39,7 +41,21 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
     exit;
 } else {
     // Proceed!
+    $calendarEventGateway = $container->get(CalendarEventGateway::class);
     $calendarEventPersonGateway = $container->get(CalendarEventPersonGateway::class);
+    
+    // Get event details
+    $event = $calendarEventGateway->getEventDetailsByID($gibbonCalendarEventID, $session->get('gibbonPersonID'));
+    if (empty($event)) {
+        header("Location: {$URL}&return=error2");
+        exit;
+    } 
+
+    // Check for access to edit this event
+    if ($event['editor'] != 'Y' && !Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all')) {
+        header("Location: {$URL}&return=error0");
+        exit;
+    } 
 
     // Validate the database relationships exist
     if (!$calendarEventPersonGateway->exists($gibbonCalendarEventPersonID)) {

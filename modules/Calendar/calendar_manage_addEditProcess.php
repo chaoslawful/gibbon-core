@@ -53,6 +53,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_manage_a
         'viewableStudents'   => $_POST['viewableStudents'] ?? 'N',
         'viewableParents'    => $_POST['viewableParents'] ?? 'N',
         'viewableOther'      => $_POST['viewableOther'] ?? 'N',
+        'editableStaff'      => $_POST['editableStaff'] ?? 'N',
     ];
 
     // Validate the required values are present

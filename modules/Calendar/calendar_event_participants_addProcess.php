@@ -26,6 +26,7 @@ use Gibbon\Domain\Activities\ActivityGateway;
 use Gibbon\Domain\Calendar\CalendarEventGateway;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
 use Gibbon\Domain\Timetable\CourseClassGateway;
+use Gibbon\Support\Facades\Access;
 
 include '../../gibbon.php';
 
@@ -46,6 +47,22 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
     $gibbonPersonIDList = $_POST['participants'] ?? [];
     $foreignTable = '';
     
+    $calendarEventGateway = $container->get(CalendarEventGateway::class);
+    $calendarEventPersonGateway = $container->get(CalendarEventPersonGateway::class);
+    
+    // Get event details
+    $event = $calendarEventGateway->getEventDetailsByID($gibbonCalendarEventID, $session->get('gibbonPersonID'));
+    if (empty($event)) {
+        header("Location: {$URL}&return=error2");
+        exit;
+    } 
+
+    // Check for access to edit this event
+    if ($event['editor'] != 'Y' && !Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all')) {
+        header("Location: {$URL}&return=error0");
+        exit;
+    } 
+
     // Check if required values are specified
     if (empty($target)) {
         $URL .= '&return=error1';
@@ -84,7 +101,6 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
     }
 
     // Get all the participants from the selected target
-    $calendarEventPersonGateway = $container->get(CalendarEventPersonGateway::class);
     $participants = $calendarEventPersonGateway->selectTargetParticipants($session->get('gibbonSchoolYearID'), $target, $targetID)->fetchAll();
     
     $gibbonPersonIDs = array_column($participants, 'gibbonPersonID');
@@ -123,22 +139,4 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
         : '&return=success0';
 
     header("Location: {$URL}");
-
-    // NOTIFICATION
-    // if (!empty($added)) {
-    //     // Raise a new notification event
-    //     $event = new NotificationEvent('Activities', 'Activity Enrolment Added');
-
-    //     $notificationText = __('The following participants have been added to the activity {name}', ['name' => $activity['name']]).':<br/>'.Format::list($added);
-
-    //     $event->setNotificationText($notificationText);
-    //     $event->setActionLink('/index.php?q=/modules/Activities/activities_manage_enrolment.php&gibbonActivityID='.$gibbonActivityID.'&search=&gibbonSchoolYearTermID=');
-
-    //     $activityStaff = $activityStaffGateway->selectActivityStaff($gibbonActivityID)->fetchAll();
-    //     foreach ($activityStaff as $staff) {
-    //         $event->addRecipient($staff['gibbonPersonID']);
-    //     }
-
-    //     $event->sendNotifications($pdo, $session);
-    // }
 }

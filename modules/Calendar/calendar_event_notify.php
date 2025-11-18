@@ -24,6 +24,7 @@ use Gibbon\Forms\DatabaseFormFactory;
 use Gibbon\Domain\Calendar\CalendarEventGateway;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
 use Gibbon\Services\Format;
+use Gibbon\Support\Facades\Access;
 
 if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_edit.php') == false) {
     // Access denied
@@ -42,9 +43,16 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ed
     $calendarEventPersonGateway = $container->get(CalendarEventPersonGateway::class);
 
     // Get event details
-    $values = $calendarEventGateway->getByID($gibbonCalendarEventID);
-    if (!empty($gibbonCalendarEventID) && empty($values)) {
+    $event = $calendarEventGateway->getEventDetailsByID($gibbonCalendarEventID, $session->get('gibbonPersonID'));
+    if (empty($gibbonCalendarEventID) || empty($event)) {
         $page->addError(__('The specified record cannot be found.'));
+        return;
+    }
+
+    // Check for access to edit this event
+    $canEditEvent = $event['editor'] == 'Y' && Access::allows('Calendar', 'calendar_event_edit');
+    if (!$canEditEvent && !Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all')) {
+        $page->addError(__('The selected record does not exist, or you do not have access to it.'));
         return;
     }
 
@@ -68,7 +76,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ed
     // NOTES
     $form->addRow()->addHeading('Message Details', __('Message Details'));
 
-    $subject = $values['name'] . ($values['allDay'] != 'Y' ? ', ' .Format::dateRangeReadable($values['dateStart'], $values['dateEnd']) : '');
+    $subject = $event['name'] . ($event['allDay'] != 'Y' ? ', ' .Format::dateRangeReadable($event['dateStart'], $event['dateEnd']) : '');
     $col = $form->addRow()->addColumn();
         $col->addLabel('subject', __('Subject'));
         $col->addTextField('subject')->maxLength(120)->setValue($subject);
@@ -85,15 +93,16 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ed
     $row = $form->addRow();
         $row->addLabel('notify', __('Automatically Notify'));
         $row->addCheckbox('allStaff')
-            ->description(__('All staff'))
+            ->description(__('All Staff'))
             ->setValue('Y');
 
     $row = $form->addRow();
         $row->addCheckbox('notifyGroups')->fromArray([
-            'HOY'      => __('Head of Year'),
-            'tutors'   => __('Form Tutors'),
-            'teachers' => __('Class Teachers'),
-            'INAssistant' => __('LSAs'),
+            'participants' => __('Staff').' '.__('Participants'),
+            'HOY'          => __('Head of Year'),
+            'tutors'       => __('Form Tutors'),
+            'teachers'     => __('Class Teachers'),
+            'INAssistant'  => __('Educational Assistants'),
         ])->checkAll()->addClass('notifyGroups');
 
     $row = $form->addRow();

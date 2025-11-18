@@ -84,7 +84,7 @@ class CalendarEventsLayer extends AbstractTimetableLayer
         if (!$context->has('gibbonSchoolYearID')) return;
 
         if ($context->has('gibbonPersonID')) {
-            $eventList = $this->calendarEventGateway->selectActiveCalendarEvents($this->calendar['gibbonCalendarID'], $context->get('gibbonPersonID'), $dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchAll();
+            $eventList = $this->calendarEventGateway->selectEventsByCalendar($this->calendar['gibbonCalendarID'], $context->get('gibbonPersonID'), $dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchAll();
         } elseif ($context->has('gibbonSpaceID')) {
             $eventList = $this->calendarEventGateway->selectEventsByFacility($context->get('gibbonSchoolYearID'), $context->get('gibbonSpaceID'), $dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchAll();
         }

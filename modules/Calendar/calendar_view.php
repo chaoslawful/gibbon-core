@@ -19,6 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+use Gibbon\Support\Facades\Access;
+
 if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_view.php') == false) {
     // Access denied
     $page->addError(__('You do not have access to this action.'));
@@ -27,6 +29,9 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_view.php
     $page->breadcrumbs->add(__('View Calendar'));
 
     echo '<div id="calendar"></div>';
+    
+    $canViewEvents = Access::allows('Calendar', 'calendar_event_view');
+    $canAddEvents = Access::allows('Calendar', 'calendar_event_add');
 
     // Set the first day of the week based on system settings
     $firstDayOfTheWeek = $session->get('firstDayOfTheWeek', 'Sunday');
@@ -61,117 +66,130 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_view.php
 <?= !empty($localeFile) ? '<script src="'.$localeFile.'" type="text/javascript"></script>' : '' ?>
 
 <script type="text/javascript">
-    var calendarEl = document.getElementById('calendar');
-    var calendar = new FullCalendar.Calendar(calendarEl, {
-        timeZone: 'UTC',
-        editable: false,
-        selectable: true,
-        businessHours: true,
-        dayMaxEvents: true, 
 
-        firstDay: <?= $firstDay ?>,
-        direction: '<?= $direction ?>',
-        locale: '<?= $locale ?>',
+    function setupCalendar() {
+        if (!(typeof FullCalendar === 'object')) window.location.reload();
+        
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            timeZone: 'UTC',
+            editable: false,
+            selectable: true,
+            businessHours: true,
+            dayMaxEvents: true, 
 
-        headerToolbar: window.innerWidth < 765 ? {
-            start: 'title',
-            center: window.innerWidth > 500 ? 'dayGridMonth,listMonth' : '',
-            end: 'prev,next today',
-        } : {
-            start: 'prev,next today',
-            center: 'title',
-            end: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
-        },
-        eventSources: [
-            {
-                url: '<?= $session->get('absoluteURL') ?>/modules/Calendar/calendar_viewInternal.php',
+            firstDay: <?= $firstDay ?>,
+            direction: '<?= $direction ?>',
+            locale: '<?= $locale ?>',
+
+            headerToolbar: window.innerWidth < 765 ? {
+                start: 'title',
+                center: window.innerWidth > 500 ? 'dayGridMonth,listMonth' : '',
+                end: 'prev,next today',
+            } : {
+                start: 'prev,next today',
+                center: 'title',
+                end: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
             },
-        ],
+            eventSources: [
+                {
+                    url: '<?= $session->get('absoluteURL') ?>/modules/Calendar/calendar_viewInternal.php',
+                },
+            ],
 
-        initialView: window.innerWidth < 765 ? 'listMonth' : 'dayGridMonth',
-        navLinks: true, 
-        selectable: true,
-        selectMirror: true,
-        select: function(info) {
-            htmx.ajax('GET', '<?= $session->get('absoluteURL'); ?>/fullscreen.php?q=/modules/Calendar/calendar_event_add.php', {
-                target: '#modalContent',
-                values: {
-                    source: 'ajax',
-                    start: info.start.toISOString(),
-                    end: info.end.toISOString(),
-                    allDay: info.allDay
-                }
-            }).then(() => {
-                document.body.dispatchEvent(new CustomEvent('modalwindow', { bubbles: true, detail: 'delete'}));
-            });
+            initialView: window.innerWidth < 765 ? 'listMonth' : 'dayGridMonth',
+            navLinks: true, 
+            selectable: <?= $canAddEvents ? 'true' : 'false' ?>,
+            selectMirror: true,
 
-            calendar.unselect()
-        },
-        eventClick: function(info) {
-            htmx.ajax('GET', '<?= $session->get('absoluteURL'); ?>/fullscreen.php?q=/modules/Calendar/calendar_event_view.php', {
-                target: '#modalContent',
-                values: {
-                    source: 'ajax',
-                    gibbonCalendarEventID: info.event.id,
-                }
-            }).then(() => {
-                document.body.dispatchEvent(new CustomEvent('modalwindow', { bubbles: true, detail: 'full'}));
-            });
-        },
+            <?php if ($canAddEvents) { ?>
+            select: function(info) {
+                htmx.ajax('GET', '<?= $session->get('absoluteURL'); ?>/fullscreen.php?q=/modules/Calendar/calendar_event_add.php', {
+                    target: '#modalContent',
+                    values: {
+                        source: 'ajax',
+                        start: info.start.toISOString(),
+                        end: info.end.toISOString(),
+                        allDay: info.allDay
+                    }
+                }).then(() => {
+                    document.body.dispatchEvent(new CustomEvent('modalwindow', { bubbles: true, detail: 'delete'}));
+                });
 
-        eventDidMount: function(info) {
-            var tooltipContent = `
-            <div class='w-80 flex flex-col py-2 gap-1 overflow-hidden'>
-                <div class='px-2 pb-1'>
-                    <div class='flex justify-between leading-normal'>
-                        <span class='font-semibold text-sm'>${info.event.title}</span>
-                        <span class='tag ml-2 text-xxs h-5 border-0 outline outline-1 ' style='${info.event.extendedProps.palette.style} ${info.event.extendedProps.palette.textStyle}'>${info.event.extendedProps.type}</span>
+                calendar.unselect()
+            },
+            <?php } ?>
+
+            <?php if ($canViewEvents) { ?>
+            eventClick: function(info) {
+                htmx.ajax('GET', '<?= $session->get('absoluteURL'); ?>/fullscreen.php?q=/modules/Calendar/calendar_event_view.php', {
+                    target: '#modalContent',
+                    values: {
+                        source: 'ajax',
+                        gibbonCalendarEventID: info.event.id,
+                    }
+                }).then(() => {
+                    document.body.dispatchEvent(new CustomEvent('modalwindow', { bubbles: true, detail: 'full'}));
+                });
+            },
+            <?php } ?>
+
+            eventDidMount: function(info) {
+                var tooltipContent = `
+                <div class='w-80 flex flex-col py-2 gap-1 overflow-hidden'>
+                    <div class='px-2 pb-1'>
+                        <div class='flex justify-between leading-normal'>
+                            <span class='font-semibold text-sm'>${info.event.title}</span>
+                            <span class='tag ml-2 text-xxs h-5 border-0 outline outline-1 ' style='${info.event.extendedProps.palette.style} ${info.event.extendedProps.palette.textStyle}'>${info.event.extendedProps.type}</span>
+                        </div>
+                        <div class='font-normal mt-1'>${info.event.extendedProps.description}</div>
                     </div>
-                    <div class='font-normal mt-1'>${info.event.extendedProps.description}</div>
-                </div>
-                
-                <div class='px-2 pt-2 border-t flex justify-between leading-relaxed'>
-                    <div><?= icon('outline', 'clock', 'size-4 text-gray-600 inline align-middle mr-1', ['stroke-width' => 2.4]) ?> 
-                    ${info.event.extendedProps.timeRange}
+                    
+                    <div class='px-2 pt-2 border-t flex justify-between leading-relaxed'>
+                        <div><?= icon('outline', 'clock', 'size-4 text-gray-600 inline align-middle mr-1', ['stroke-width' => 2.4]) ?> 
+                        ${info.event.extendedProps.timeRange}
+                        </div>
                     </div>
-                </div>
 
-                <div class='px-2 flex justify-between leading-relaxed'>
-                    <div><?= icon('solid', 'calendar', 'size-4 text-gray-600 inline align-middle mr-1', ['stroke-width' => 2.4]) ?> 
-                    ${info.event.extendedProps.calendar}
+                    <div class='px-2 flex justify-between leading-relaxed'>
+                        <div><?= icon('solid', 'calendar', 'size-4 text-gray-600 inline align-middle mr-1', ['stroke-width' => 2.4]) ?> 
+                        ${info.event.extendedProps.calendar}
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
 
-            if (info.event.extendedProps.locationType == 'Internal' && info.event.extendedProps.location) {
-            tooltipContent += `
-                <div class='px-2 flex justify-between leading-relaxed'>
-                    <div>
-                        <?= icon('solid', 'map-pin', 'size-4 text-gray-600 inline align-middle mr-1') ?> ${info.event.extendedProps.location} 
-                    </div>
-                    <div><?= icon('solid', 'phone', 'size-4 text-gray-600 inline align-middle mr-1') ?> ${info.event.extendedProps.phone}</div>
-                </div>
-            `;
-            } else if (info.event.extendedProps.location) {
+                if (info.event.extendedProps.locationType == 'Internal' && info.event.extendedProps.location) {
                 tooltipContent += `
-                <div class='px-2 flex justify-between leading-relaxed'>
-                    <div>
-                        <?= icon('solid', 'map-pin', 'size-4 text-gray-600 inline align-middle mr-1') ?> ${info.event.extendedProps.location} 
+                    <div class='px-2 flex justify-between leading-relaxed'>
+                        <div>
+                            <?= icon('solid', 'map-pin', 'size-4 text-gray-600 inline align-middle mr-1') ?> ${info.event.extendedProps.location} 
+                        </div>
+                        <div><?= icon('solid', 'phone', 'size-4 text-gray-600 inline align-middle mr-1') ?> ${info.event.extendedProps.phone}</div>
                     </div>
+                `;
+                } else if (info.event.extendedProps.location) {
+                    tooltipContent += `
+                    <div class='px-2 flex justify-between leading-relaxed'>
+                        <div>
+                            <?= icon('solid', 'map-pin', 'size-4 text-gray-600 inline align-middle mr-1') ?> ${info.event.extendedProps.location} 
+                        </div>
+                    </div>
+                `;
+                }
+
+                tooltipContent += `
                 </div>
-            `;
-            }
+                `;
 
-            tooltipContent += `
-            </div>
-            `;
+                info.el.setAttribute('x-tooltip.white', tooltipContent);
+            },
+                    
+        });
 
-            info.el.setAttribute('x-tooltip.white', tooltipContent);
-        },
-                
-    });
+        calendar.render();
+    }
 
-    calendar.render();
+    setupCalendar();
 
     // Force a reload after htmx swaps to the same page
     document.addEventListener('htmx:beforeOnLoad', function (event) {

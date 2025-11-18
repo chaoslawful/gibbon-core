@@ -83,13 +83,13 @@ class CalendarEventNotificationProcess extends BackgroundProcess
         $staff = [];
         $staffContexts = [];
         $staffStudentContext = [];
+        $formGroups = [];
+
         $event = $this->calendarEventGateway->getByID($gibbonCalendarEventID);
 
         // Get all Attendees 
         $criteria = $this->calendarEventPersonGateway->newQueryCriteria()
-            ->sortBy(['surname', 'preferredName', 'category'])
-            ->fromPOST();
-
+            ->sortBy(['surname', 'preferredName', 'category']);
         $students = $this->calendarEventPersonGateway->queryEventAttendees($criteria, $gibbonCalendarEventID)->toArray();
 
         // All Staff
@@ -104,6 +104,7 @@ class CalendarEventNotificationProcess extends BackgroundProcess
             if (!empty($notifyGroups)) {
                 foreach ($students as $student) {
                     $gibbonPersonIDStudent = $student['gibbonPersonID'];
+                    if (!empty($student['formGroup'])) $formGroups[] = $student['formGroup'];
 
                     // Head of Year
                     if (in_array('HOY', $notifyGroups)) {
@@ -158,6 +159,7 @@ class CalendarEventNotificationProcess extends BackgroundProcess
                         }
                     }
 
+                    // Educational Assistants
                     if (in_array('INAssistant', $notifyGroups)) {
                         $assistants = $this->iNAssistantGateway->selectINAssistantsByStudent($gibbonPersonIDStudent);
                         foreach ($assistants as $assistant) {
@@ -174,8 +176,18 @@ class CalendarEventNotificationProcess extends BackgroundProcess
                         }
                     }
                 }
+
+                // Staff Participants
+                if (in_array('participants', $notifyGroups)) {
+                    $participants = $this->calendarEventPersonGateway->queryAllEventParticipants($criteria, $gibbonCalendarEventID)->toArray();
+                    foreach ($participants as $participant) {
+                        if ($participant['roleCategory'] != 'Staff') continue;
+                        $staff[] = $participant['gibbonPersonID'];
+                    }
+                }
             }
 
+            // Notify Additional People
             if (!empty($notificationList)) {
                 $staff = array_merge($staff, $notificationList);
             }
@@ -220,13 +232,14 @@ class CalendarEventNotificationProcess extends BackgroundProcess
         
             // Generate content from template
             $content = $this->view->fetchFromTemplate('calendarEvents.twig.html', [
-                'students' => $students,
-                'sender'   => $sender,
-                'allStaff' => $allStaff,
-                'contexts' => !empty($staffContexts[$gibbonPersonIDTeacher]) ? implode(', ', $staffContexts[$gibbonPersonIDTeacher]) : '',
-                'relevant' => $relevantStudents,
-                'event'    => $event ?? [],
-                'notes'    => $notes ?? '',
+                'students'   => $students,
+                'sender'     => $sender,
+                'allStaff'   => $allStaff,
+                'contexts'   => !empty($staffContexts[$gibbonPersonIDTeacher]) ? implode(', ', $staffContexts[$gibbonPersonIDTeacher]) : '',
+                'relevant'   => $relevantStudents,
+                'formGroups' => count($formGroups),
+                'event'      => $event ?? [],
+                'notes'      => $notes ?? '',
             ]);
 
 

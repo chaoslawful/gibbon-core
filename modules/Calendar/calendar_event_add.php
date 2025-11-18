@@ -21,6 +21,7 @@ use Gibbon\Forms\Form;
 use Gibbon\Forms\DatabaseFormFactory;
 use Gibbon\Domain\Calendar\CalendarGateway;
 use Gibbon\Domain\Calendar\CalendarEventTypeGateway;
+use Gibbon\Support\Facades\Access;
 
 if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_add.php') == false) {
     // Access denied
@@ -51,6 +52,15 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
         $dateStart = date('Y-m-d', strtotime($_GET['start']));
         $dateEnd = date('Y-m-d', strtotime($_GET['end'])-86400);
     }
+    
+    // Get Calendars of the current school year
+    $gibbonPersonIDEditor = Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all') ? null : $session->get('gibbonPersonID');
+    $calendars = $calendarGateway->selectEditableCalendarsByPerson($session->get('gibbonSchoolYearID'), $gibbonPersonIDEditor)->fetchKeyPair();
+
+    if (empty($calendars)) {
+        $page->addError(__('You do not have access to this action.'));
+        return;
+    }
 
     // FORM
     $form = Form::create('event', $session->get('absoluteURL').'/modules/Calendar/calendar_event_addProcess.php');
@@ -63,8 +73,6 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
 
     $form->addSection('Basic Information', __('Basic Information'));
 
-    // Get Calendars of the current school year
-    $calendars = $calendarGateway->selectCalendarsBySchoolYear($session->get('gibbonSchoolYearID'))->fetchKeyPair();
     $row = $form->addRow();
         $row->addLabel('gibbonCalendarID', __('Calendar'));
         $row->addSelect('gibbonCalendarID')
@@ -149,10 +157,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
 
     $row = $form->addRow()->addClass('external');
         $row->addLabel('locationURL', __('Location URL'));
-        $row->addTextField('locationURL')->maxLength(255);
-
-    
-
+        $row->addUrl('locationURL')->maxLength(255);
 
     // STAFF
     $form->addSection('Staff', __('Staff'))->closed();

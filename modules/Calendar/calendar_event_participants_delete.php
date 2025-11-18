@@ -21,6 +21,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 use Gibbon\Forms\Prefab\DeleteForm;
 use Gibbon\Domain\Calendar\CalendarEventPersonGateway;
+use Gibbon\Support\Facades\Access;
+use Gibbon\Domain\Calendar\CalendarEventGateway;
 
 if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_participants_delete.php') == false) {
     // Access denied
@@ -28,6 +30,22 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
 } else {
     // Proceed!
 
+    $calendarEventGateway = $container->get(CalendarEventGateway::class);
+    
+    // Get event details
+    $event = $calendarEventGateway->getEventDetailsByID($gibbonCalendarEventID, $session->get('gibbonPersonID'));
+    if (empty($gibbonCalendarEventID) || empty($event)) {
+        $page->addError(__('The specified record cannot be found.'));
+        return;
+    }
+
+    // Check for access to edit this event
+    $canEditEvent = $event['editor'] == 'Y' && Access::allows('Calendar', 'calendar_event_edit');
+    if (!$canEditEvent && !Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all')) {
+        $page->addError(__('The selected record does not exist, or you do not have access to it.'));
+        return;
+    }
+    
     // Check if gibbonCalendarEventID and gibbonPersonID specified
     $gibbonPersonID = $_GET['gibbonPersonID'] ?? '';
     $gibbonCalendarEventID = $_GET['gibbonCalendarEventID'] ?? '';

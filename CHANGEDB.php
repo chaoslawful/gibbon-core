@@ -1042,4 +1042,6 @@ ALTER TABLE `gibbonSchoolYearSpecialDay` ADD `cancelDuty` ENUM('Y','N') DEFAULT 
 ALTER TABLE `gibbonSchoolYearSpecialDay` ADD `cancelBookings` ENUM('Y','N') DEFAULT 'N' NULL AFTER `cancelDuty`;end
 ALTER TABLE `gibbonSchoolYearSpecialDay` ADD `cancelClasses` ENUM('Y','N') DEFAULT 'N' NULL AFTER `cancelBookings`;end
 INSERT INTO `gibbonCalendarEventType` (`type`) VALUES ('School Event'), ('Meeting');end
+ALTER TABLE `gibbonCalendar` ADD `editableStaff` ENUM('Y','N') DEFAULT 'N' NULL AFTER `viewableOther`;end
+
 ";

@@ -24,8 +24,12 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
     <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse; border: 1px solid #cacaca; ">
         <thead>
             <tr>
-                <th style="border: 1px solid #cacaca; min-width: 220px;">{{ __('Student') }}</th>
-                <th style="border: 1px solid #cacaca; min-width: 100px;">{{ __('Form Group') }}</th>
+                <th style="border: 1px solid #cacaca; min-width: 220px;">{{ __('Name') }}</th>
+
+                {% if formGroups %}
+                    <th style="border: 1px solid #cacaca; min-width: 100px;">{{ __('Form Group') }}</th>
+                {% endif %}
+
                 {% if relevant > 0 %}
                     <th style="border: 1px solid #cacaca; min-width: 100px;">{{ __('Context') }}</th>
                 {% endif %}
@@ -38,9 +42,12 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
                     <td style="border: 1px solid #cacaca;">
                         {{ formatUsing('name', '', student.preferredName, student.surname, 'Student', false) }}
                     </td>
+
+                    {% if formGroups %}
                     <td style="border: 1px solid #cacaca;">
                         {{  student.formGroup }}
                     </td>
+                    {% endif %}
 
                     {% if relevant > 0 %}
                     <td style="border: 1px solid #cacaca;">
