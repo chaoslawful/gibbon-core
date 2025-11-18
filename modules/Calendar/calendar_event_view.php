@@ -48,7 +48,7 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
 
     // Get event details
     $event = $calendarEventGateway->getByID($gibbonCalendarEventID);
-    if (!empty($gibbonCalendarEventID) && empty($event)) {
+    if (empty($gibbonCalendarEventID) || empty($event)) {
         $page->addError(__('The specified record cannot be found.'));
         return;
     }

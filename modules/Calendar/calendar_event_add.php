@@ -38,11 +38,28 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
     $calendarGateway = $container->get(CalendarGateway::class);
     $calendarEventTypeGateway = $container->get(CalendarEventTypeGateway::class);
 
+    // Get values from post, coming from FullCalendar
+    $source = $_GET['source'] ?? '';
+    $date = $_GET['date'] ?? '';
+    $allDay = $_GET['allDay'] ?? '';
+
+    $dateStart = $date;
+    $dateEnd = $date;
+
+    // From FullCalendar date selection
+    if (!empty($_GET['start']) && !empty($_GET['end'])) {
+        $dateStart = date('Y-m-d', strtotime($_GET['start']));
+        $dateEnd = date('Y-m-d', strtotime($_GET['end'])-86400);
+    }
+
     // FORM
     $form = Form::create('event', $session->get('absoluteURL').'/modules/Calendar/calendar_event_addProcess.php');
     $form->setFactory(DatabaseFormFactory::create($pdo));
 
     $form->addHiddenValue('address', $session->get('address'));
+    $form->addHiddenValue('source', $source);
+
+    if ($source == 'ajax') $form->removeMeta();
 
     $form->addSection('Basic Information', __('Basic Information'));
 
@@ -82,12 +99,11 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
     // Event Dates
     $form->addSection('Event Details', __('Event Details'));
 
-    $date = $_GET['date'] ?? '';
     $row = $form->addRow();
         $row->addLabel('dateStart', __('Date'));
 
-        $row->addDate('dateStart')->chainedTo('dateEnd')->required()->setValue($date);
-        $row->addDate('dateEnd')->chainedFrom('dateStart')->setValue($date);
+        $row->addDate('dateStart')->chainedTo('dateEnd')->required()->setValue($dateStart);
+        $row->addDate('dateEnd')->chainedFrom('dateStart')->setValue($dateEnd);
 
         $row->addCheckbox('allDay')
             ->description(__('All Day'))
@@ -161,7 +177,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
                 'Other'     => __('Other'), 
             ]);
 
-    $form->addSection('submit')->addSubmit();
+    $form->addSection($source == 'ajax' ? 'ajax' : 'submit')->addSubmit();
 
     echo $form->getOutput();
 }

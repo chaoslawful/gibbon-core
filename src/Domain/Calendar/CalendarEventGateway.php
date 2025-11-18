@@ -82,16 +82,41 @@ class CalendarEventGateway extends QueryableGateway
         return $this->runQuery($query, $criteria);
     }
 
-    public function selectCalendarEvents()
+    public function selectVisibleCalendarEvents($dateStart, $dateEnd, $roleCategory)
     {
 
-        $sql = "SELECT gibbonCalendarEventID as id, name as title,
-                    (CASE WHEN allDay='N' THEN CONCAT(dateStart, 'T', timeStart) ELSE dateStart END) as start,
-                    (CASE WHEN allDay='N' THEN CONCAT(dateEnd, 'T', timeEnd) ELSE dateEnd END) as end
-                FROM gibbonCalendarEvent
-                ORDER BY gibbonCalendarEvent.dateStart, gibbonCalendarEvent.dateEnd";
+        $query = $this
+            ->newSelect()
+            ->cols([
+                'gibbonCalendarEvent.gibbonCalendarEventID as id', 'gibbonCalendarEvent.name as title', 'gibbonCalendarEvent.description', 
+                "(CASE WHEN allDay='N' THEN CONCAT(gibbonCalendarEvent.dateStart, 'T', timeStart) ELSE gibbonCalendarEvent.dateStart END) as start", 
+                "(CASE WHEN allDay='N' THEN CONCAT(gibbonCalendarEvent.dateEnd, 'T', timeEnd) ELSE DATE_ADD(gibbonCalendarEvent.dateEnd, INTERVAL 1 DAY) END) as end",
+                'gibbonCalendar.color', 'gibbonCalendarEventType.type', 'gibbonCalendarEvent.allDay', 'gibbonCalendarEvent.timeStart', 'gibbonCalendarEvent.timeEnd',
+                'gibbonCalendar.name as calendar', 'gibbonCalendarEvent.locationType', 'gibbonSpace.phoneInternal AS phone',
+                '(CASE WHEN gibbonCalendarEvent.locationType="Internal" THEN gibbonSpace.name ELSE gibbonCalendarEvent.locationDetail END) AS location'
+            ])
+            ->from($this->getTableName())
+            ->innerJoin('gibbonCalendar', 'gibbonCalendar.gibbonCalendarID=gibbonCalendarEvent.gibbonCalendarID')
+            ->leftJoin('gibbonCalendarEventType', 'gibbonCalendarEventType.gibbonCalendarEventTypeID=gibbonCalendarEvent.gibbonCalendarEventTypeID')
+            ->leftJoin('gibbonSpace', 'gibbonSpace.gibbonSpaceID=gibbonCalendarEvent.gibbonSpaceID')
+            ->where('(gibbonCalendarEvent.dateStart BETWEEN :dateStart AND :dateEnd) OR (gibbonCalendarEvent.dateEnd BETWEEN :dateStart AND :dateEnd)')
+            ->bindValue('dateStart', $dateStart)
+            ->bindValue('dateEnd', $dateEnd)
+            ->orderBy(['gibbonCalendarEvent.dateStart', 'gibbonCalendarEvent.dateEnd']);
 
-        return $this->db()->select($sql);
+        if ($roleCategory == 'Staff') {
+            $query->where("(gibbonCalendar.viewableStaff='Y' OR gibbonCalendar.public='Y')");
+        } elseif ($roleCategory == 'Student') {
+            $query->where("(gibbonCalendar.viewableStudents='Y' OR gibbonCalendar.public='Y')");
+        } elseif ($roleCategory == 'Parent') {
+            $query->where("(gibbonCalendar.viewableParents='Y' OR gibbonCalendar.public='Y')");
+        } elseif ($roleCategory == 'Other') {
+            $query->where("(gibbonCalendar.viewableOther='Y' OR gibbonCalendar.public='Y')");
+        } else {
+            $query->where("gibbonCalendar.public='Y'");
+        }
+
+        return $this->runSelect($query);
     }
 
     public function selectActiveCalendarEvents($gibbonCalendarID, $gibbonPersonID = null, $rangeStart = null, $rangeEnd = null)

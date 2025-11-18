@@ -25,7 +25,12 @@ require_once '../../gibbon.php';
 
 $_POST = $container->get(Validator::class)->sanitize($_POST, ['description' => 'HTML']);
 
-$URL = $session->get('absoluteURL')."/index.php?q=/modules/Calendar/calendar_event_add.php";
+$source = $_POST['source'] ?? '';
+
+$URL = $session->get('absoluteURL').'/index.php?q=/modules/Calendar/calendar_event_add.php';
+$URLSuccess = $source == 'ajax'
+    ? $session->get('absoluteURL').'/index.php?q=/modules/Calendar/calendar_view.php'
+    : $session->get('absoluteURL').'/index.php?q=/modules/Calendar/calendar_event_add.php';
 
 if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_add.php') == false) {
     $URL .= '&return=error0';
@@ -115,8 +120,8 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ad
     $gibbonCalendarEventPersonID = $calendarEventPersonGateway->insert($organiserData);
     $partialFail &= !$gibbonCalendarEventPersonID;
 
-    $URL .= $partialFail
+    $URLSuccess .= $partialFail
         ? "&return=warning1"
         : "&return=success0&editID=$gibbonCalendarEventID";
-    header("Location: {$URL}");
+    header("Location: {$URLSuccess}");
 }
