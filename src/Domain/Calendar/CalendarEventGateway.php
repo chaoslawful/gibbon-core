@@ -113,22 +113,25 @@ class CalendarEventGateway extends QueryableGateway
             ->from($this->getTableName())
             ->innerJoin('gibbonCalendar', 'gibbonCalendar.gibbonCalendarID=gibbonCalendarEvent.gibbonCalendarID')
             ->leftJoin('gibbonCalendarEventType', 'gibbonCalendarEventType.gibbonCalendarEventTypeID=gibbonCalendarEvent.gibbonCalendarEventTypeID')
+            ->leftJoin('gibbonCalendarEventPerson', 'gibbonCalendarEvent.gibbonCalendarEventID=gibbonCalendarEventPerson.gibbonCalendarEventID AND gibbonCalendarEventPerson.gibbonPersonID=:gibbonPersonID')
             ->leftJoin('gibbonSpace', 'gibbonSpace.gibbonSpaceID=gibbonCalendarEvent.gibbonSpaceID')
             ->where('(gibbonCalendarEvent.dateStart BETWEEN :dateStart AND :dateEnd OR gibbonCalendarEvent.dateEnd BETWEEN :dateStart AND :dateEnd)')
             ->bindValue('dateStart', $dateStart)
             ->bindValue('dateEnd', $dateEnd)
+            ->bindValue('gibbonPersonID', $gibbonPersonID)
             ->orderBy(['gibbonCalendarEvent.dateStart', 'gibbonCalendarEvent.dateEnd']);
 
+        $viewableParticipants = "(gibbonCalendar.viewableParticipants='Y' AND gibbonCalendarEventPerson.gibbonCalendarEventPersonID IS NOT NULL)";
         if ($roleCategory == 'Staff') {
-            $query->where("(gibbonCalendar.viewableStaff='Y' OR gibbonCalendar.public='Y')");
+            $query->where("(gibbonCalendar.viewableStaff='Y' OR gibbonCalendar.public='Y' OR {$viewableParticipants})");
         } elseif ($roleCategory == 'Student') {
-            $query->where("(gibbonCalendar.viewableStudents='Y' OR gibbonCalendar.public='Y')");
+            $query->where("(gibbonCalendar.viewableStudents='Y' OR gibbonCalendar.public='Y' OR {$viewableParticipants})");
         } elseif ($roleCategory == 'Parent') {
-            $query->where("(gibbonCalendar.viewableParents='Y' OR gibbonCalendar.public='Y')");
+            $query->where("(gibbonCalendar.viewableParents='Y' OR gibbonCalendar.public='Y' OR {$viewableParticipants})");
         } elseif ($roleCategory == 'Other') {
-            $query->where("(gibbonCalendar.viewableOther='Y' OR gibbonCalendar.public='Y')");
+            $query->where("(gibbonCalendar.viewableOther='Y' OR gibbonCalendar.public='Y' OR {$viewableParticipants})");
         } else {
-            $query->where("gibbonCalendar.public='Y'");
+            $query->where("(gibbonCalendar.public='Y' OR {$viewableParticipants})");
         }
 
         return $this->runSelect($query);
@@ -161,6 +164,7 @@ class CalendarEventGateway extends QueryableGateway
                 'organiser.surname as organiserSurname',
                 '(CASE WHEN gibbonCalendarEvent.gibbonSpaceID IS NOT NULL THEN gibbonSpace.name ELSE NULL END) AS space',
                 '(CASE WHEN gibbonCalendarEventPersonID IS NOT NULL THEN gibbonCalendarEventPerson.role ELSE NULL END) as role',
+                '(CASE WHEN gibbonCalendarEventPersonID IS NOT NULL THEN "Y" ELSE "N" END) as participant',
             ])
             ->leftJoin('gibbonCalendarEventType', 'gibbonCalendarEventType.gibbonCalendarEventTypeID=gibbonCalendarEvent.gibbonCalendarEventTypeID')
             ->leftJoin('gibbonCalendar', 'gibbonCalendar.gibbonCalendarID=gibbonCalendarEvent.gibbonCalendarID')
@@ -178,7 +182,7 @@ class CalendarEventGateway extends QueryableGateway
         return $this->runSelect($query);
     }
     
-    public function selectEventsByFacility($gibbonSchoolYearID, $gibbonSpaceID, $rangeStart = null, $rangeEnd = null)
+    public function selectEventsByFacility($gibbonCalendarID, $gibbonSpaceID, $rangeStart = null, $rangeEnd = null)
     {
         $query = $this
             ->newSelect()
@@ -189,6 +193,7 @@ class CalendarEventGateway extends QueryableGateway
                 'gibbonCalendarEvent.gibbonCalendarEventTypeID',
                 'gibbonCalendarEvent.name',
                 'gibbonCalendarEvent.status',
+                'gibbonCalendarEvent.description',
                 'gibbonCalendarEvent.dateStart',
                 'gibbonCalendarEvent.dateEnd',
                 'gibbonCalendarEvent.timeStart',
@@ -196,15 +201,21 @@ class CalendarEventGateway extends QueryableGateway
                 'gibbonCalendarEvent.allDay',
                 'gibbonCalendarEvent.locationType',
                 'gibbonCalendarEvent.locationDetail',
+                'gibbonCalendarEvent.locationURL',
                 'gibbonCalendarEvent.gibbonSpaceID',
                 'gibbonCalendarEvent.gibbonPersonIDOrganiser',
+                'gibbonCalendarEventType.type',
+                'organiser.preferredName as organiserPreferredName', 
+                'organiser.surname as organiserSurname',
                 'CASE WHEN gibbonCalendarEvent.gibbonSpaceID IS NOT NULL THEN gibbonSpace.name ELSE NULL END AS space',
+                '"N" as participant',
             ])
             ->leftJoin('gibbonCalendar', 'gibbonCalendar.gibbonCalendarID=gibbonCalendarEvent.gibbonCalendarID')
             ->leftJoin('gibbonCalendarEventType', 'gibbonCalendarEventType.gibbonCalendarEventTypeID=gibbonCalendarEvent.gibbonCalendarEventTypeID')
+            ->leftJoin('gibbonPerson as organiser', "gibbonCalendarEvent.gibbonPersonIDOrganiser=organiser.gibbonPersonID AND organiser.status = 'Full'")
             ->leftJoin('gibbonSpace', 'gibbonSpace.gibbonSpaceID=gibbonCalendarEvent.gibbonSpaceID')
-            ->where('gibbonCalendar.gibbonSchoolYearID = :gibbonSchoolYearID')
-            ->bindValue('gibbonSchoolYearID', $gibbonSchoolYearID)
+            ->where('gibbonCalendar.gibbonCalendarID = :gibbonCalendarID')
+            ->bindValue('gibbonCalendarID', $gibbonCalendarID)
             ->where("gibbonCalendarEvent.status = 'Confirmed'")
             ->where('(gibbonCalendarEvent.dateStart <= :rangeEnd AND gibbonCalendarEvent.dateEnd >= :rangeStart)')
             ->bindValue('rangeStart', $rangeStart)
@@ -244,15 +255,18 @@ class CalendarEventGateway extends QueryableGateway
                 'organiser.surname as organiserSurname',
                 'gibbonSpace.name AS space',
                 '(CASE WHEN editor.editAllEvents="Y" OR (gibbonCalendarEvent.gibbonPersonIDOrganiser=:gibbonPersonID OR gibbonCalendarEvent.gibbonPersonIDCreated=:gibbonPersonID) THEN "Y" ELSE "N" END) as editor',
+                '(CASE WHEN participant.gibbonCalendarEventPersonID IS NOT NULL THEN "Y" ELSE "N" END) as participant',
             ])
+            ->leftJoin('gibbonCalendar', 'gibbonCalendar.gibbonCalendarID=gibbonCalendarEvent.gibbonCalendarID')
             ->leftJoin('gibbonCalendarEventType', 'gibbonCalendarEventType.gibbonCalendarEventTypeID=gibbonCalendarEvent.gibbonCalendarEventTypeID')
             ->leftJoin('gibbonCalendarEditor as editor', 'editor.gibbonCalendarID=gibbonCalendarEvent.gibbonCalendarID AND editor.gibbonPersonID=:gibbonPersonID')
-            ->leftJoin('gibbonCalendar', 'gibbonCalendar.gibbonCalendarID=gibbonCalendarEvent.gibbonCalendarID')
+            ->leftJoin('gibbonCalendarEventPerson as participant', 'participant.gibbonCalendarEventID=gibbonCalendarEvent.gibbonCalendarEventID AND participant.gibbonPersonID=:gibbonPersonID')
             ->leftJoin('gibbonPerson as organiser', "gibbonCalendarEvent.gibbonPersonIDOrganiser=organiser.gibbonPersonID AND organiser.status = 'Full'")
             ->leftJoin('gibbonSpace', 'gibbonSpace.gibbonSpaceID=gibbonCalendarEvent.gibbonSpaceID')
             ->where('gibbonCalendarEvent.gibbonCalendarEventID = :gibbonCalendarEventID')
             ->bindValue('gibbonCalendarEventID', $gibbonCalendarEventID)
-            ->bindValue('gibbonPersonID', $gibbonPersonID);
+            ->bindValue('gibbonPersonID', $gibbonPersonID)
+            ->groupBy(['gibbonCalendarEvent.gibbonCalendarEventID']);
 
         return $this->runSelect($query)->fetch();
     }

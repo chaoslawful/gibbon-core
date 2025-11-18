@@ -79,6 +79,8 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_manage.p
         ->notSortable()
         ->format(function ($values) {
             $viewable = [];
+            if ($values['public'] == 'Y') return __('All');
+            if ($values['viewableParticipants'] == 'Y') $viewable[] = __('Participants');
             if ($values['viewableStaff'] == 'Y') $viewable[] = __('Staff');
             if ($values['viewableStudents'] == 'Y') $viewable[] = __('Students');
             if ($values['viewableParents'] == 'Y') $viewable[] = __('Parents');

@@ -48,7 +48,7 @@ class CalendarGateway extends QueryableGateway
             ->newQuery()
             ->from($this->getTableName())
             ->cols([
-                'gibbonCalendarID', 'name', 'description', 'color', 'public', 'viewableStaff', 'viewableStudents', 'viewableParents', 'viewableOther', 'editableStaff',
+                'gibbonCalendarID', 'name', 'description', 'color', 'public', 'viewableStaff', 'viewableStudents', 'viewableParents', 'viewableOther', 'viewableParticipants', 'editableStaff',
                 '(SELECT COUNT(*) FROM gibbonCalendarEditor WHERE gibbonCalendarID=gibbonCalendar.gibbonCalendarID) as editors'
             ])
             ->where('gibbonSchoolYearID=:gibbonSchoolYearID')
@@ -63,7 +63,7 @@ class CalendarGateway extends QueryableGateway
             ->newSelect()
             ->from($this->getTableName())
             ->cols([
-                'gibbonCalendar.gibbonCalendarID', 'gibbonCalendar.name', 'gibbonCalendar.description', 'gibbonCalendar.color', 'gibbonCalendar.sequenceNumber', 'gibbonCalendar.public', 'gibbonCalendar.viewableStaff', 'gibbonCalendar.viewableStudents', 'gibbonCalendar.viewableParents', 'gibbonCalendar.viewableOther'
+                'gibbonCalendar.gibbonCalendarID', 'gibbonCalendar.name', 'gibbonCalendar.description', 'gibbonCalendar.color', 'gibbonCalendar.sequenceNumber', 'gibbonCalendar.public', 'gibbonCalendar.viewableStaff', 'gibbonCalendar.viewableStudents', 'gibbonCalendar.viewableParents', 'gibbonCalendar.viewableOther', 'gibbonCalendar.viewableParticipants', 'gibbonCalendar.editableStaff'
             ])
             ->where('gibbonSchoolYearID=:gibbonSchoolYearID')
             ->bindValue('gibbonSchoolYearID', $gibbonSchoolYearID)

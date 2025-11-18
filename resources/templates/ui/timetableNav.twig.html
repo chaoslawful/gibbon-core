@@ -67,6 +67,7 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
                     
                 {% endfor %}
 
+                {% if gibbonPersonID %}
                 <div class="-mx-3 mt-2 -mb-3 border-t border-gray-400">
                     <a hx-boost="true" 
                     hx-target="#modalContent"
@@ -80,6 +81,7 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
                         {{ __('Reorder Layers') }}
                     </a>
                 </div>
+                {% endif %}
             </div>
         </div>
 
@@ -104,6 +106,7 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
                     
                 {% endfor %}
 
+                {% if gibbonPersonID %}
                 <nav class="-mx-3 mt-2 -mb-3 border-t border-gray-400">
                     {% set optionID = 'onlyMyEvents' %}
 
@@ -115,6 +118,7 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
                     </div>
 
                 </nav>
+                {% endif %}
             </div>
             
         </div>

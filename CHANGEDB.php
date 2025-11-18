@@ -1043,5 +1043,7 @@ ALTER TABLE `gibbonSchoolYearSpecialDay` ADD `cancelBookings` ENUM('Y','N') DEFA
 ALTER TABLE `gibbonSchoolYearSpecialDay` ADD `cancelClasses` ENUM('Y','N') DEFAULT 'N' NULL AFTER `cancelBookings`;end
 INSERT INTO `gibbonCalendarEventType` (`type`) VALUES ('School Event'), ('Meeting');end
 ALTER TABLE `gibbonCalendar` ADD `editableStaff` ENUM('Y','N') DEFAULT 'N' NULL AFTER `viewableOther`;end
+ALTER TABLE `gibbonCalendar` ADD `viewableParticipants` ENUM('Y','N') DEFAULT 'N' NULL AFTER `viewableOther`;end
+UPDATE `gibbonAction` SET name='View Calendar' WHERE name='View Calendar_all' AND gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Calendar');end
 
 ";

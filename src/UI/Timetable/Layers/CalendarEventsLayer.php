@@ -61,22 +61,23 @@ class CalendarEventsLayer extends AbstractTimetableLayer
         return $this;
     }
 
-    public function checkCalendarAccess()
+    public function checkCalendarAccess($checkParticipants = true)
     {
         $roleCategory = $this->session->get('gibbonRoleIDCurrentCategory');
 
         if ($this->calendar['public'] == 'Y') return true;
+        if ($checkParticipants && $this->calendar['viewableParticipants'] == 'Y') return true;
         if ($roleCategory == 'Staff' && $this->calendar['viewableStaff'] == 'Y') return true;
         if ($roleCategory == 'Student' && $this->calendar['viewableStudents'] == 'Y') return true;
         if ($roleCategory == 'Parent' && $this->calendar['viewableParents'] == 'Y') return true;
         if ($roleCategory == 'Other' && $this->calendar['viewableOther'] == 'Y') return true;
-
+        
         return false;
     }
 
     public function checkAccess(TimetableContext $context) : bool
     {
-        return $context->get('gibbonPersonID') == $this->session->get('gibbonPersonID') && (Access::allows('Calendar', 'calendar_event_manage') || Access::allows('Calendar', 'calendar_view'));
+        return ($context->has('gibbonSpaceID') || $context->has('gibbonPersonID')) && (Access::allows('Calendar', 'calendar_event_manage') || Access::allows('Calendar', 'calendar_view'));
     }
     
     public function loadItems(\DatePeriod $dateRange, TimetableContext $context)
@@ -86,15 +87,34 @@ class CalendarEventsLayer extends AbstractTimetableLayer
         if ($context->has('gibbonPersonID')) {
             $eventList = $this->calendarEventGateway->selectEventsByCalendar($this->calendar['gibbonCalendarID'], $context->get('gibbonPersonID'), $dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchAll();
         } elseif ($context->has('gibbonSpaceID')) {
-            $eventList = $this->calendarEventGateway->selectEventsByFacility($context->get('gibbonSchoolYearID'), $context->get('gibbonSpaceID'), $dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchAll();
+            $eventList = $this->calendarEventGateway->selectEventsByFacility($this->calendar['gibbonCalendarID'], $context->get('gibbonSpaceID'), $dateRange->getStartDate()->format('Y-m-d'), $dateRange->getEndDate()->format('Y-m-d'))->fetchAll();
         }
 
         $canViewEvents = Access::allows('Calendar', 'calendar_event_view');
+        $canAccessCalendar = $this->checkCalendarAccess(false);
+        $viewingSelf = ($context->has('gibbonPersonID') && $context->get('gibbonPersonID') == $this->session->get('gibbonPersonID')) || ($context->has('gibbonSpaceID'));
 
         foreach ($dateRange as $dateObject) {
             $date = $dateObject->format('Y-m-d');
             foreach ($eventList as $event) {
-                if ($date < $event['dateStart'] || $date > $event['dateEnd'] ) continue;
+                // Skip dates outside this event range
+                if ($date < $event['dateStart'] || $date > $event['dateEnd']) continue;
+
+                // Allow view access if the current user and target user are in the same event
+                if (!$canAccessCalendar && !$viewingSelf && $this->calendar['viewableParticipants'] == 'Y' && $event['participant'] == 'Y') {
+                    $viewerEvent = $this->calendarEventGateway->getEventDetailsByID($event['gibbonCalendarEventID'], $this->session->get('gibbonPersonID'));
+                    if ($viewerEvent['participant'] == 'Y' && $event['participant'] == 'Y') {
+                        $canAccessCalendar = true;
+                    } else {
+                        continue;
+                    }
+                }
+
+                // Can only view event with calendar access, or as a participant with participant access
+                if (!$canAccessCalendar && !($this->calendar['viewableParticipants'] == 'Y' && $event['participant'] == 'Y' && $viewingSelf)) continue;
+
+                // Hide non-participant events when viewing calendars for other users
+                if ($canAccessCalendar && !$viewingSelf && $event['participant'] != 'Y') continue;
 
                 $location = !empty($event['locationType']) ? (!empty($event['space']) ? $event['space'] : $event['locationDetail'] ?? '') : '';
 

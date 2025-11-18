@@ -29,23 +29,8 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
     $page->addError(__('You do not have access to this action.'));
 } else {
     // Proceed!
-
     $calendarEventGateway = $container->get(CalendarEventGateway::class);
-    
-    // Get event details
-    $event = $calendarEventGateway->getEventDetailsByID($gibbonCalendarEventID, $session->get('gibbonPersonID'));
-    if (empty($gibbonCalendarEventID) || empty($event)) {
-        $page->addError(__('The specified record cannot be found.'));
-        return;
-    }
 
-    // Check for access to edit this event
-    $canEditEvent = $event['editor'] == 'Y' && Access::allows('Calendar', 'calendar_event_edit');
-    if (!$canEditEvent && !Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all')) {
-        $page->addError(__('The selected record does not exist, or you do not have access to it.'));
-        return;
-    }
-    
     // Check if gibbonCalendarEventID and gibbonPersonID specified
     $gibbonPersonID = $_GET['gibbonPersonID'] ?? '';
     $gibbonCalendarEventID = $_GET['gibbonCalendarEventID'] ?? '';
@@ -56,6 +41,20 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_pa
         // Let's go!
         $participant = $container->get(CalendarEventPersonGateway::class)->getByID($gibbonCalendarEventPersonID);
 
+        // Get event details
+        $event = $calendarEventGateway->getEventDetailsByID($gibbonCalendarEventID, $session->get('gibbonPersonID'));
+        if (empty($gibbonCalendarEventID) || empty($event)) {
+            $page->addError(__('The specified record cannot be found.'));
+            return;
+        }
+
+        // Check for access to edit this event
+        $canEditEvent = $event['editor'] == 'Y' && Access::allows('Calendar', 'calendar_event_edit');
+        if (!$canEditEvent && !Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all')) {
+            $page->addError(__('The selected record does not exist, or you do not have access to it.'));
+            return;
+        }
+        
         if (empty($participant)) {
             $page->addError(__('The specified record cannot be found.'));
             return;

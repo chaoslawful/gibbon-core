@@ -90,12 +90,19 @@ if (isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_ed
     $gibbonPersonIDEditor = Access::allows('Calendar', 'calendar_event_edit', 'Manage Events_all') ? null : $session->get('gibbonPersonID');
     $calendars = $calendarGateway->selectEditableCalendarsByPerson($session->get('gibbonSchoolYearID'), $gibbonPersonIDEditor)->fetchKeyPair();
     
-    $row = $form->addRow();
-        $row->addLabel('gibbonCalendarID', __('Calendar'));
-        $row->addSelect('gibbonCalendarID')
-            ->fromArray($calendars)
-            ->placeholder()
-            ->required();
+    if (!empty($calendars)) {
+        $row = $form->addRow();
+            $row->addLabel('gibbonCalendarID', __('Calendar'));
+            $row->addSelect('gibbonCalendarID')
+                ->fromArray($calendars)
+                ->placeholder()
+                ->required();
+    } else {
+        $row = $form->addRow();
+            $row->addLabel('calendarName', __('Calendar'));
+            $row->addTextField('calendarName')->readOnly()->setValue($event['calendarName']);
+            $form->addHiddenValue('gibbonCalendarID', $values['gibbonCalendarID']);
+    }
 
     // Get all event types
     $types = $calendarEventTypeGateway->selectAllEventTypes()->fetchKeyPair();
