@@ -25,7 +25,7 @@ use Gibbon\Data\Validator;
 
 require_once '../../gibbon.php';
 
-$_POST = $container->get(Validator::class)->sanitize($_POST);
+$_POST = $container->get(Validator::class)->sanitize($_POST, ['label' => 'HTML', 'description' => 'HTML', 'options' => 'RAW']);
 
 $urlParams = [
     'gibbonFormID'     => $_POST['gibbonFormID'] ?? '',
@@ -94,11 +94,30 @@ if (isActionAccessible($guid, $connection2, '/modules/System Admin/formBuilder_p
                 }
             }
 
-            $existing = $formFieldGateway->getFieldInForm($urlParams['gibbonFormID'], $fieldName);
-            if (!empty($existing) || $fieldName == $formBuilder->getDetail('honeyPot')) {
-                $duplicateFail[] = $fieldName;
+            if ($fieldName == $formBuilder->getDetail('honeyPot')) {
                 $partialFail = true;
                 continue;
+            }
+
+            $existing = $formFieldGateway->getFieldInForm($urlParams['gibbonFormID'], $fieldName);
+            if (!empty($existing)) {
+                $hasCounter = is_int(substr($fieldName, -1, 1));
+                $countStart = $hasCounter ? substr($fieldName, -1, 1) : 1;
+
+                $fieldNameBase = $hasCounter ? substr($fieldName, 0, -1) : $fieldName;
+                for ($i = $countStart+1; $i <= 9; $i++) {
+                    $fieldName = $fieldNameBase.$i;
+                    $existing = $formFieldGateway->getFieldInForm($urlParams['gibbonFormID'], $fieldName);
+                    if (empty($existing)) {
+                        break;
+                    }
+                }
+
+                if (!empty($existing)) {
+                    $duplicateFail[] = $fieldName;
+                    $partialFail = true;
+                    continue;
+                }
             }
 
             $data = [

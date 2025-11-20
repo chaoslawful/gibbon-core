@@ -99,6 +99,7 @@ v30.0.00
         Activities: fixed Manage Enrolment when participants are part of more than one activity
         Activities: fixed the Activities tab on the parent dashboard to work with new activities system
         Activities: removed activities with registration turned off from sign up list
+        Admissions: increased the memory limit for the Accept process in Manage Applications
         Attendance: fixed Student History display when all seven weekdays are set as school days
         Data Updater: fixed attachments being cleared when new data updates are submitted
         Library: fixed handling of SQL values in Library Browse page
@@ -112,6 +113,10 @@ v30.0.00
         Staff: fixed missing staff name for general coverage in Daily Coverage Planner
         Students: updated default value for longTermMedication to N for new medical records
         Students: fixed sidebar links for custom modules when viewing Student Profiles for left students
+        System Admin: fixed unable to add multiple generic fields with the same name in Form Builder
+        System Admin: fixed unable to delete How Did You Hear in Form Builder
+        System Admin: fixed adding custom fields for different role categories in Form Builder
+        System Admin: fixed the label disappearing for Long Text fields in Form Builder
         Timetable: fixed multiple instances of the same TT day in a week not showing up
         Timetable Admin: fixed missing Manage Exceptions button on the timetable in Course Enrolment by Person
         Timetable Admin: fixed the issue of setting white as the default color for both background and font
