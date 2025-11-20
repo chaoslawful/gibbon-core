@@ -398,7 +398,6 @@ class Form implements OutputableInterface
     public function getRowsByHeading()
     {
         $group = array_reduce($this->getRows(), function ($group, $row) {
-            if ($row->getElementCount() == 0) return $group;
             $group[$row->getHeading()][] = $row;
             return $group;
         }, []);
