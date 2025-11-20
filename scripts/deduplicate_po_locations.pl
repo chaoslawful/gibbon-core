@@ -69,14 +69,15 @@ while (defined($line = <$in_fh>)) {
             }
         }
         
-        # Replace spaces with underscores if requested (for poedit compatibility)
+        # Quote spaces with U+2068 and U+2069 if requested (for PO format compatibility)
         if ($replace_spaces) {
             @unique_locations = map {
-                # Replace spaces in file path but keep the line number
+                # Quote spaces in file path but keep the line number
                 if (/^(.+?):(\d+)$/) {
                     my $filepath = $1;
                     my $line_num = $2;
-                    $filepath =~ s/ /_/g;
+                    # Wrap consecutive spaces with U+2068 (FSI) and U+2069 (PDI)
+                    $filepath =~ s/([ ]+)/\x{2068}$1\x{2069}/g;
                     "$filepath:$line_num";
                 } else {
                     $_;

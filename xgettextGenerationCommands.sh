@@ -220,12 +220,12 @@ do
     # Clean up temporary directory
     rm -rf "$TEMP_DIR"
 
-    # Deduplicate location references in PO file and optionally replace spaces for poedit compatibility
+    # Deduplicate location references in PO file and optionally replace spaces to conform with PO format specifications
     if [ -f "$PO_FILE" ]; then
         SCRIPT_DIR=$(dirname $(realpath "$0"))
         DEDUP_SCRIPT="$SCRIPT_DIR/scripts/deduplicate_po_locations.pl"
         if [ -f "$DEDUP_SCRIPT" ]; then
-            # Use --replace-spaces flag to replace spaces with underscores for poedit compatibility
+            # Use --replace-spaces flag to replace spaces with correct quoting to conform with PO format specifications
             perl "$DEDUP_SCRIPT" "$PO_FILE" "$PO_FILE.tmp" --replace-spaces 2>/dev/null
             if [ -f "$PO_FILE.tmp" ]; then
                 mv "$PO_FILE.tmp" "$PO_FILE"
