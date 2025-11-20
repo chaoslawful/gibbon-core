@@ -75,11 +75,9 @@ if (isActionAccessible($guid, $connection2, '/modules/System Admin/formBuilder_p
         $form->addHiddenValue('fieldType', $values['fieldType']);
     }
 
-    if ($values['fieldType'] != 'text') {
-        $row = $form->addRow();
-            $row->addLabel('label', __('Label'));
-            $row->addTextField('label')->maxLength(90)->required();
-    }
+    $row = $form->addRow();
+        $row->addLabel('label', __('Label'));
+        $row->addTextField('label')->maxLength(90)->required();
 
     if ($values['fieldType'] == 'heading' || $values['fieldType'] == 'subheading') {
         $col = $form->addRow()->addColumn();

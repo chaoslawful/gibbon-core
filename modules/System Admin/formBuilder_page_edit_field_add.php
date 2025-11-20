@@ -141,7 +141,7 @@ if (isActionAccessible($guid, $connection2, '/modules/System Admin/formBuilder_p
         $row->addLabel('optionsLength', __('Max Length'))->description(__('Number of characters, up to 255.'));
         $row->addNumber('optionsLength')->setName('options')->minimum(1)->maximum(255)->onlyInteger(true);
 
-        $form->toggleVisibilityByClass('optionsRows')->onSelect('type')->when(['text', 'editor']);
+        $form->toggleVisibilityByClass('optionsRows')->onSelect('type')->when(['text']);
 
         $row = $form->addRow()->addClass('optionsRows');
         $row->addLabel('optionsRows', __('Rows'))->description(__('Number of rows for field.'));
