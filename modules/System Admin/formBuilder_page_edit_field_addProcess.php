@@ -99,17 +99,21 @@ if (isActionAccessible($guid, $connection2, '/modules/System Admin/formBuilder_p
                 continue;
             }
 
+            // Check for fields that already exist with the same field name
             $existing = $formFieldGateway->getFieldInForm($urlParams['gibbonFormID'], $fieldName);
             if (!empty($existing)) {
-                $hasCounter = is_int(substr($fieldName, -1, 1));
-                $countStart = $hasCounter ? substr($fieldName, -1, 1) : 1;
+                // Allow certain fields to increment the field name if more than one field has been added.
+                if (in_array($fieldGroup, ['GenericFields', 'LayoutText', 'LayoutHeadings', ])) {
+                    $hasCounter = is_int(substr($fieldName, -1, 1));
+                    $countStart = $hasCounter ? substr($fieldName, -1, 1) : 1;
 
-                $fieldNameBase = $hasCounter ? substr($fieldName, 0, -1) : $fieldName;
-                for ($i = $countStart+1; $i <= 9; $i++) {
-                    $fieldName = $fieldNameBase.$i;
-                    $existing = $formFieldGateway->getFieldInForm($urlParams['gibbonFormID'], $fieldName);
-                    if (empty($existing)) {
-                        break;
+                    $fieldNameBase = $hasCounter ? substr($fieldName, 0, -1) : $fieldName;
+                    for ($i = $countStart+1; $i <= 9; $i++) {
+                        $fieldName = $fieldNameBase.$i;
+                        $existing = $formFieldGateway->getFieldInForm($urlParams['gibbonFormID'], $fieldName);
+                        if (empty($existing)) {
+                            break;
+                        }
                     }
                 }
 
