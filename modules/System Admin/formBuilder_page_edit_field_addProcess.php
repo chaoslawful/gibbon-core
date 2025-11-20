@@ -70,7 +70,7 @@ if (isActionAccessible($guid, $connection2, '/modules/System Admin/formBuilder_p
     } else {
         $sequenceNumber = $formFieldGateway->getNextSequenceNumberByPage($urlParams['gibbonFormPageID']) ?? 1;
     }
-    
+
     foreach ($fields as $fieldGroup => $fieldGroupFields) {
         $fieldGroupClass = $formBuilder->getFieldGroup($fieldGroup);
 
@@ -79,9 +79,8 @@ if (isActionAccessible($guid, $connection2, '/modules/System Admin/formBuilder_p
         }
 
         foreach ($fieldGroupFields as $fieldName) {
-
             if ($fieldName == 'generic') {
-                $fieldName = lcfirst(preg_replace('[/~`!@%#$%^&*()+={}\[\]|\\:;"\'<>,.?\/]', '', $_POST['label'] ?? $fieldName));
+                $fieldName = strtolower(preg_replace('/[\~\`\!\@\%\#\$%\^&\*\(\)\+\=\{\}\[\]\|\:;"\'\\<>\,\.\?\/ ]/', '', $_POST['label'] ?? $fieldName));
             } else {
                 $field = $fieldGroupClass->getField($fieldName);
                 if (empty($field)) {
@@ -90,7 +89,7 @@ if (isActionAccessible($guid, $connection2, '/modules/System Admin/formBuilder_p
                 }
 
                 if (!empty($field['type']) && ($field['type'] == 'heading' || $field['type'] == 'subheading')) {
-                    $fieldName = $field['type'].preg_replace('[/~`!@%#$%^&*()+={}\[\]|\\:;"\'<>,.?\/]', '', $_POST['label'] ?? $fieldName);
+                    $fieldName = $field['type'].preg_replace('/[\~\`\!\@\%\#\$%\^&\*\(\)\+\=\{\}\[\]\|\:;"\'\\<>\,\.\?\/ ]/', '', $_POST['label'] ?? $fieldName);
                     $fieldGroupName = 'LayoutHeadings';
                 }
             }
