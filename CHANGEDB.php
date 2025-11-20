@@ -1041,11 +1041,12 @@ ALTER TABLE `gibbonCourseClass` CHANGE `nameShort` `nameShort` VARCHAR(16) NOT N
 ALTER TABLE `gibbonSchoolYearSpecialDay` ADD `cancelDuty` ENUM('Y','N') DEFAULT 'N' NULL AFTER `cancelActivities`;end
 ALTER TABLE `gibbonSchoolYearSpecialDay` ADD `cancelBookings` ENUM('Y','N') DEFAULT 'N' NULL AFTER `cancelDuty`;end
 ALTER TABLE `gibbonSchoolYearSpecialDay` ADD `cancelClasses` ENUM('Y','N') DEFAULT 'N' NULL AFTER `cancelBookings`;end
-INSERT INTO `gibbonCalendarEventType` (`type`) VALUES ('School Event'), ('Meeting');end
+INSERT INTO `gibbonCalendarEventType` (`type`, `color`, `sequenceNumber`) VALUES ('School Event', '', 0), ('Meeting', '', 1);end
 ALTER TABLE `gibbonCalendar` ADD `editableStaff` ENUM('Y','N') DEFAULT 'N' NULL AFTER `viewableOther`;end
 ALTER TABLE `gibbonCalendar` ADD `viewableParticipants` ENUM('Y','N') DEFAULT 'N' NULL AFTER `viewableOther`;end
 UPDATE `gibbonAction` SET name='View Calendar' WHERE name='View Calendar_all' AND gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Calendar');end
 UPDATE `gibbonFormField` SET `fieldGroup`='Miscellaneous' WHERE `fieldGroup`='AdmissionsFields' AND `gibbonFormField`.`fieldName` = 'howDidYouHear';end
 UPDATE `gibbonFormField` SET `fieldGroup`='MiscellaneousFields' WHERE `fieldGroup`='Miscellaneous' AND `gibbonFormField`.`fieldName` = 'howDidYouHear';end
+ALTER TABLE `gibbonCalendarEventType` CHANGE `color` `color` VARCHAR(7) NULL, CHANGE `sequenceNumber` `sequenceNumber` INT(3) NOT NULL DEFAULT 0;end
 
 ";
