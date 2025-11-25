@@ -44,6 +44,8 @@ class Locale implements LocaleInterface
 
     protected $supportsGetText = true;
 
+    protected $supportsPGetText = false;
+
 
     /**
      * Construct
@@ -55,6 +57,8 @@ class Locale implements LocaleInterface
     {
         $this->absolutePath = $absolutePath;
         $this->supportsGetText = function_exists('gettext') && function_exists('dgettext');
+        // Check if pgettext/dpgettext are available (PHP 7.4+)
+        $this->supportsPGetText = function_exists('pgettext') && function_exists('dpgettext');
     }
 
     /**
@@ -278,7 +282,9 @@ class Locale implements LocaleInterface
      *                        Values associated to numeric keys (e.g. 0, 1)
      *                        will replace the relevant placeholder in
      *                        message (e.g. "{0}" or "{1}").
-     * @param array  $options Options for translations (e.g. domain).
+     * @param array  $options Options for translations (e.g. domain, context).
+     *                        - domain: text domain for the translation
+     *                        - context: msgctxt for disambiguating translations
      *
      * @return string Translated Text
      */
@@ -295,14 +301,46 @@ class Locale implements LocaleInterface
         // change the auth message when not logged in
         $text = $this->doAuthMessageReplacement($text);
 
-        // get domain from options.
+        // get domain and context from options.
         $domain = $options['domain'] ?? '';
+        $context = $options['context'] ?? '';
 
-        // get raw translated string with or without domain.
+        // get raw translated string with or without domain/context.
         if ($this->supportsGetText) {
-            $text = empty($domain) ?
-                gettext($text) :
-                dgettext($domain, $text);
+            // Use dpgettext/pgettext if context is provided and supported
+            if (!empty($context) && $this->supportsPGetText) {
+                if (empty($domain)) {
+                    $text = pgettext($context, $text);
+                } else {
+                    // Use dpgettext with context and domain
+                    $translated = dpgettext($domain, $context, $text);
+
+                    // If translation not found in module domain, fallback to 'gibbon' domain
+                    if ($translated === $text && $domain !== 'gibbon') {
+                        $translated = dpgettext('gibbon', $context, $text);
+                    }
+
+                    $text = $translated;
+                }
+            } else {
+                // Fallback to dgettext/gettext if context not provided or pgettext not supported
+                if (empty($domain)) {
+                    $text = gettext($text);
+                } else {
+                    // Try module domain first
+                    $translated = dgettext($domain, $text);
+
+                    // If translation not found in module domain (returns original text),
+                    // fallback to default 'gibbon' domain where all translations are stored
+                    // This allows modules to have their own translations while falling back
+                    // to the main translation file if module-specific translation doesn't exist
+                    if ($translated === $text && $domain !== 'gibbon') {
+                        $translated = dgettext('gibbon', $text);
+                    }
+
+                    $text = $translated;
+                }
+            }
         }
 
         // apply custom string replacement logics and return.

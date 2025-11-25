@@ -161,6 +161,9 @@ function __m($contextOrText, $textOrParams = null, $params = [], $options = [])
     // If we have 2+ args and second arg is a string (not array), treat as pgettext-style
     if ($numArgs >= 2 && $textOrParams !== null && is_string($textOrParams) && !is_array($textOrParams)) {
         // pgettext-style: __m(context, message, params, options)
+        // Context is used as msgctxt for xgettext extraction
+        // For runtime lookup, we use context as both msgctxt and domain
+        // This allows different modules to have different translations for the same text
         $context = $contextOrText;
         $text = $textOrParams;
 
@@ -177,6 +180,10 @@ function __m($contextOrText, $textOrParams = null, $params = [], $options = [])
             $actualOptions = [];
         }
 
+        // Set context as msgctxt and domain for translation lookup
+        // If pgettext/dpgettext are available, context will be used as msgctxt
+        // Domain is set to context to allow module-specific translations
+        $actualOptions['context'] = $context;
         $actualOptions['domain'] = $context;
         return $gibbon->locale->translate($text, $actualParams, $actualOptions);
     } else {
@@ -196,6 +203,7 @@ function __m($contextOrText, $textOrParams = null, $params = [], $options = [])
             $actualOptions = [];
         }
 
+        // Use session module as domain (backward compatible)
         if ($session->has('module')) {
             $actualOptions['domain'] = $session->get('module');
         }
