@@ -200,7 +200,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenseRequest_man
                             return $row;
                         });
 
-                        $table->addColumn('title', __m('Title'))
+                        $table->addColumn('title', __m('Finance', 'Title'))
                             ->format(function ($expense) {
                                 $output = '<b>' . $expense['title'] . '</b><br/>';
                                 return $output;

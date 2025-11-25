@@ -40,24 +40,24 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
 <section class="w-full mb-6 relative">
     <div class="w-full py-3 border border-gray-400 rounded text-center text-gray-700 text-lg font-thin">
         {% if category.viewableDate is not empty %}
-            {{ __m('This activity category is not visible to the public, and will be viewable on') }} <b>{{ category.viewableDate|date("M j \\a\\t g:ia") }}</b>.<br/> 
+            {{ __m('Activities', 'This activity category is not visible to the public, and will be viewable on') }} <b>{{ category.viewableDate|date("M j \\a\\t g:ia") }}</b>.<br/>
         {% else %}
-            {{ __m('This activity category is not visible to the public, and will be viewable in the future') }}.<br/>
+            {{ __m('Activities', 'This activity category is not visible to the public, and will be viewable in the future') }}.<br/>
         {% endif %}
-        {{ __m('Some details seen here may not be finalised. Please do not share the activity details until access is open to all users.') }}
+        {{ __m('Activities', 'Some details seen here may not be finalised. Please do not share the activity details until access is open to all users.') }}
     </div>
 </section>
 {% elseif category.accessOpenDate and category.accessCloseDate %}
 <section class="w-full mb-6 relative">
     <div class="w-full py-3 border border-gray-400 rounded text-center text-gray-700 text-lg font-thin">
     {% if "now"|date("U") > category.endDate|date("U") %}
-        {{ __m('This activity category ended on') }} {{ category.endDate|date("M j") }}
+        {{ __m('Activities', 'This activity category ended on') }} {{ category.endDate|date("M j") }}
     {% elseif "now"|date("U") < category.accessOpenDate|date("U") %}
-        {{ __m('Sign up opens on') }} {{ category.accessOpenDate|date("M j \\a\\t g:ia") }}
+        {{ __m('Activities', 'Sign up opens on') }} {{ category.accessOpenDate|date("M j \\a\\t g:ia") }}
     {% elseif "now"|date("U") > category.accessCloseDate|date("U") %}
-        {{ __m('Sign up closed on') }} {{ category.accessCloseDate|date("M j \\a\\t g:ia") }}
+        {{ __m('Activities', 'Sign up closed on') }} {{ category.accessCloseDate|date("M j \\a\\t g:ia") }}
     {% else %}
-        {{ __m('Sign up is currently open, and will close on') }} {{ category.accessCloseDate|date("M j \\a\\t g:ia") }}
+        {{ __m('Activities', 'Sign up is currently open, and will close on') }} {{ category.accessCloseDate|date("M j \\a\\t g:ia") }}
     {% endif %}
     </div>
 </section>

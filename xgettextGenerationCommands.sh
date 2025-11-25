@@ -188,6 +188,8 @@ do
             --language=PHP \
             --keyword=__:1 \
             --keyword=__n:1,2 \
+            --keyword=__m:1 \
+            --keyword=__m:1c,2 \
             --add-comments=TRANSLATORS: \
             --force-po \
             --package-name="GibbonEdu Core" \
@@ -204,6 +206,8 @@ do
             --language=PHP \
             --keyword=__:1 \
             --keyword=__n:1,2 \
+            --keyword=__m:1 \
+            --keyword=__m:1c,2 \
             --add-comments=TRANSLATORS: \
             --force-po \
             --package-name="GibbonEdu Core" \
@@ -220,13 +224,15 @@ do
     # Clean up temporary directory
     rm -rf "$TEMP_DIR"
 
-    # Deduplicate location references in PO file and optionally replace spaces to conform with PO format specifications
+    # Note: msgctxt is now extracted directly by xgettext using --keyword=__m:1c,2
+    # when using pgettext-style calls: __m('context', 'message')
+    # No need for external script to add msgctxt anymore
+
     if [ -f "$PO_FILE" ]; then
         SCRIPT_DIR=$(dirname $(realpath "$0"))
         DEDUP_SCRIPT="$SCRIPT_DIR/scripts/deduplicate_po_locations.pl"
         if [ -f "$DEDUP_SCRIPT" ]; then
-            # Use --replace-spaces flag to replace spaces with correct quoting to conform with PO format specifications
-            perl "$DEDUP_SCRIPT" "$PO_FILE" "$PO_FILE.tmp" --replace-spaces 2>/dev/null
+            perl "$DEDUP_SCRIPT" "$PO_FILE" "$PO_FILE.tmp" 2>/dev/null
             if [ -f "$PO_FILE.tmp" ]; then
                 mv "$PO_FILE.tmp" "$PO_FILE"
             fi

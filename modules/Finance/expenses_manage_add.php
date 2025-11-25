@@ -93,7 +93,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_ad
 				$row->addSelect('gibbonFinanceBudgetID')->fromQuery($pdo, $sql)->required()->placeholder();
 
 			$row = $form->addRow();
-				$row->addLabel('title', __m('Title'));
+				$row->addLabel('title', __m('Finance', 'Title'));
 				$row->addTextField('title')->maxLength(60)->required();
 
 			$statuses = array(

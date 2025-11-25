@@ -106,7 +106,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenseRequest_man
                         $row->addTextField('budget')->setValue($values['budget'])->maxLength(20)->required()->readonly();
 
                     $row = $form->addRow();
-                        $row->addLabel('title', __m('Title'));
+                        $row->addLabel('title', __m('Finance', 'Title'));
                         $row->addTextField('title')->maxLength(60)->required()->readonly()->setValue($values['title']);
 
                     $row = $form->addRow();

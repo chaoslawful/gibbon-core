@@ -84,7 +84,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Crowd Assessment/crowdAsse
     // DETAILS
     $table = DataTable::createDetails('crowdAssessment');
 
-    $table->addHeaderAction('add', __m('Add'))
+    $table->addHeaderAction('add', __m('Crowd Assessment', 'Add'))
         ->addParam('gibbonPersonID', $gibbonPersonID)
         ->addParam('gibbonPlannerEntryID', $gibbonPlannerEntryID)
         ->addParam('gibbonPlannerEntryHomeworkID', $gibbonPlannerEntryHomeworkID)

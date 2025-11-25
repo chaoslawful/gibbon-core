@@ -135,22 +135,73 @@ function __n(string $singular, string $plural, int $n, array $params = [], array
 
 /**
  * Identical to __() but automatically includes the current module as the text domain.
+ * Supports pgettext-style calls: __m(context, message) for xgettext extraction.
+ * If only one argument is provided, falls back to session-based module detection.
+ *
+ * Usage:
+ *   __m('message')                    - Old style: uses session module
+ *   __m('context', 'message')         - pgettext style: explicit context for xgettext
+ *   __m('message', $params)           - Old style: with params
+ *   __m('context', 'message', $params) - pgettext style: with params
  *
  * @see __()
- * @param string $text
- * @param array  $params
- * @param array  $options
+ * @param string $contextOrText Context (module name) or text to translate
+ * @param string|array|null $textOrParams Text to translate, or params array if using old style
+ * @param array  $params  Assoc array of key value pairs for named string replacement
+ * @param array  $options Options for translations
  * @return string
  */
-function __m(string $text, array $params = [], array $options = [])
+function __m($contextOrText, $textOrParams = null, $params = [], $options = [])
 {
     global $gibbon, $session;
 
-    if ($session->has('module')) {
-        $options['domain'] = $session->get('module');
-    }
+    $numArgs = func_num_args();
 
-    return $gibbon->locale->translate($text, $params, $options);
+    // Detect pgettext-style call: __m(context, message, ...)
+    // If we have 2+ args and second arg is a string (not array), treat as pgettext-style
+    if ($numArgs >= 2 && $textOrParams !== null && is_string($textOrParams) && !is_array($textOrParams)) {
+        // pgettext-style: __m(context, message, params, options)
+        $context = $contextOrText;
+        $text = $textOrParams;
+
+        // Handle params and options for pgettext style
+        if ($numArgs >= 3) {
+            $actualParams = is_array($params) ? $params : [];
+            if ($numArgs >= 4) {
+                $actualOptions = is_array($options) ? $options : [];
+            } else {
+                $actualOptions = [];
+            }
+        } else {
+            $actualParams = [];
+            $actualOptions = [];
+        }
+
+        $actualOptions['domain'] = $context;
+        return $gibbon->locale->translate($text, $actualParams, $actualOptions);
+    } else {
+        // Old style: __m(text, params, options)
+        $text = $contextOrText;
+
+        // Handle old style parameters
+        if ($numArgs >= 2 && is_array($textOrParams)) {
+            $actualParams = $textOrParams;
+            if ($numArgs >= 3 && is_array($params)) {
+                $actualOptions = $params;
+            } else {
+                $actualOptions = [];
+            }
+        } else {
+            $actualParams = [];
+            $actualOptions = [];
+        }
+
+        if ($session->has('module')) {
+            $actualOptions['domain'] = $session->get('module');
+        }
+
+        return $gibbon->locale->translate($text, $actualParams, $actualOptions);
+    }
 }
 
 /**

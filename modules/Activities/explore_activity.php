@@ -39,8 +39,8 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/explore_activit
         ->add(__('Activity'));
 
     $page->return->addReturns([
-        'error4' => __m('Sign up is currently not available for this activity.'),
-        'error5' => __m('There was an error verifying your activity choices. Please try again.'),
+        'error4' => __m('Activities', 'Sign up is currently not available for this activity.'),
+        'error5' => __m('Activities', 'There was an error verifying your activity choices. Please try again.'),
     ]);
 
     $highestAction = getHighestGroupedAction($guid, $_GET['q'], $connection2);
@@ -78,7 +78,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/explore_activit
     }
 
     if ($category['viewable'] != 'Y'  && !$canViewInactive) {
-        $page->addMessage(__m('This activity is not viewable at this time. Please return to the categories page to explore a different activity.'));
+        $page->addMessage(__m('Activities', 'This activity is not viewable at this time. Please return to the categories page to explore a different activity.'));
         return;
     }
 

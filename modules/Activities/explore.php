@@ -26,7 +26,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/explore.php') =
 } else {
     // Proceed!
     $page->breadcrumbs
-        ->add(__m('Explore Activities'));
+        ->add(__m('Activities', 'Explore Activities'));
 
     $canViewInactive = isActionAccessible($guid, $connection2, '/modules/Activities/activities_manage.php');
 

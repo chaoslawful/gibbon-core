@@ -30,8 +30,8 @@ if (isActionAccessible($guid, $connection2, '/modules/Messenger/mailingLists_man
     $gibbonMessengerMailingListID = $_GET['gibbonMessengerMailingListID'] ?? '';
 
     $page->breadcrumbs
-        ->add(__m('Manage Mailing Lists'), 'mailingLists_manage.php')
-        ->add(__m('Edit '));
+        ->add(__m('Messenger', 'Manage Mailing Lists'), 'mailingLists_manage.php')
+        ->add(__m('Messenger', 'Edit '));
 
     if (empty($gibbonMessengerMailingListID)) {
         $page->addError(__('You have not specified one or more required parameters.'));
