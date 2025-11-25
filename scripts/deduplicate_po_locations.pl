@@ -68,7 +68,7 @@ while (defined($line = <$in_fh>)) {
                 push @unique_locations, $loc;
             }
         }
-        
+
         # Quote spaces with U+2068 and U+2069 if requested (for PO format compatibility)
         if ($replace_spaces) {
             @unique_locations = map {
@@ -84,7 +84,7 @@ while (defined($line = <$in_fh>)) {
                 }
             } @unique_locations;
         }
-        
+
         # Write deduplicated locations
         if (@unique_locations > 0) {
             print $out_fh "#: " . join(" ", @unique_locations) . "\n";

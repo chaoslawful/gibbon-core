@@ -60,7 +60,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/explore_activit
     }
 
     if (!$signUpIsOpen) {
-        $page->addError(__m('Sign up is currently not available for this activity.'));
+        $page->addError(__m('Activities', 'Sign up is currently not available for this activity.'));
         return;
     }
     
@@ -69,7 +69,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/explore_activit
     $signUpActivity = $activityGateway->getActivitySignUpAccess($gibbonActivityID, $session->get('gibbonPersonID'));
 
     if (!$signUpCategory || (!empty($activity) && !$signUpActivity)) {
-        $page->addError(__m('Sign up is currently not available for this activity.'));
+        $page->addError(__m('Activities', 'Sign up is currently not available for this activity.'));
         return;
     }
 
@@ -86,7 +86,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/explore_activit
         $signUpChoices = count($activities);
     }
 
-    $choiceList = [1 => __m('First Choice'), 2 => __m('Second Choice'), 3 => __m('Third Choice'), 4 => __m('Fourth Choice'), 5 => __m('Fifth Choice')];
+    $choiceList = [1 => __m('Activities', 'First Choice'), 2 => __m('Activities', 'Second Choice'), 3 => __m('Activities', 'Third Choice'), 4 => __m('Activities', 'Fourth Choice'), 5 => __m('Activities', 'Fifth Choice')];
     $choice = [];
     for ($i = 1; $i <= $signUpChoices; $i++) {
         $choice[$i] = $choicesSelected[$i]['gibbonActivityID'] ?? '';

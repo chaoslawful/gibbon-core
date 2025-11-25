@@ -164,7 +164,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_ap
                             }
 
 							$row = $form->addRow();
-								$row->addLabel('title', __m('Title'));
+								$row->addLabel('title', __m('Finance', 'Title'));
 								$row->addTextField('title')->required()->readonly();
 
 							$row = $form->addRow();

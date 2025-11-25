@@ -89,7 +89,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
 		$excel->getActiveSheet()->setCellValueByColumnAndRow(3, 1, __('Budget Cycle'));
         $excel->getActiveSheet()->getStyleByColumnAndRow(3, 1)->applyFromArray($style_border);
         $excel->getActiveSheet()->getStyleByColumnAndRow(3, 1)->applyFromArray($style_head_fill);
-		$excel->getActiveSheet()->setCellValueByColumnAndRow(4, 1, __m('Title'));
+		$excel->getActiveSheet()->setCellValueByColumnAndRow(4, 1, __m('Finance', 'Title'));
         $excel->getActiveSheet()->getStyleByColumnAndRow(4, 1)->applyFromArray($style_border);
         $excel->getActiveSheet()->getStyleByColumnAndRow(4, 1)->applyFromArray($style_head_fill);
 		$excel->getActiveSheet()->setCellValueByColumnAndRow(5, 1, __('Status'));

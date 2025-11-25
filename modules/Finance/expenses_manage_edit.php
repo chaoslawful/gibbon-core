@@ -144,7 +144,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_ed
 								$row->addTextField('budgetName')->setValue($values['budget'])->required()->readonly();
 
 							$row = $form->addRow();
-								$row->addLabel('title', __m('Title'));
+								$row->addLabel('title', __m('Finance', 'Title'));
 								$row->addTextField('title')->required()->readonly();
 
 							$row = $form->addRow();

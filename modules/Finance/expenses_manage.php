@@ -261,7 +261,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
         $table->addMetaData('bulkActions', $col);
     }
 
-    $table->addColumn('title', __m('Title'))
+    $table->addColumn('title', __m('Finance', 'Title'))
         ->description(__('Budget'))
         ->formatDetails(function ($values) {
             return Format::small($values['budget'] ?? '');

@@ -30,7 +30,7 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
         <div class="hidden md:block absolute bottom-0 right-0 mb-6 mr-6">
             <span class="tag text-white text-sm font-light" style="background: rgba(0,0,0,0.65)">
                 {% if activity.yearGroupCount >= 8 %}
-                    {{ __m('All Year Groups') }}
+                    {{ __m('Activities', 'All Year Groups') }}
                 {% else %}
                     {{ activity.yearGroups|replace({'Y0':'Y'}) }}
                 {% endif %}

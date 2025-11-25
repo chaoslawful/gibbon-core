@@ -462,14 +462,14 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_view_full.
                             $form->addHiddenValues($params);
 
                             if ($values['role'] == 'Teacher' and $teacher == true) {
-                                $form->addHeaderAction('blocks', __m('Edit Blocks'))
+                                $form->addHeaderAction('blocks', __m('Planner', 'Edit Blocks'))
                                     ->setURL('/modules/Planner/planner_edit.php', '#SmartBlocks')
                                     ->addParams($params)
                                     ->displayLabel()
                                     ->prepend(__('Smart Blocks').': ');
 
                                 if (!empty($values['gibbonUnitID'])) {
-                                    $form->addHeaderAction('unit', __m('Edit Unit'))
+                                    $form->addHeaderAction('unit', __m('Planner', 'Edit Unit'))
                                         ->setURL('/modules/Planner/units_edit_working.php')
                                         ->addParams($params)
                                         ->addParam('gibbonCourseID', $values['gibbonCourseID'] ?? '')

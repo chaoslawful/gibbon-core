@@ -110,7 +110,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenseRequest_man
                         $row->addSelect('gibbonFinanceBudgetID')->fromArray($budgetsProcessed)->required()->placeholder();
 
                     $row = $form->addRow();
-                        $row->addLabel('title', __m('Title'));
+                        $row->addLabel('title', __m('Finance', 'Title'));
                         $row->addTextField('title')->maxLength(60)->required();
 
                     $form->addHiddenValue('status', 'Requested');
