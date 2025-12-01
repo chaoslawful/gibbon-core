@@ -42,3 +42,5 @@ node_modules
 # Ignore xgettextGenerationCommands.log
 xgettextGenerationCommands.log
 
+.idea
+
