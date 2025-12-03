@@ -1050,3 +1050,8 @@ UPDATE `gibbonFormField` SET `fieldGroup`='MiscellaneousFields' WHERE `fieldGrou
 ALTER TABLE `gibbonCalendarEventType` CHANGE `color` `color` VARCHAR(7) NULL, CHANGE `sequenceNumber` `sequenceNumber` INT(3) NOT NULL DEFAULT 0;end
 
 ";
+
+//v30.0.01
+++$count;
+$sql[$count][0] = '30.0.01';
+$sql[$count][1] = "";
