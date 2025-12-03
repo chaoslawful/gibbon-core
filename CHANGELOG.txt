@@ -24,6 +24,7 @@ v30.0.01
 
     Bug Fixes
         System: fixed default collation in gibbon.sql causing installation issues for MariaDB systems
+        Planner: fixed an error on the Year Overview of the Lesson Planner
 
 v30.0.00
 --------

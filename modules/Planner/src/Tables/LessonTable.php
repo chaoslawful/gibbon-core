@@ -108,7 +108,7 @@ class LessonTable
             $lessons = $this->addSchoolClosureDates($gibbonSchoolYearID, $lessons->toArray());
         }
 
-        $lessonData = $lessons->getRow(0);
+        $lessonData = is_array($lessons) ? $lessons[0] : $lessons->getRow(0);
 
         $table = DataTable::createPaginated('lessonPlanner', $criteria)->withData($lessons);
 
