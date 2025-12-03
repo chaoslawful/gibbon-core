@@ -19,6 +19,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 CHANGELOG
 =========
 
+v30.0.01
+--------
+
+    Bug Fixes
+        System: fixed default collation in gibbon.sql causing installation issues for MariaDB systems
+
 v30.0.00
 --------
 
