@@ -24,6 +24,7 @@ v30.0.01
 
     Bug Fixes
         System: fixed default collation in gibbon.sql causing installation issues for MariaDB systems
+        Attendance: fixed empty list in Set Future Absence when using Select Students for Multiple Students
         Planner: fixed an error on the Year Overview of the Lesson Planner
 
 v30.0.00
