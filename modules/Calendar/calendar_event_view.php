@@ -30,7 +30,7 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
 } else {
     // Proceed!
     $page->breadcrumbs
-        ->add(__('Manage Events'), 'calendar_event_manage.php')
+        ->add(__('View Calendar'), 'calendar_view.php')
         ->add(__('View Event'));
 
     $gibbonCalendarEventID = $_GET['gibbonCalendarEventID'] ?? '';
@@ -45,12 +45,14 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
         return;
     }
 
-    $canEditEvent = $event['editor'] == 'Y' && Access::allows('Calendar', 'calendar_event_edit');
+    $canManageCalendars = Access::allows('Calendar', 'calendar_event_edit');
+    $canEditEvent = $event['editor'] == 'Y' && $canManageCalendars;
 
     // DATA TABLE TO VIEW EVENT DETAILS
     $table = DataTable::createDetails('viewEvent');
 
     $table->setTitle(__('View'));
+    $table->addMetaData('allowHTML', ['description']);
 
     if ($canEditEvent) {
         $table->addHeaderAction('edit', __('Edit Event'))
@@ -111,6 +113,8 @@ if (!isActionAccessible($guid, $connection2, '/modules/Calendar/calendar_event_v
         ->fromPOST();
         
     $participants = $calendarEventPersonGateway->queryAllEventParticipants($criteria, $gibbonCalendarEventID);
+
+    if (!$canManageCalendars || count($participants) <= 0) return;
 
     // DATA TABLE FOR ALL PARTICIPANTS
     $table = DataTable::createPaginated('participants', $criteria)->withData($participants);
