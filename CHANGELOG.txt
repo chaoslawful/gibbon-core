@@ -25,6 +25,7 @@ v30.0.01
     Bug Fixes
         System: fixed default collation in gibbon.sql causing installation issues for MariaDB systems
         System: added a upper character limit of 2048 to translation strings, to prevent gettext errors
+        System: fixed validation of Number fields not allowing decimal places for non-integer values
         Attendance: fixed empty list in Set Future Absence when using Select Students for Multiple Students
         Calendar: fixed access to View Event when users only have View Calendar access
         Planner: fixed an error on the Year Overview of the Lesson Planner
