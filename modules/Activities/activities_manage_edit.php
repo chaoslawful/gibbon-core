@@ -85,7 +85,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_mana
                     ->maxLength(40);
 
             $row = $form->addRow();
-                $row->addLabel('provider', __('Provider'));
+                $row->addLabel('provider', __m('Activities', 'Provider'));
                 $row->addSelect('provider')
                     ->required()
                     ->fromArray([
@@ -197,10 +197,10 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_mana
             // COST
             $payment = $settingGateway->getSettingByScope('Activities', 'payment');
             if ($payment != 'None' && $payment != 'Single') {
-                $form->addRow()->addHeading('Cost', __('Cost'));
+                $form->addRow()->addHeading('Cost', __m('Activities', 'Cost'));
 
                 $row = $form->addRow();
-                    $row->addLabel('payment', __('Cost'));
+                    $row->addLabel('payment', __m('Activities', 'Cost'));
                     $row->addCurrency('payment')
                         ->required()
                         ->maxLength(9);
@@ -253,7 +253,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_mana
                         ->chainedTo('timeStart');
 
                 $row = $slotBlock->addRow();
-                    $row->addLabel('location', __('Location'));
+                    $row->addLabel('location', __m('Activities', 'Location'));
                     $row->addRadio('location')
                         ->inline()
                         ->alignLeft()

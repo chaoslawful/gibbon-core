@@ -102,7 +102,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Data Updater/data_personal
 
             // An array of common fields to compare in each data set, and the field label
             $compare = array(
-                'title'                  => __('Title'),
+                'title'                  => __m('Data Updater', 'Title'),
                 'surname'                => __('Surname'),
                 'firstName'              => __('First Name'),
                 'preferredName'          => __('Preferred Name'),

@@ -1476,7 +1476,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Students/student_view_deta
                                 $table->addColumn('category', __('Category'))
                                     ->translatable();
 
-                                $table->addColumn('title', __('Title'))
+                                $table->addColumn('title', __m('Students', 'Title'))
                                     ->description(__('Overview'))
                                     ->format(function ($note) {
                                         $title = !empty($note['title'])? $note['title'] : __('N/A');

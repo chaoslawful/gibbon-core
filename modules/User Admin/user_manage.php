@@ -81,7 +81,7 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/user_manage.php
         'role:student'    => __('Role').': '.__('Student'),
         'role:parent'     => __('Role').': '.__('Parent'),
         'role:staff'      => __('Role').': '.__('Staff'),
-        'status:full'     => __('Status').': '.__('Full'),
+        'status:full'     => __('Status').': '.__m('User Admin', 'Full'),
         'status:left'     => __('Status').': '.__('Left'),
         'status:expected' => __('Status').': '.__('Expected'),
         'date:starting'   => __('Before Start Date'),

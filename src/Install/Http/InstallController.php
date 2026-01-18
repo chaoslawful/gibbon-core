@@ -505,7 +505,7 @@ class InstallController
         $form->addRow()->addHeading('User Account', __('User Account'));
 
         $row = $form->addRow();
-            $row->addLabel('title', __('Title'));
+            $row->addLabel('title', __m('System Admin', 'Title'));
             $row->addSelectTitle('title')->selected($data['title'] ?? '');
 
         $row = $form->addRow();

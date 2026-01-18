@@ -62,7 +62,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenseRequest_man
             }
         }
         if ($budgetsAccess == false) {
-            $page->addError(__('You do not have Full or Write access to any budgets.'));
+            $page->addError(__('You do not have %1$s or %2$s access to any budgets.', [__m('Finance', 'Full'), __m('Finance', 'Write')]));
         } else {
             // Get and check settings
             $settingGateway = $container->get(SettingGateway::class);

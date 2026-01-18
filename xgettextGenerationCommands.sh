@@ -162,9 +162,39 @@ do
     find . -type f \( -iname "*.php" -o -iname "*.twig.html" \) ! -path "./lib/*" ! -path "./tests/*" ! -path "./vendor/*" ! -path "./.git/*" ! -path "./uploads/*" | while read file; do
         # Create directory structure in temp
         mkdir -p "$TEMP_DIR/$(dirname "$file")"
-        # Clean problematic characters and copy using perl for better Unicode support
-        # Remove soft hyphens, replace smart quotes with regular quotes, remove \r characters
-        perl -pe 's/\x{00AD}//g; s/\x{201C}/"/g; s/\x{201D}/"/g; s/\r//g;' "$file" > "$TEMP_DIR/$file"
+
+        if [[ "$file" == *.twig.html ]]; then
+            # Preprocess Twig templates: convert {{...}} blocks to PHP code blocks
+            # This allows xgettext to parse the content inside {{...}} as PHP code
+            # xgettext will then extract translation strings directly from the PHP code
+            # Keep original filename (.twig.html) so xgettext references show correct path
+            TEMP_TWIG_FILE="$TEMP_DIR/$file"
+            # Use perl with -e to avoid bash parsing issues with complex regex
+            perl -0777 -e '
+                local $/;
+                $_ = <>;
+                # Remove soft hyphens, replace smart quotes, remove \r characters
+                s/\x{00AD}//g;
+                s/\x{201C}/"/g;
+                s/\x{201D}/"/g;
+                s/\r//g;
+
+                # Convert all {{...}} blocks to <?php ... ?> blocks
+                # This allows xgettext to parse the content as PHP code
+                # Simple approach: match {{...}} and convert to <?php ... ?>
+                # Note: This handles most cases. For nested {{}} in strings,
+                # we rely on the fact that Twig templates typically don'\''t have unmatched braces
+                s/\{\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\}/<?php $1 ?>/gs;
+
+                # Clean up extra whitespace around PHP tags
+                s/<\?php\s+/<?php /g;
+                s/\s+\?>/ ?>/g;
+                print;
+            ' "$file" > "$TEMP_TWIG_FILE"
+        else
+            # Clean problematic characters for PHP files
+            perl -pe 's/\x{00AD}//g; s/\x{201C}/"/g; s/\x{201D}/"/g; s/\r//g;' "$file" > "$TEMP_DIR/$file"
+        fi
     done
 
     # Change to temp directory for xgettext to use relative paths
@@ -175,11 +205,21 @@ do
     PO_FILE="$I18N_HOME/$LOCALE/LC_MESSAGES/gibbon.po"
     
     # Build array of files to process, handling paths with spaces correctly
+    # Note: Twig files keep their original .twig.html extension but contain PHP code
     FILES_ARRAY=()
     while IFS= read -r -d '' file; do
         FILES_ARRAY+=("$file")
     done < <(find . -type f \( -iname "*.php" -o -iname "*.twig.html" \) -print0)
     
+    # Check if we have any files to process
+    if [ ${#FILES_ARRAY[@]} -eq 0 ]; then
+        echo -e  "* generate locale text file (.po)\t\t\e[33m⚠\e[0m (no files found)"
+        # Clean up temporary directory before continuing
+        cd "$OLD_PWD_TEMP"
+        rm -rf "$TEMP_DIR"
+        continue
+    fi
+
     if [ -f "$PO_FILE" ]; then
         # File exists, use -j to append (join) new entries
         xgettext \
@@ -200,6 +240,8 @@ do
             2>>$LOGFILE >/dev/null
     else
         # File doesn't exist, create new file without -j
+        # Note: We don't use --omit-header for new files because xgettext needs to generate
+        # a proper header. The header will be fixed later by the script.
         xgettext \
             --from-code=utf-8 \
             --omit-header \

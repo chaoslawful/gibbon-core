@@ -78,7 +78,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Staff/staff_manage_edit_co
                 $row->addTextField('person')->setValue(Format::name('', $values['preferredName'], $values['surname'], 'Student'))->readonly()->required();
 
             $row = $form->addRow();
-                $row->addLabel('title', __('Title'))->description(__('A name to identify this contract.'));
+                $row->addLabel('title', __m('Staff', 'Title'))->description(__('A name to identify this contract.'));
                 $row->addTextField('title')->maxlength(100)->required();
 
             $row = $form->addRow();

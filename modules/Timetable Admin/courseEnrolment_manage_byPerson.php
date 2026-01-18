@@ -92,7 +92,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Timetable Admin/courseEnro
         if ($criteria->hasFilter('all')) {
             $table->addMetaData('filterOptions', [
                 'all:on'          => __('All Users'),
-                'status:full'     => __('Status').': '.__('Full'),
+                'status:full'     => __('Status').': '.__m('Students', 'Full'),
                 'status:left'     => __('Status').': '.__('Left'),
                 'status:expected' => __('Status').': '.__('Expected'),
                 'date:starting'   => __('Before Start Date'),

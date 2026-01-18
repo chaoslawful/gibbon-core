@@ -105,7 +105,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Students/student_view_deta
                             }
 
                             $row = $form->addRow();
-                                $row->addLabel('title', __('Title'));
+                                $row->addLabel('title', __m('Students', 'Title'));
                                 $row->addTextField('title')->required()->maxLength(100);
 
                             $sql = "SELECT gibbonStudentNoteCategoryID as value, name FROM gibbonStudentNoteCategory WHERE active='Y' ORDER BY name";

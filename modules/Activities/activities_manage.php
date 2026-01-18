@@ -149,9 +149,9 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_mana
         'active:N'          => __('Active').': '.__('No'),
         'registration:Y'    => __('Registration').': '.__('Yes'),
         'registration:N'    => __('Registration').': '.__('No'),
-        'enrolment:less'    => __('Enrolment').': &lt; '.__('Full'),
-        'enrolment:full'    => __('Enrolment').': '.__('Full'),
-        'enrolment:greater' => __('Enrolment').': &gt; '.__('Full'),
+        'enrolment:less'    => __('Enrolment').': &lt; '.__m('Activities', 'Full'),
+        'enrolment:full'    => __('Enrolment').': '.__m('Activities', 'Full'),
+        'enrolment:greater' => __('Enrolment').': &gt; '.__m('Activities', 'Full'),
     ]);
 
     if ($enrolmentType == 'Competitive') {
@@ -197,7 +197,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_mana
         });
 
     if ($paymentOn) {
-        $table->addColumn('payment', __('Cost'))
+        $table->addColumn('payment', __m('Activities', 'Cost'))
             ->description($session->get('currency'))
             ->format(function($activity) {
                 $payment = ($activity['payment'] > 0)
@@ -209,7 +209,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_mana
             });
     }
 
-    $table->addColumn('provider', __('Provider'))
+    $table->addColumn('provider', __m('Activities', 'Provider'))
         ->format(function($activity) use ($session){
             return ($activity['provider'] == 'School')? $session->get('organisationNameShort') : __('External');
         });

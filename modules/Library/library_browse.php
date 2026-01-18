@@ -89,7 +89,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Library/library_browse.php
         $row->setClass('grid grid-cols-7 gap-4 items-center mt-2');
 
     $col = $row->addColumn()->setClass('');
-        $col->addLabel('name', __('Title'));
+        $col->addLabel('name', __m('Library', 'Title'));
         $col->setClass('');
         $col->addTextField('name')->setValue($name);
 

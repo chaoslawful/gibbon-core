@@ -110,7 +110,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Staff/staff_manage.php') =
         'all:on'          => __('All Staff'),
         'type:teaching'   => __('Staff Type').': '.__('Teaching'),
         'type:support'    => __('Staff Type').': '.__('Support'),
-        'status:full'     => __('Status').': '.__('Full'),
+        'status:full'     => __('Status').': '.__m('Staff', 'Full'),
         'status:left'     => __('Status').': '.__('Left'),
         'status:expected' => __('Status').': '.__('Expected'),
     ]);

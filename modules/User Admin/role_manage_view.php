@@ -62,7 +62,7 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/role_manage_vie
     });
 
     $table->addMetaData('filterOptions', [
-        'status:full'     => __('Status').': '.__('Full'),
+        'status:full'     => __('Status').': '.__m('User Admin', 'Full'),
         'status:left'     => __('Status').': '.__('Left'),
         'status:expected' => __('Status').': '.__('Expected'),
         'primaryRole:y'   => __('Primary Role').': '.__('Yes'),

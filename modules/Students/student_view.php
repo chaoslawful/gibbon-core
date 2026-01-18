@@ -144,7 +144,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Students/student_view.php'
         
                 if ($criteria->hasFilter('all')) {
                     $table->addMetaData('filterOptions', [
-                        'status:full'     => __('Status').': '.__('Full'),
+                        'status:full'     => __('Status').': '.__m('Students', 'Full'),
                         'status:expected' => __('Status').': '.__('Expected'),
                         'date:starting'   => __('Before Start Date'),
                         'date:ended'      => __('After End Date'),

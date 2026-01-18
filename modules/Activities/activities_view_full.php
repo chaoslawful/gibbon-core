@@ -120,7 +120,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_view
                     echo '<tr>';
                     echo "<td style='padding-top: 15px; width: 33%; vertical-align: top'>";
                     if ($hideExternalProviderCost == 'Y' and $row['provider'] == 'External') {
-                        echo "<span style='font-size: 115%; font-weight: bold'>".__('Cost').'</span><br/>';
+                        echo "<span style='font-size: 115%; font-weight: bold'>".__m('Activities', 'Cost').'</span><br/>';
                         echo '<i>'.__('See Description below.').'</i>';
                     } else {
                         if ($row['paymentFirmness'] == 'Finalised') {
@@ -166,7 +166,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_view
                     echo '</tr>';
                     echo '<tr>';
                     echo "<td style='padding-top: 15px; width: 33%; vertical-align: top' colspan=3>";
-                    echo "<span style='font-size: 115%; font-weight: bold'>".__('Provider').'</span><br/>';
+                    echo "<span style='font-size: 115%; font-weight: bold'>".__m('Activities', 'Provider').'</span><br/>';
                     echo '<i>';
                     if ($row['provider'] == 'School') {
                         echo $session->get('organisationNameShort');
@@ -211,7 +211,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_view
                         if ($rowSlots['gibbonSpaceID'] != '') {
                             echo '<i>'.__('Location').'</i>: '.$rowSlots['space'];
                         } else {
-                            echo '<i>'.__('Location').'</i>: '.$rowSlots['locationExternal'];
+                            echo '<i>'.__m('Activities', 'Location').'</i>: '.$rowSlots['locationExternal'];
                         }
                         echo '</p>';
 

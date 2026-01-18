@@ -85,7 +85,7 @@ class PlannerFormFactory extends DatabaseFormFactory
             $row = $blockTemplate->addRow();
             $row->addTextField('title')
                 ->setClass('w-3/4 title focus:bg-white')
-                ->placeholder(__('Title'))
+                ->placeholder(__m('Planner', 'Title'))
                 ->append('<input type="hidden" id="gibbonUnitClassBlockID" name="gibbonUnitClassBlockID" value="">')
                 ->append('<input type="hidden" id="gibbonUnitBlockID" name="gibbonUnitBlockID" value="">');
 

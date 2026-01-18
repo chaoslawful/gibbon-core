@@ -309,7 +309,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Data Updater/data_personal
                     $form->addRow()->addHeading('Basic Information', __('Basic Information'));
 
                     $row = $form->addRow()->onlyIf($isVisible('title'));
-                        $row->addLabel('title', __('Title'));
+                        $row->addLabel('title', __m('Data Updater', 'Title'));
                         $row->addSelectTitle('title');
 
                     $row = $form->addRow()->onlyIf($isVisible('surname'));

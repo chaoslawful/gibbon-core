@@ -80,7 +80,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Staff/substitutes_manage.p
     $table->addMetaData('filterOptions', [
         'active:Y'        => __('Active').': '.__('Yes'),
         'active:N'        => __('Active').': '.__('No'),
-        'status:full'     => __('Status').': '.__('Full'),
+        'status:full'     => __('Status').': '.__m('Staff', 'Full'),
         'status:left'     => __('Status').': '.__('Left'),
         'status:expected' => __('Status').': '.__('Expected'),
     ]);

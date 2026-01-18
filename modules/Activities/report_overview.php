@@ -134,7 +134,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/report_overview
 
         $table = ReportTable::createPaginated('report_overview'.$gibbonActivityID, $criteria)->setViewMode($viewMode, $session);
         $table->setTitle($activity['name']);
-        $table->setDescription(__('Location').': '.($activity['space'] ?? $activity['locationExternal']).(!empty($activity['provider']) ? ' ('.__('Provider').': '.$activity['provider'].')' : ''));
+        $table->setDescription(__m('Activities', 'Location').': '.($activity['space'] ?? $activity['locationExternal']).(!empty($activity['provider']) ? ' ('.__m('Activities', 'Provider').': '.$activity['provider'].')' : ''));
 
         $table->modifyRows(function($values, $row) {
             if ($values['roleCategory'] != 'Student') $row->addClass('message');

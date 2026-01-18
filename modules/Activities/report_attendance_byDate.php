@@ -118,7 +118,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/report_attendan
         ->format(Format::using('name', ['', 'preferredName', 'surname', 'Student', true]));
     $table->addColumn('attendance', __('Attendance'))->translatable();
     $table->addColumn('activity', __('Activity'));
-    $table->addColumn('provider', __('Provider'))
+    $table->addColumn('provider', __m('Activities', 'Provider'))
         ->format(function($activity) use ($session){
             return ($activity['provider'] == 'School')? $session->get('organisationNameShort') : __('External');
         });

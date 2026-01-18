@@ -317,7 +317,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_view
                         return $activity['name'].'<br/><span class="text-xs italic">'.$activity['type'].'</span>';
                     });
 
-                $table->addColumn('provider', __('Provider'))
+                $table->addColumn('provider', __m('Activities', 'Provider'))
                     ->context('secondary')
                     ->width('10%')
                     ->format(function ($activity) use ($session) {
@@ -357,7 +357,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_view
                     });
 
                 if ($paymentOn) {
-                    $table->addColumn('payment', __('Cost'))
+                    $table->addColumn('payment', __m('Activities', 'Cost'))
                         ->width('15%')
                         ->description($session->get('currency'))
                         ->format(function ($activity) {
@@ -382,7 +382,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_view
                             } elseif ($activity['registration'] == 'N') {
                                 return __('Closed');
                             } else if ($activity['enrolmentFull']) {
-                                return __('Full');
+                                return __m('Activities', 'Full');
                             }
                         });
                 }

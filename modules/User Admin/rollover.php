@@ -145,7 +145,7 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/rollover.php') 
 
                 $statuses = array(
                     'Expected'     => __('Expected'),
-                    'Full'  => __('Full'),
+                    'Full'  => __m('User Admin', 'Full'),
                     'Left' => __('Left'),
                 );
 
@@ -461,7 +461,7 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/rollover.php') 
                         $row = $form->addRow();
                             $row->addContent(Format::name('', $rowFinal['preferredName'], $rowFinal['surname'], 'Student', true));
                             $row->addContent(__($rowFinal['name']));
-                            $row->addContent(__('Full'));
+                            $row->addContent(__m('User Admin', 'Full'));
                             $row->addSelect($count."-final-status")->fromArray($statuses)->required()->setClass('shortWidth floatNone')->selected('Left');
                             $row->addTextField($count.'-departureReason')->setValue(__('Graduated'))->setSize(12)->setClass('w-32');
                     }

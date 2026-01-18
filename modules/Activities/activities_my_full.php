@@ -142,7 +142,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_my_f
                 echo '</tr>';
                 echo '<tr>';
                 echo "<td style='padding-top: 15px; width: 33%; vertical-align: top' colspan=3>";
-                echo "<span style='font-size: 115%; font-weight: bold'>".__('Provider').'</span><br/>';
+                echo "<span style='font-size: 115%; font-weight: bold'>".__m('Activities', 'Provider').'</span><br/>';
                 echo '<i>';
                 if ($row['provider'] == 'School') {
                     echo $session->get('organisationNameShort');
@@ -186,9 +186,9 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_my_f
                     echo '<p>';
                     echo '<i>'.__('Time').'</i>: '.substr($rowSlots['timeStart'], 0, 5).' - '.substr($rowSlots['timeEnd'], 0, 5).'<br/>';
                     if ($rowSlots['gibbonSpaceID'] != '') {
-                        echo '<i>'.__('Location').'</i>: '.$rowSlots['space'];
+                        echo '<i>'.__m('Activities', 'Location').'</i>: '.$rowSlots['space'];
                     } else {
-                        echo '<i>'.__('Location').'</i>: '.$rowSlots['locationExternal'];
+                        echo '<i>'.__m('Activities', 'Location').'</i>: '.$rowSlots['locationExternal'];
                     }
                     echo '</p>';
 

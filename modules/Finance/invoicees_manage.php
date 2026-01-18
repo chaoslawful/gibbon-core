@@ -74,7 +74,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/invoicees_manage.p
         $row->addTextField('search')->setValue($search);
 
     $row = $form->addRow();
-        $row->addLabel('allUsers', __('All Students'))->description(__('Include students whose status is not "Full".'));
+        $row->addLabel('allUsers', __('All Students'))->description(__('Include students whose status is not "%1$s".', [__m('Students', 'Full')]));
         $row->addCheckbox('allUsers')->setValue('on')->checked($allUsers);
 
     $row = $form->addRow();
@@ -92,11 +92,11 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/invoicees_manage.p
 
     $table = DataTable::createPaginated('invoicees', $criteria);
     $table->setTitle(__('View'));
-    $table->setDescription(__("The table below shows all student invoicees within the school. A red row in the table below indicates that an invoicee's status is not \"Full\" or that their start or end dates are greater or less than than the current date."));
+    $table->setDescription(__("The table below shows all student invoicees within the school. A red row in the table below indicates that an invoicee's status is not \"%1$s\" or that their start or end dates are greater or less than than the current date.", [__m('Students', 'Full')]));
 
     $table->modifyRows(function ($invoicee, $row) {
         // Highlight if the person is not "Full" status or is no longer at the organisation
-        if ($invoicee['started'] == 'N'|| $invoicee['ended'] == 'Y' || $invoicee['status'] != 'Full') {
+        if ($invoicee['started'] == 'N'|| $invoicee['ended'] == 'Y' || $invoicee['status'] != __m('Students', 'Full')) {
             $row->addClass('error');
         }
         return $row;

@@ -49,7 +49,7 @@ class Parent1Fields extends AbstractFieldGroup
                 'options' => 'parentSection1',
             ],
             'parent1title' => [
-                'label'    => __('Title'),
+                'label'    => __m('Students', 'Title'),
                 'required' => 'Y',
                 'prefill'  => 'Y',
                 'translate' => 'Y',

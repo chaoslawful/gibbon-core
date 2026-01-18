@@ -83,7 +83,7 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/dataUpdaterSett
     
     // Default settings
     $settingDefaults = [
-        'title'                  => ['label' => __('Title'), 'default' => 'required'],
+        'title'                  => ['label' => __m('User Admin', 'Title'), 'default' => 'required'],
         'surname'                => ['label' => __('Surname'), 'default' => 'required'],
         'firstName'              => ['label' => __('First Name'), 'default' => ''],
         'preferredName'          => ['label' =>  __('Preferred Name'), 'default' => 'required'],

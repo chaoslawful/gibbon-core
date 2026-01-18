@@ -227,7 +227,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Staff/staff_manage_edit.ph
                         ->addParam('search', $search)
                         ->displayLabel();
 
-                    $table->addColumn('title', __('Title'));
+                    $table->addColumn('title', __m('Staff', 'Title'));
                     $table->addColumn('status', __('Status'));
                     $table->addColumn('dates', __('Dates'))
                         ->format(function ($row) {

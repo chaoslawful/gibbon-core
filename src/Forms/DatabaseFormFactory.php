@@ -350,7 +350,7 @@ class DatabaseFormFactory extends FormFactory
         global $container;
 
         $statuses = array(
-            'Full'     => __('Full'),
+            'Full'     => __m('User Admin', 'Full'),
             'Expected' => __('Expected'),
             'Left'     => __('Left'),
         );

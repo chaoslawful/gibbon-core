@@ -257,7 +257,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_view
                                         if ($paymentType != 'None' && $paymentType != 'Single') {
                                             if ($values['payment'] > 0) {
                                                 $row = $form->addRow();
-                                                $row->addLabel('paymentLabel', __('Cost'))->description(__('For entire programme'));
+                                                $row->addLabel('paymentLabel', __m('Activities', 'Cost'))->description(__('For entire programme'));
                                                 $row->addCurrency('payment')->readonly();
                                             }
                                         }

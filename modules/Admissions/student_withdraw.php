@@ -43,7 +43,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Admissions/student_withdra
 
     $row = $form->addRow();
         $row->addLabel('status', __('Status'))->description(__("Set this to Left unless the student's withdraw date is in the future."));
-        $row->addSelect('status')->fromArray(['Left' => __('Left'), 'Full' => __('Full')])->required()->selected('Left');
+        $row->addSelect('status')->fromArray(['Left' => __('Left'), 'Full' => __m('Students', 'Full')])->required()->selected('Left');
 
     $row = $form->addRow();
         $row->addLabel('dateEnd', __('End Date'))->description(__("Users's last day at school."));

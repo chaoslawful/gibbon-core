@@ -84,7 +84,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Admissions/studentEnrolmen
         $table->modifyRows($studentGateway->getSharedUserRowHighlighter());
 
         $table->addMetaData('filterOptions', [
-            'status:full'     => __('Status').': '.__('Full'),
+            'status:full'     => __('Status').': '.__m('Students', 'Full'),
             'status:left'     => __('Status').': '.__('Left'),
             'status:expected' => __('Status').': '.__('Expected'),
             'date:starting'   => __('Before Start Date'),

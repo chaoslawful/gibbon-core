@@ -549,7 +549,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Students/applicationForm_m
                 $row->addSubheading(__('Parent/Guardian')." $i ".__('Personal Data'));
 
             $row = $form->addRow()->setClass("parentSection{$i}");
-                $row->addLabel("parent{$i}title", __('Title'));
+                $row->addLabel("parent{$i}title", __m('Students', 'Title'));
                 $row->addSelectTitle("parent{$i}title")->required();
 
             $row = $form->addRow()->setClass("parentSection{$i}");

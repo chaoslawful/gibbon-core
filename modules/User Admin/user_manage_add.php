@@ -65,7 +65,7 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/user_manage_add
     $form->addRow()->addHeading('Basic Information', __('Basic Information'));
 
     $row = $form->addRow();
-        $row->addLabel('title', __('Title'));
+        $row->addLabel('title', __m('User Admin', 'Title'));
         $row->addSelectTitle('title');
 
     $row = $form->addRow();
