@@ -229,6 +229,13 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenseRequest_man
                                 return $output;
                             });
 
+                        // XXX: added by wxz
+                        // Show paymentAmount if it is not empty
+                        $table->addColumn('paymentAmount', __('Payment Amount'))
+                            ->description(__($session->get('currency')))
+                            ->format(Format::using('currency', 'paymentAmount'));
+                        // XXX: ends here
+
                         $table->addColumn('timestampCreator', __('Date'))
                             ->format(function ($expense) {
                                 $output = Format::date(substr($expense['timestampCreator'], 0, 10));

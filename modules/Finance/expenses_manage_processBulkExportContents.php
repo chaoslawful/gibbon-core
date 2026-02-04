@@ -77,8 +77,10 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
         $style_head_fill = array('fill' => array('fillType' => Fill::FILL_SOLID, 'color' => array('rgb' => 'B89FE2')));
 
         //Auto set column widths
-        for($col = 'A'; $col !== 'I'; $col++)
+        // XXX: modified by wxz
+        for($col = 'A'; $col !== 'J'; $col++)
             $excel->getActiveSheet()->getColumnDimension($col)->setAutoSize(true);
+        // XXX: ends here
 
 		$excel->getActiveSheet()->setCellValueByColumnAndRow(1, 1, __('Expense Number'));
         $excel->getActiveSheet()->getStyleByColumnAndRow(1, 1)->applyFromArray($style_border);
@@ -98,12 +100,17 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
 		$excel->getActiveSheet()->setCellValueByColumnAndRow(6, 1, __('Cost')." (".$session->get('currency').')');
         $excel->getActiveSheet()->getStyleByColumnAndRow(6, 1)->applyFromArray($style_border);
         $excel->getActiveSheet()->getStyleByColumnAndRow(6, 1)->applyFromArray($style_head_fill);
-		$excel->getActiveSheet()->setCellValueByColumnAndRow(7, 1, __('Staff'));
+        // XXX: added by wxz
+		$excel->getActiveSheet()->setCellValueByColumnAndRow(7, 1, __('Payment Amount')." (".$session->get('currency').')');
         $excel->getActiveSheet()->getStyleByColumnAndRow(7, 1)->applyFromArray($style_border);
         $excel->getActiveSheet()->getStyleByColumnAndRow(7, 1)->applyFromArray($style_head_fill);
-		$excel->getActiveSheet()->setCellValueByColumnAndRow(8, 1, __('Timestamp'));
+        // XXX: ends here
+		$excel->getActiveSheet()->setCellValueByColumnAndRow(8, 1, __('Staff'));
         $excel->getActiveSheet()->getStyleByColumnAndRow(8, 1)->applyFromArray($style_border);
         $excel->getActiveSheet()->getStyleByColumnAndRow(8, 1)->applyFromArray($style_head_fill);
+		$excel->getActiveSheet()->setCellValueByColumnAndRow(9, 1, __('Timestamp'));
+        $excel->getActiveSheet()->getStyleByColumnAndRow(9, 1)->applyFromArray($style_border);
+        $excel->getActiveSheet()->getStyleByColumnAndRow(9, 1)->applyFromArray($style_head_fill);
 		$excel->getActiveSheet()->getStyle("1:1")->getFont()->setBold(true);
 
 
@@ -126,14 +133,22 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
 			$excel->getActiveSheet()->setCellValueByColumnAndRow(5, $count, $row['status']);
             $excel->getActiveSheet()->getStyleByColumnAndRow(5, $count)->applyFromArray($style_border);
  			//Column F
-			$excel->getActiveSheet()->setCellValueByColumnAndRow(6, $count, number_format($row['cost'], 2, '.', ','));
+            // XXX: modified by wxz
+			$excel->getActiveSheet()->setCellValueByColumnAndRow(6, $count, number_format($row['cost'], 2, '.', ''));
+            // XXX: ends here
             $excel->getActiveSheet()->getStyleByColumnAndRow(6, $count)->applyFromArray($style_border);
+            // XXX: added by wxz
  			//Column G
-			$excel->getActiveSheet()->setCellValueByColumnAndRow(7, $count, Format::name('', $row['preferredName'], $row['surname'], 'Staff', true, true));
+			$paymentAmount = !empty($row['paymentAmount']) ? number_format($row['paymentAmount'], 2, '.', '') : '';
+			$excel->getActiveSheet()->setCellValueByColumnAndRow(7, $count, $paymentAmount);
             $excel->getActiveSheet()->getStyleByColumnAndRow(7, $count)->applyFromArray($style_border);
+            // XXX: ends here
  			//Column H
-			$excel->getActiveSheet()->setCellValueByColumnAndRow(8, $count, $row['timestampCreator']);
+			$excel->getActiveSheet()->setCellValueByColumnAndRow(8, $count, Format::name('', $row['preferredName'], $row['surname'], 'Staff', true, true));
             $excel->getActiveSheet()->getStyleByColumnAndRow(8, $count)->applyFromArray($style_border);
+ 			//Column I
+			$excel->getActiveSheet()->setCellValueByColumnAndRow(9, $count, $row['timestampCreator']);
+            $excel->getActiveSheet()->getStyleByColumnAndRow(9, $count)->applyFromArray($style_border);
         }
         if ($count == 0) {
  			//Column A

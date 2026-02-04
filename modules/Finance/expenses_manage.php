@@ -278,6 +278,11 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
         });
     $table->addColumn('cost', __('Cost'))->description($session->get('currency'))
         ->format(Format::using('currency', 'cost'));
+    // XXX: added by wxz
+    // Show paymentAmount if it is not empty
+    $table->addColumn('paymentAmount', __('Payment Amount'))->description($session->get('currency'))
+        ->format(Format::using('currency', 'paymentAmount'));
+    // XXX: ends here
     $table->addColumn('timestampCreator', __('Date'))
         ->format(Format::using('date', 'timestampCreator'));
 

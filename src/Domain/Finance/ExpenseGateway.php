@@ -47,6 +47,9 @@ class ExpenseGateway extends QueryableGateway
                 'gibbonFinanceExpense.paymentReimbursementStatus',
                 'gibbonFinanceExpense.timestampCreator',
                 'gibbonFinanceExpense.cost',
+                // XXX: added by wxz
+                'gibbonFinanceExpense.paymentAmount',
+                // XXX: ends here
                 'gibbonFinanceExpense.purchaseBy',
                 'gibbonFinanceBudget.name AS budget',
                 'gibbonPerson.preferredName',
