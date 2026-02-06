@@ -234,6 +234,75 @@ class Validator
     }
 
     /**
+     * Sanitize a string so that it may only contain alphanumeric values
+     *
+     * @param string $value
+     * @return string
+     */
+    public function sanitizeAlphaNumeric(string $value, bool $allowDashes = false)
+    {
+        return preg_replace($allowDashes ? '/[^a-zA-Z0-9-_]/' : '/[^a-zA-Z0-9]/', '', $value);
+    }
+
+    /**
+     * Sanitize a string so that it may only contain numeric values.
+     *
+     * @param string $value
+     * @return string
+     */
+    public function sanitizeNumeric(string $value, bool $allowDecimals = false)
+    {
+        return preg_replace($allowDecimals ? '/[^0-9,.]/' : '/[^0-9]/', '', $value);
+    }
+
+    /**
+     * Sanitize an array of values that may only contain numeric IDs.
+     *
+     * @param array $value
+     * @return array
+     */
+    public function sanitizeArrayIDs(array $values)
+    {
+        return array_map(function($value) {
+            return preg_replace('/[^0-9]/', '', $value);
+        }, $values);
+    }
+
+    /**
+     * Sanitize a file name to remove special characters and directories.
+     *
+     * @param string $value
+     * @return string
+     */
+    public function sanitizeFilename(string $filename)
+    {
+        $filename = basename($filename);
+        return preg_replace('/[\\\~`!@%#\$%\^&\*\(\)\+=\{\}\[\]\|\:;"\'<>,\?\\/\s]/', '', $filename);
+    }
+
+    /**
+     * Sanitize a file path to prevent path traversal and invalid characters.
+     *
+     * @param string $value
+     * @return string
+     */
+    public function sanitizeFilePath(string $filePath, string $basePath, bool $relative = true)
+    {
+        $filePath = trim(preg_replace('[~`!@%#$%^&*()+={}\[\]|\\:;"\'<>,.?]', '', $filePath), ' /');
+        $fullPath = $basePath . '/' . $filePath;
+
+        $fullPath = realpath($fullPath);
+
+        if ($fullPath === false || substr($fullPath, 0, strlen($basePath)) != $basePath) {
+            return false;
+        }
+
+        return $relative
+            ? substr($fullPath, strlen($basePath))
+            : $fullPath;
+    }
+
+    /**
      * Wrapper for strip_tags, accepts an array of tags rather than a string.
      *
      * @param    string  &$value

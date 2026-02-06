@@ -27,7 +27,8 @@ use Gibbon\Data\Validator;
 
 require_once '../../gibbon.php';
 
-$_POST = $container->get(Validator::class)->sanitize($_POST);
+$validator = $container->get(Validator::class);
+$_POST = $validator->sanitize($_POST);
 
 $URL = $session->get('absoluteURL').'/index.php?q=/modules/Reports/archive_manage_upload.php';
 
@@ -63,18 +64,21 @@ if (isActionAccessible($guid, $connection2, '/modules/Reports/archive_manage_upl
         exit;
     }
 
-    $secureFileName = basename($file);
-    $allowedPath = $archive['path'] . '/temp/' . $secureFileName;
+    $file = $validator->sanitizeFilename($file);
+    $allowedPath = $archive['path'] . '/temp/' . $file;
 
     $absolutePath = $session->get('absolutePath');
-    if (empty($secureFileName) || !is_file($absolutePath.'/'.$allowedPath)) {
+    if (empty($file) || !is_file($absolutePath.'/'.$allowedPath)) {
         $URL .= '&return=error1';
         header("Location: {$URL}");
         exit;
     }
 
-    $reportFolder = $gibbonSchoolYearID.'-'.preg_replace('[/~`!@%#$%^&*()+={}\[\]|\\:;"\'<>,.?\/]', '', $reportIdentifier);
-    $destinationFolder = $archive['path'].'/'.$reportFolder;
+    $gibbonSchoolYearID = $validator->sanitizeNumeric($gibbonSchoolYearID);
+    $reportIdentifier = $validator->sanitizeAlphaNumeric($reportIdentifier, true);
+    $reportFolder = $gibbonSchoolYearID.'-'.$reportIdentifier;
+
+    $destinationFolder = $archive['path'].'/'.$gibbonSchoolYearID.'-'.$reportIdentifier;
     if (!is_dir($absolutePath.$destinationFolder)) {
         mkdir($absolutePath.$destinationFolder, 0755, true);
     }
