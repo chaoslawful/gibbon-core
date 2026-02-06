@@ -25,7 +25,8 @@ use Gibbon\Data\Validator;
 
 require_once '../../gibbon.php';
 
-$_POST = $container->get(Validator::class)->sanitize($_POST);
+$validator = $container->get(Validator::class);
+$_POST = $validator->sanitize($_POST);
 
 $gibbonReportArchiveID = $_POST['gibbonReportArchiveID'] ?? '';
 
@@ -39,15 +40,17 @@ if (isActionAccessible($guid, $connection2, '/modules/Reports/archive_manage_edi
     // Proceed!
     $reportArchiveGateway = $container->get(ReportArchiveGateway::class);
     
-    $requestedPath = $_POST['path'] ?? '';
-    $requestedPathFiltered = str_replace(['..', './', '..\\'], '', $requestedPath);
-    $requestedPathFiltered = trim($requestedPathFiltered, '/');
-
-    if (strpos($requestedPathFiltered, 'uploads') !== 0) {
-        $requestedPathFiltered = 'uploads/' . $requestedPathFiltered;
+    $path = $_POST['path'] ?? '';
+    if (substr($path, 0, 8) != '/uploads') {
+        $path = '/uploads/' . trim($path, ' /');
     }
 
-    $securePath = '/' . $requestedPathFiltered;
+    $securePath = $validator->sanitizeFilePath($path, $session->get('absolutePath'));
+    if (empty($securePath)) {
+        $URL .= '&return=error1';
+        header("Location: {$URL}");
+        exit;
+    }
 
     $data = [
         'name'             => $_POST['name'] ?? '',

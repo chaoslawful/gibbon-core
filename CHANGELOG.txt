@@ -29,6 +29,8 @@ v30.0.01
         Attendance: fixed empty list in Set Future Absence when using Select Students for Multiple Students
         Calendar: fixed access to View Event when users only have View Calendar access
         Planner: fixed an error on the Year Overview of the Lesson Planner
+        Reports: improved sanitization of file paths in Manage Archive
+        Tracking: improved validation of user inputs in Graphing page
 
 v30.0.00
 --------

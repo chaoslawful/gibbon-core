@@ -19,12 +19,16 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+use Gibbon\Data\Validator;
 use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Forms\Form;
 use Gibbon\Forms\DatabaseFormFactory;
 
 //Module includes
 require_once __DIR__ . '/moduleFunctions.php';
+
+$validator = $container->get(Validator::class);
+$_POST = $validator->sanitize($_POST);
 
 if (isActionAccessible($guid, $connection2, '/modules/Tracking/graphing.php') == false) {
     // Access denied
@@ -42,22 +46,13 @@ if (isActionAccessible($guid, $connection2, '/modules/Tracking/graphing.php') ==
         echo __('Filter');
         echo '</h2>';
         
-        $gibbonPersonIDs = (isset($_POST['gibbonPersonIDs'])) ? $_POST['gibbonPersonIDs'] : null;
-        $gibbonDepartmentIDs = (isset($_POST['gibbonDepartmentIDs'])) ? $_POST['gibbonDepartmentIDs'] : null;
-        $dataType = (isset($_POST['dataType']))? $_POST['dataType'] : null;
+        $gibbonPersonIDs = $_POST['gibbonPersonIDs'] ?? [];
+        $gibbonDepartmentIDs =  $_POST['gibbonDepartmentIDs'] ?? [];
+        $dataType = $_POST['dataType'] ?? null;
 
         // Sanitize the gibbonPersonIDs and gibbonDepartmentIDs List
-        if (!empty($gibbonPersonIDs)) {
-            $gibbonPersonIDs = array_filter($gibbonPersonIDs, function($gibbonPersonID) {
-                return is_numeric($gibbonPersonID) && ctype_digit((string)$gibbonPersonID);
-            });
-        }
-
-        if (!empty($gibbonDepartmentIDs)) {
-            $gibbonDepartmentIDs = array_filter($gibbonDepartmentIDs, function($gibbonDepartmentID) {
-                return is_numeric($gibbonDepartmentID) && ctype_digit((string)$gibbonDepartmentID);
-            });
-        }
+        $gibbonPersonIDs = $validator->sanitizeArrayIDs($gibbonPersonIDs);
+        $gibbonDepartmentIDs = $validator->sanitizeArrayIDs($gibbonDepartmentIDs);
 
         $settingGateway = $container->get(SettingGateway::class);
         $attainmentAlt = $settingGateway->getSettingByScope('Markbook', 'attainmentAlternativeName');
@@ -146,6 +141,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Tracking/graphing.php') ==
                         $personExtra_IA = 'AND ('.substr($personExtra_IA, 0, -4).')';
                     }
 
+                    $dataType = $validator->sanitizeAlphaNumeric($dataType);
                     $sqlDepartments = '(SELECT DISTINCT gibbonDepartment.name AS department
                         FROM gibbonMarkbookEntry
                         JOIN gibbonMarkbookColumn ON (gibbonMarkbookEntry.gibbonMarkbookColumnID=gibbonMarkbookColumn.gibbonMarkbookColumnID)
