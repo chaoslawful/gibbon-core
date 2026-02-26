@@ -53,7 +53,10 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/report_attendan
         }
 
         echo '<h2>';
-        echo __('Participants for').' '.$row['name'].$date;
+        // XXX: modified by wxz
+        // echo __('Participants for').' '.$row['name'].$date;
+        echo __('Participants for {name}{date}', ['name' => $row['name'], 'date' => $date]);
+        // XXX: ends here
         echo '</h2>';
 
         if ($result->rowCount() < 1) {
