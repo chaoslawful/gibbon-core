@@ -54,7 +54,7 @@ class StaffCoverLayer extends AbstractTimetableLayer
         $this->specialDayGateway = $specialDayGateway;
         $this->activityGateway = $activityGateway;
 
-        $this->name = 'Staff Cover';
+        $this->name = __('Staff Cover');
         $this->color = 'pink';
         $this->order = 50;
     }

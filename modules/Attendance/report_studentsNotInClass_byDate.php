@@ -124,7 +124,9 @@ if (isActionAccessible($guid, $connection2, '/modules/Attendance/report_students
                 return Format::courseClassName($log['courseName'], $log['className']);
             });
 
-        $table->addColumn('type', __('Status'))->context('primary');
+        // XXX: modified by wxz
+        $table->addColumn('type', __('Status'))->context('primary')->translatable();
+        // XXX: ends here
         $table->addColumn('reason', __('Reason'))
             ->context('secondary')
             ->format(function ($log) {

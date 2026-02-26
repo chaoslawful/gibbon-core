@@ -253,7 +253,9 @@ if (isActionAccessible($guid, $connection2, '/modules/System Admin/formBuilder_p
     }, ['0' => __('Start of form'), '-1' => __('End of form')]);
 
     $row = $form->addRow();
-    $row->addLabel('sequenceNumberLabel', __('Where').':');
+    // XXX: modified by wxz
+    $row->addLabel('sequenceNumberLabel', __m('System Admin', 'Where').':');
+    // XXX: ends here
     $row->addSelect('sequenceNumber')->fromArray($fieldOrder)->selected(-1);
 
     $row = $form->addRow();
