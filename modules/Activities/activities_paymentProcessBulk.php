@@ -158,7 +158,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_paym
                                             //Add fees to invoice
                                             $invoiceFail2 = false;
                                             try {
-                                                $dataInvoiceFee = array('gibbonFinanceInvoiceID' => $gibbonFinanceInvoiceID, 'feeType' => 'Ad Hoc', 'name' => 'Activity Fee', 'gibbonActivityStudentID' => $gibbonActivityStudentID, 'gibbonFinanceFeeCategoryID' => 1, 'fee' => $payment);
+                                                $dataInvoiceFee = array('gibbonFinanceInvoiceID' => $gibbonFinanceInvoiceID, 'feeType' => 'Ad Hoc', 'name' => __('Activity Fee'), 'gibbonActivityStudentID' => $gibbonActivityStudentID, 'gibbonFinanceFeeCategoryID' => 1, 'fee' => $payment);
                                                 $sqlInvoiceFee = 'INSERT INTO gibbonFinanceInvoiceFee
                                                     SET gibbonFinanceInvoiceID=:gibbonFinanceInvoiceID,
                                                         feeType=:feeType,
@@ -196,7 +196,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Activities/activities_paym
                                     //Add fees to invoice
                                     $invoiceFail2 = false;
                                     try {
-                                        $dataInvoiceFee = array('gibbonFinanceInvoiceID' => $gibbonFinanceInvoiceID, 'feeType' => 'Ad Hoc', 'name' => 'Activity Fee', 'gibbonActivityStudentID' => $gibbonActivityStudentID, 'gibbonFinanceFeeCategoryID' => 1, 'gibbonActivityStudentID2' => $gibbonActivityStudentID);
+                                        $dataInvoiceFee = array('gibbonFinanceInvoiceID' => $gibbonFinanceInvoiceID, 'feeType' => 'Ad Hoc', 'name' => __('Activity Fee'), 'gibbonActivityStudentID' => $gibbonActivityStudentID, 'gibbonFinanceFeeCategoryID' => 1, 'gibbonActivityStudentID2' => $gibbonActivityStudentID);
                                         $sqlInvoiceFee = 'INSERT INTO gibbonFinanceInvoiceFee SET gibbonFinanceInvoiceID=:gibbonFinanceInvoiceID, feeType=:feeType, name=:name, description=(SELECT gibbonActivity3.name FROM gibbonActivity AS gibbonActivity3 JOIN gibbonActivityStudent AS gibbonActivityStudent3 ON (gibbonActivityStudent3.gibbonActivityID=gibbonActivity3.gibbonActivityID) WHERE gibbonActivityStudentID=:gibbonActivityStudentID), gibbonFinanceFeeCategoryID=:gibbonFinanceFeeCategoryID, fee=(SELECT gibbonActivity.payment FROM gibbonActivity JOIN gibbonActivityStudent ON (gibbonActivityStudent.gibbonActivityID=gibbonActivity.gibbonActivityID) WHERE gibbonActivityStudentID=:gibbonActivityStudentID2), sequenceNumber=0';
                                         $resultInvoiceFee = $connection2->prepare($sqlInvoiceFee);
                                         $resultInvoiceFee->execute($dataInvoiceFee);
