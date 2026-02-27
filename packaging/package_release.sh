@@ -20,12 +20,14 @@ Usage: $0 [OPTIONS]
 Options:
     -s, --source DIR     Specify source repository directory (Gibbon Core source code directory)
     -o, --output DIR     Specify output directory for packaged files
+    -n, --no-vendor-lib  Exclude vendor and lib directories from the package
     -h, --help           Show this help message
 
 Examples:
     $0
     $0 -s /path/to/gibbon-core -o /tmp/releases
     $0 --source /home/user/gibbon-core --output /home/user/releases
+    $0 -n                    # Package without vendor and lib directories
 
 If options are not specified, default values will be used:
     - Source directory: Parent directory of script location (if script is in packaging/ subdirectory)
@@ -38,6 +40,7 @@ EOF
 # Default configuration (will be set after parsing arguments)
 SOURCE_DIR=""
 OUTPUT_DIR=""
+SKIP_VENDOR_LIB=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -49,6 +52,10 @@ while [[ $# -gt 0 ]]; do
         -o|--output)
             OUTPUT_DIR="$2"
             shift 2
+            ;;
+        -n|--no-vendor-lib)
+            SKIP_VENDOR_LIB=true
+            shift
             ;;
         -h|--help)
             show_help
@@ -142,6 +149,7 @@ echo -e "${GREEN}Starting packaging of Gibbon Core ${VERSION}${NC}"
 echo -e "${BLUE}Configuration:${NC}"
 echo "  Source directory: $SOURCE_DIR"
 echo "  Output directory: $OUTPUT_DIR"
+echo "  Exclude vendor/lib: $SKIP_VENDOR_LIB"
 echo "  Version: $VERSION"
 echo "  Temporary directory: $TEMP_DIR"
 echo ""
@@ -209,7 +217,7 @@ if [ -d "$SOURCE_DIR/installer" ]; then
 fi
 
 # lib directory (all third-party libraries)
-if [ -d "$SOURCE_DIR/lib" ]; then
+if [ "$SKIP_VENDOR_LIB" = "false" ] && [ -d "$SOURCE_DIR/lib" ]; then
     copy_item "lib"
 fi
 
@@ -265,7 +273,7 @@ fi
 
 # 5. Copy vendor directory (composer dependencies)
 echo -e "${GREEN}[5/9] Copying vendor directory...${NC}"
-if [ -d "$SOURCE_DIR/vendor" ]; then
+if [ "$SKIP_VENDOR_LIB" = "false" ] && [ -d "$SOURCE_DIR/vendor" ]; then
     copy_item "vendor"
 fi
 
