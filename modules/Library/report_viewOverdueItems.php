@@ -96,7 +96,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Library/report_viewOverdue
         });
     $table->addColumn('formGroup', __('Form Group'));
     $table->addColumn('email', __('Email'));
-    $table->addColumn('name', __('Item'))
+    $table->addColumn('name', __m('Library', 'Item'))
         ->description(__('Author/Producer'))
         ->format(function ($item) {
             return '<b>'.$item['name'].'</b><br/>'.Format::small($item['producer']);
