@@ -43,4 +43,5 @@ node_modules
 xgettextGenerationCommands.log
 
 .idea
+.vscode
 
