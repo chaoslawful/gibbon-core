@@ -132,7 +132,9 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/user_manage_add
         if ($item['category'] == 'Student') {
             $studentRoles[] = $item['gibbonRoleID'];
         }
-        $carry[$item['gibbonRoleID']] = __($item['name']);
+        // XXX: modified by wxz
+        $carry[$item['gibbonRoleID']] = __m('User Admin', $item['name']);
+        // XXX: end modified by wxz
         return $carry;
     }, array());
 

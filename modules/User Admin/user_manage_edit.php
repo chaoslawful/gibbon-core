@@ -174,7 +174,9 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/user_manage_edi
                         return $carry;
                     }
                 }
-                $carry[$item['gibbonRoleID']] = __($item['name']);
+                // XXX: modified by wxz
+                $carry[$item['gibbonRoleID']] = __m('User Admin', $item['name']);
+                // XXX: end modified by wxz
                 return $carry;
             }, array());
 
@@ -189,7 +191,9 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/user_manage_edi
             if (empty($roleRestriction) || ($roleRestriction == 'Admin Only' && !in_array('001', $currentUserRoles)) || ($roleRestriction == 'Same Role' && !in_array($values['gibbonRoleIDPrimary'], $currentUserRoles) && !in_array('001', $currentUserRoles)) ) {
                 $row = $form->addRow();
                 $row->addLabel('gibbonRoleIDPrimaryName', __('Primary Role'))->description(__('Controls what a user can do and see.'));
-                $row->addTextField('gibbonRoleIDPrimaryName')->readOnly()->setValue($roleDetails['name']);
+                // XXX: modified by wxz
+                $row->addTextField('gibbonRoleIDPrimaryName')->readOnly()->setValue(__m('User Admin', $roleDetails['name']));
+                // XXX: end modified by wxz
                 $form->addHiddenValue('gibbonRoleIDPrimary', $values['gibbonRoleIDPrimary']);
             } else {
                 $row = $form->addRow();

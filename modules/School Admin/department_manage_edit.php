@@ -60,7 +60,7 @@ if (isActionAccessible($guid, $connection2, '/modules/School Admin/department_ma
 
             $types = array(
                 'Learning Area' => __('Learning Area'),
-                'Administration' => __('Administration'),
+                'Administration' => __m('School Admin', 'Administration'),
             );
 
             $typesLA = array(
@@ -71,12 +71,14 @@ if (isActionAccessible($guid, $connection2, '/modules/School Admin/department_ma
                 'Other'                 => __('Other'),
             );
 
+            // XXX: modified by wxz
             $typesAdmin = array(
                 'Director'      => __('Director'),
                 'Manager'       => __('Manager'),
-                'Administrator' => __('Administrator'),
+                'Administrator' => __m('School Admin', 'Administrator'),
                 'Other'         => __('Other'),
             );
+            // XXX: end modified by wxz
 
             $row = $form->addRow()->addHeading('Basic Details', __('Basic Details'));
 

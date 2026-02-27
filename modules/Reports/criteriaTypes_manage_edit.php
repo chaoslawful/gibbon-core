@@ -86,7 +86,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Reports/criteriaTypes_mana
             $row->addRange('imageSize', 40, 2048, 1)->required()->setValue($options['imageSize'] ?? 1024);
     
         $row = $form->addRow();
-            $row->addLabel('imageQuality', __('Image Quality'))->description(__('Percentage'));
+            $row->addLabel('imageQuality', __('Image Quality'))->description(__m('Image', 'Percentage'));
             $row->addRange('imageQuality', 40, 100, 5)->required()->setValue($options['imageQuality'] ?? 1024);
     }
 

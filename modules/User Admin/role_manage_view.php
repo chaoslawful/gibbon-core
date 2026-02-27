@@ -53,7 +53,9 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/role_manage_vie
 
     // DATA TABLE
     $table = DataTable::createPaginated('roleView', $criteria);
-    $table->setTitle(__('Users').': '.$role['name']);
+    // XXX: modified by wxz
+    $table->setTitle(__('Users').': '.__m('User Admin', $role['name']));
+    // XXX: end modified by wxz
 
     $table->modifyRows(function ($person, $row) {
         if (!empty($person['status']) && $person['status'] != 'Full') $row->addClass('error');

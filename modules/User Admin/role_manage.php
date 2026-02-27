@@ -54,7 +54,12 @@ if (isActionAccessible($guid, $connection2, '/modules/User Admin/role_manage.php
     }
 
     $table->addColumn('category', __('Category'))->translatable();
-    $table->addColumn('name', __('Name'))->translatable();
+    // XXX: modified by wxz - use __m for role name to translate Administrator as 管理员 in permission context
+    $table->addColumn('name', __('Name'))
+        ->format(function ($row) {
+            return __m('User Admin', $row['name']);
+        });
+    // XXX: end modified by wxz
     $table->addColumn('nameShort', __('Short Name'));
     $table->addColumn('description', __('Description'))->translatable();
     $table->addColumn('type', __('Type'))->translatable();
