@@ -211,11 +211,6 @@ class LessonTable
                         ->setURL('/modules/Planner/planner_view_full.php');
                 }
 
-                if ($fullEditAccess && ($viewBy == 'class' || $viewBy == 'year')) {
-                    $actions->addAction('copyforward', __('Bump'))
-                        ->setURL('/modules/Planner/planner_bump.php');
-                }
-
                 if ($editAccess) {
                     $actions->addAction('duplicate', __('Duplicate'))
                         ->setURL('/modules/Planner/planner_duplicate.php');

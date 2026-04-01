@@ -88,6 +88,12 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_bump.php')
                         exit();
                     }
                     while ($rowList = $resultList->fetch()) {
+                        $durationSeconds = strtotime($rowList['date'].' '.$rowList['timeEnd']) - strtotime($rowList['date'].' '.$rowList['timeStart']);
+                        if ($durationSeconds <= 0) {
+                            $partialFail = true;
+                            continue;
+                        }
+
                         //Look for next available slot
                         try {
                             $dataNext = array('gibbonCourseClassID' => $gibbonCourseClassID, 'date' => $rowList['date']);
@@ -99,9 +105,22 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_bump.php')
                         }
                         while ($rowNext = $resultNext->fetch()) {
                             if (isSchoolOpen($guid, $rowNext['date'], $connection2)) {
+                                $newTimeStart = date('H:i:s', strtotime($rowNext['date'].' '.$rowNext['timeStart']));
+                                $newTimeEnd = date('H:i:s', strtotime($rowNext['date'].' '.$rowNext['timeStart']) + $durationSeconds);
+
+                                // Skip impossible ranges (cross-midnight or invalid).
+                                if ($newTimeEnd <= $newTimeStart) {
+                                    continue;
+                                }
+
                                 try {
-                                    $dataPlanner = array('date' => $rowNext['date'], 'timeStart' => $rowNext['timeStart'], 'timeEnd' => $rowNext['timeEnd'], 'gibbonCourseClassID' => $gibbonCourseClassID);
-                                    $sqlPlanner = 'SELECT * FROM gibbonPlannerEntry WHERE date=:date AND timeStart=:timeStart AND timeEnd=:timeEnd AND gibbonCourseClassID=:gibbonCourseClassID';
+                                    $dataPlanner = array(
+                                        'date' => $rowNext['date'],
+                                        'newTimeStart' => $newTimeStart,
+                                        'newTimeEnd' => $newTimeEnd,
+                                        'gibbonCourseClassID' => $gibbonCourseClassID,
+                                    );
+                                    $sqlPlanner = 'SELECT * FROM gibbonPlannerEntry WHERE date=:date AND gibbonCourseClassID=:gibbonCourseClassID AND timeStart<:newTimeEnd AND timeEnd>:newTimeStart';
                                     $resultPlanner = $connection2->prepare($sqlPlanner);
                                     $resultPlanner->execute($dataPlanner);
                                 } catch (PDOException $e) {
@@ -109,7 +128,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_bump.php')
                                 }
                                 if ($resultPlanner->rowCount() == 0) {
                                     try {
-                                        $dataNext = array('gibbonPlannerEntryID' => $rowList['gibbonPlannerEntryID'], 'date' => $rowNext['date'], 'timeStart' => $rowNext['timeStart'], 'timeEnd' => $rowNext['timeEnd']);
+                                        $dataNext = array('gibbonPlannerEntryID' => $rowList['gibbonPlannerEntryID'], 'date' => $rowNext['date'], 'timeStart' => $newTimeStart, 'timeEnd' => $newTimeEnd);
                                         $sqlNext = 'UPDATE gibbonPlannerEntry  set date=:date, timeStart=:timeStart, timeEnd=:timeEnd WHERE gibbonPlannerEntryID=:gibbonPlannerEntryID';
                                         $resultNext = $connection2->prepare($sqlNext);
                                         $resultNext->execute($dataNext);
@@ -133,6 +152,12 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_bump.php')
                         exit();
                     }
                     while ($rowList = $resultList->fetch()) {
+                        $durationSeconds = strtotime($rowList['date'].' '.$rowList['timeEnd']) - strtotime($rowList['date'].' '.$rowList['timeStart']);
+                        if ($durationSeconds <= 0) {
+                            $partialFail = true;
+                            continue;
+                        }
+
                         //Look for last available slot
                         try {
                             $dataNext = array('gibbonCourseClassID' => $gibbonCourseClassID, 'date' => $rowList['date']);
@@ -144,9 +169,22 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_bump.php')
                         }
                         while ($rowNext = $resultNext->fetch()) {
                             if (isSchoolOpen($guid, $rowNext['date'], $connection2)) {
+                                $newTimeStart = date('H:i:s', strtotime($rowNext['date'].' '.$rowNext['timeStart']));
+                                $newTimeEnd = date('H:i:s', strtotime($rowNext['date'].' '.$rowNext['timeStart']) + $durationSeconds);
+
+                                // Skip impossible ranges (cross-midnight or invalid).
+                                if ($newTimeEnd <= $newTimeStart) {
+                                    continue;
+                                }
+
                                 try {
-                                    $dataPlanner = array('date' => $rowNext['date'], 'timeStart' => $rowNext['timeStart'], 'timeEnd' => $rowNext['timeEnd'], 'gibbonCourseClassID' => $gibbonCourseClassID);
-                                    $sqlPlanner = 'SELECT * FROM gibbonPlannerEntry WHERE date=:date AND timeStart=:timeStart AND timeEnd=:timeEnd AND gibbonCourseClassID=:gibbonCourseClassID';
+                                    $dataPlanner = array(
+                                        'date' => $rowNext['date'],
+                                        'newTimeStart' => $newTimeStart,
+                                        'newTimeEnd' => $newTimeEnd,
+                                        'gibbonCourseClassID' => $gibbonCourseClassID,
+                                    );
+                                    $sqlPlanner = 'SELECT * FROM gibbonPlannerEntry WHERE date=:date AND gibbonCourseClassID=:gibbonCourseClassID AND timeStart<:newTimeEnd AND timeEnd>:newTimeStart';
                                     $resultPlanner = $connection2->prepare($sqlPlanner);
                                     $resultPlanner->execute($dataPlanner);
                                 } catch (PDOException $e) {
@@ -154,7 +192,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_bump.php')
                                 }
                                 if ($resultPlanner->rowCount() == 0) {
                                     try {
-                                        $dataNext = array('gibbonPlannerEntryID' => $rowList['gibbonPlannerEntryID'], 'date' => $rowNext['date'], 'timeStart' => $rowNext['timeStart'], 'timeEnd' => $rowNext['timeEnd']);
+                                        $dataNext = array('gibbonPlannerEntryID' => $rowList['gibbonPlannerEntryID'], 'date' => $rowNext['date'], 'timeStart' => $newTimeStart, 'timeEnd' => $newTimeEnd);
                                         $sqlNext = 'UPDATE gibbonPlannerEntry  set date=:date, timeStart=:timeStart, timeEnd=:timeEnd WHERE gibbonPlannerEntryID=:gibbonPlannerEntryID';
                                         $resultNext = $connection2->prepare($sqlNext);
                                         $resultNext->execute($dataNext);
