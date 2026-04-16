@@ -50,7 +50,13 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
             $whereSched = substr($whereSched, 0, -4).')';
 
             //SQL for billing schedule AND pending
-            $sql = "SELECT gibbonFinanceExpense.*, gibbonFinanceBudget.name AS budget, gibbonFinanceBudgetCycle.name AS budgetCycle, preferredName, surname
+            $sql = "SELECT gibbonFinanceExpense.*, gibbonFinanceBudget.name AS budget, gibbonFinanceBudgetCycle.name AS budgetCycle, preferredName, surname,
+                    COALESCE((SELECT MIN(logSubmit.timestamp) FROM gibbonFinanceExpenseLog AS logSubmit WHERE logSubmit.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logSubmit.action = 'Request'), gibbonFinanceExpense.timestampCreator) AS requestedDate,
+                    (SELECT MAX(logApproval.timestamp) FROM gibbonFinanceExpenseLog AS logApproval WHERE logApproval.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logApproval.action IN ('Approval - Final', 'Approval - Exempt')) AS approvalDate,
+                    (SELECT MAX(logOrder.timestamp) FROM gibbonFinanceExpenseLog AS logOrder WHERE logOrder.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logOrder.action = 'Order') AS orderDate,
+                    (SELECT MAX(logPayment.timestamp) FROM gibbonFinanceExpenseLog AS logPayment WHERE logPayment.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logPayment.action = 'Payment') AS paymentDateLog,
+                    (SELECT MAX(logReimburseRequest.timestamp) FROM gibbonFinanceExpenseLog AS logReimburseRequest WHERE logReimburseRequest.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logReimburseRequest.action = 'Reimbursement Request') AS reimbursementRequestDate,
+                    (SELECT MAX(logReimburseDone.timestamp) FROM gibbonFinanceExpenseLog AS logReimburseDone WHERE logReimburseDone.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logReimburseDone.action = 'Reimbursement Completion') AS reimbursementCompleteDate
 				FROM gibbonFinanceExpense
 					JOIN gibbonPerson ON (gibbonFinanceExpense.gibbonPersonIDCreator=gibbonPerson.gibbonPersonID)
 					JOIN gibbonFinanceBudget ON (gibbonFinanceExpense.gibbonFinanceBudgetID=gibbonFinanceBudget.gibbonFinanceBudgetID)
@@ -78,7 +84,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
 
         //Auto set column widths
         // XXX: modified by wxz
-        for($col = 'A'; $col !== 'J'; $col++)
+        for($col = 'A'; $col !== 'P'; $col++)
             $excel->getActiveSheet()->getColumnDimension($col)->setAutoSize(true);
         // XXX: ends here
 
@@ -111,6 +117,24 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
 		$excel->getActiveSheet()->setCellValueByColumnAndRow(9, 1, __('Timestamp'));
         $excel->getActiveSheet()->getStyleByColumnAndRow(9, 1)->applyFromArray($style_border);
         $excel->getActiveSheet()->getStyleByColumnAndRow(9, 1)->applyFromArray($style_head_fill);
+        $excel->getActiveSheet()->setCellValueByColumnAndRow(10, 1, __('Requested Date'));
+        $excel->getActiveSheet()->getStyleByColumnAndRow(10, 1)->applyFromArray($style_border);
+        $excel->getActiveSheet()->getStyleByColumnAndRow(10, 1)->applyFromArray($style_head_fill);
+        $excel->getActiveSheet()->setCellValueByColumnAndRow(11, 1, __('Approval Date'));
+        $excel->getActiveSheet()->getStyleByColumnAndRow(11, 1)->applyFromArray($style_border);
+        $excel->getActiveSheet()->getStyleByColumnAndRow(11, 1)->applyFromArray($style_head_fill);
+        $excel->getActiveSheet()->setCellValueByColumnAndRow(12, 1, __('Order Date'));
+        $excel->getActiveSheet()->getStyleByColumnAndRow(12, 1)->applyFromArray($style_border);
+        $excel->getActiveSheet()->getStyleByColumnAndRow(12, 1)->applyFromArray($style_head_fill);
+        $excel->getActiveSheet()->setCellValueByColumnAndRow(13, 1, __('Payment Date'));
+        $excel->getActiveSheet()->getStyleByColumnAndRow(13, 1)->applyFromArray($style_border);
+        $excel->getActiveSheet()->getStyleByColumnAndRow(13, 1)->applyFromArray($style_head_fill);
+        $excel->getActiveSheet()->setCellValueByColumnAndRow(14, 1, __('Reimbursement Request Date'));
+        $excel->getActiveSheet()->getStyleByColumnAndRow(14, 1)->applyFromArray($style_border);
+        $excel->getActiveSheet()->getStyleByColumnAndRow(14, 1)->applyFromArray($style_head_fill);
+        $excel->getActiveSheet()->setCellValueByColumnAndRow(15, 1, __('Reimbursement Complete Date'));
+        $excel->getActiveSheet()->getStyleByColumnAndRow(15, 1)->applyFromArray($style_border);
+        $excel->getActiveSheet()->getStyleByColumnAndRow(15, 1)->applyFromArray($style_head_fill);
 		$excel->getActiveSheet()->getStyle("1:1")->getFont()->setBold(true);
 
 
@@ -149,6 +173,24 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
  			//Column I
 			$excel->getActiveSheet()->setCellValueByColumnAndRow(9, $count, $row['timestampCreator']);
             $excel->getActiveSheet()->getStyleByColumnAndRow(9, $count)->applyFromArray($style_border);
+            //Column J
+            $excel->getActiveSheet()->setCellValueByColumnAndRow(10, $count, $row['requestedDate']);
+            $excel->getActiveSheet()->getStyleByColumnAndRow(10, $count)->applyFromArray($style_border);
+            //Column K
+            $excel->getActiveSheet()->setCellValueByColumnAndRow(11, $count, $row['approvalDate']);
+            $excel->getActiveSheet()->getStyleByColumnAndRow(11, $count)->applyFromArray($style_border);
+            //Column L
+            $excel->getActiveSheet()->setCellValueByColumnAndRow(12, $count, $row['orderDate']);
+            $excel->getActiveSheet()->getStyleByColumnAndRow(12, $count)->applyFromArray($style_border);
+            //Column M
+            $excel->getActiveSheet()->setCellValueByColumnAndRow(13, $count, $row['paymentDateLog']);
+            $excel->getActiveSheet()->getStyleByColumnAndRow(13, $count)->applyFromArray($style_border);
+            //Column N
+            $excel->getActiveSheet()->setCellValueByColumnAndRow(14, $count, $row['reimbursementRequestDate']);
+            $excel->getActiveSheet()->getStyleByColumnAndRow(14, $count)->applyFromArray($style_border);
+            //Column O
+            $excel->getActiveSheet()->setCellValueByColumnAndRow(15, $count, $row['reimbursementCompleteDate']);
+            $excel->getActiveSheet()->getStyleByColumnAndRow(15, $count)->applyFromArray($style_border);
         }
         if ($count == 0) {
  			//Column A
