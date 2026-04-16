@@ -44,4 +44,5 @@ xgettextGenerationCommands.log
 
 .idea
 .vscode
+*.mo
 
