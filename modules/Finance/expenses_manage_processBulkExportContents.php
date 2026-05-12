@@ -183,7 +183,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
             $excel->getActiveSheet()->setCellValueByColumnAndRow(12, $count, $row['orderDate']);
             $excel->getActiveSheet()->getStyleByColumnAndRow(12, $count)->applyFromArray($style_border);
             //Column M
-            $excel->getActiveSheet()->setCellValueByColumnAndRow(13, $count, $row['paymentDateLog']);
+            $excel->getActiveSheet()->setCellValueByColumnAndRow(13, $count, $row['paymentDate']);
             $excel->getActiveSheet()->getStyleByColumnAndRow(13, $count)->applyFromArray($style_border);
             //Column N
             $excel->getActiveSheet()->setCellValueByColumnAndRow(14, $count, $row['reimbursementRequestDate']);

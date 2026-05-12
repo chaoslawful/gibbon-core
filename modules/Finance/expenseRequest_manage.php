@@ -241,6 +241,10 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenseRequest_man
                                 $output = Format::date(substr($expense['timestampCreator'], 0, 10));
                                 return $output;
                             });
+                        $table->addColumn('paymentDate', __('Payment Date'))
+                            ->format(function ($expense) {
+                                return Format::date($expense['paymentDate']);
+                            });
 
                         // ACTIONS
                         $table->addActionColumn()

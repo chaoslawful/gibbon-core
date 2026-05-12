@@ -285,6 +285,8 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
     // XXX: ends here
     $table->addColumn('timestampCreator', __('Date'))
         ->format(Format::using('date', 'timestampCreator'));
+    $table->addColumn('paymentDate', __('Payment Date'))
+        ->format(Format::using('date', 'paymentDate'));
 
     if ($budgetsActionAccess) {
     $table->addActionColumn()
