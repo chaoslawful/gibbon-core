@@ -1811,8 +1811,6 @@ msgstr "来源"
 #: modules/Markbook/markbook_edit_addMulti.php:165
 #: modules/Finance/moduleFunctions.php:72
 #: modules/Finance/src/Tables/ExpenseLog.php:58
-#: modules/Finance/expenseRequest_manage.php:239
-#: modules/Finance/expenses_manage.php:286
 #: ⁨modules/System Admin/thirdPartySettings_emailProcess.php⁩:52
 #: ⁨modules/System Admin/import_history.php⁩:59
 #: ⁨modules/School Admin/activitySettings.php⁩:93
@@ -29365,6 +29363,8 @@ msgstr "未指定发票清单或预算周期，因此无法完成导出。"
 msgid "Expense Number"
 msgstr "费用编号"
 
+#: modules/Finance/expenseRequest_manage.php:239
+#: modules/Finance/expenses_manage.php:286
 #: modules/Finance/expenses_manage_processBulkExportContents.php:111
 #: ⁨modules/System Admin/logs_view.php⁩:110
 #: modules/Messenger/messenger_manage_report.php:377
@@ -51304,26 +51304,33 @@ msgstr "贡献"
 msgid "Publish"
 msgstr "发布"
 
-#: modules/Finance/expenses_manage_processBulkExportContents.php:120
-msgid "Requested Date"
-msgstr "提交时间"
-
 #: modules/Finance/expenses_manage_processBulkExportContents.php:123
-msgid "Approval Date"
-msgstr "批准时间"
+msgid "Requested Timestamp"
+msgstr "提交时戳"
 
 #: modules/Finance/expenses_manage_processBulkExportContents.php:126
-msgid "Order Date"
-msgstr "下单时间"
+msgid "Approval Timestamp"
+msgstr "批准时戳"
 
 #: modules/Finance/expenses_manage_processBulkExportContents.php:129
-msgid "Payment Date"
-msgstr "支付时间"
+msgid "Order Timestamp"
+msgstr "下单时戳"
 
 #: modules/Finance/expenses_manage_processBulkExportContents.php:132
-msgid "Reimbursement Request Date"
-msgstr "报销请求时间"
+msgid "Payment Timestamp"
+msgstr "支付时戳"
 
 #: modules/Finance/expenses_manage_processBulkExportContents.php:135
-msgid "Reimbursement Complete Date"
-msgstr "报销完成时间"
+msgid "Reimbursement Request Timestamp"
+msgstr "报销请求时戳"
+
+#: modules/Finance/expenses_manage_processBulkExportContents.php:138
+msgid "Reimbursement Complete Timestamp"
+msgstr "报销完成时戳"
+
+#: modules/Finance/expenseRequest_manage.php:244
+#: modules/Finance/expenses_manage.php:288
+#: modules/Finance/expenses_manage_processBulkExportContents.php:120
+msgid "Payment Date"
+msgstr "支付日期"
+

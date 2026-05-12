@@ -236,7 +236,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenseRequest_man
                             ->format(Format::using('currency', 'paymentAmount'));
                         // XXX: ends here
 
-                        $table->addColumn('timestampCreator', __('Date'))
+                        $table->addColumn('timestampCreator', __('Timestamp'))
                             ->format(function ($expense) {
                                 $output = Format::date(substr($expense['timestampCreator'], 0, 10));
                                 return $output;

@@ -283,7 +283,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
     $table->addColumn('paymentAmount', __('Payment Amount'))->description($session->get('currency'))
         ->format(Format::using('currency', 'paymentAmount'));
     // XXX: ends here
-    $table->addColumn('timestampCreator', __('Date'))
+    $table->addColumn('timestampCreator', __('Timestamp'))
         ->format(Format::using('date', 'timestampCreator'));
     $table->addColumn('paymentDate', __('Payment Date'))
         ->format(Format::using('date', 'paymentDate'));
