@@ -143,7 +143,7 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
     $studentOrderBy = $_GET['markbookOrderBy'] ?? $session->get('markbookOrderBy') ?? 'surname';
 
     //Get the current page number
-    $pageNum = $_GET['page'] ?? $session->get('markbookPage') ?? 0;
+    $pageNum = (int) ($_GET['page'] ?? $session->get('markbookPage') ?? 0);
     $session->set('markbookPage', $pageNum);
 
     $markbookGateway = $container->get(MarkbookColumnGateway::class);
@@ -199,11 +199,7 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
                 $( "#dialog" ).dialog();
             }
             function resetOrderAction(order){
-                if(order==1){
-                    window.location.href = window.location.href.substr(0,window.location.href.length-1) + "&gibbonCourseClassID='.$gibbonCourseClassID.'&reset=1";
-                }else if(order==2){
-                    window.location.href = window.location.href.substr(0,window.location.href.length-1) + "&gibbonCourseClassID='.$gibbonCourseClassID.'&reset=2";
-                }
+                window.location.href = "'.$session->get('absoluteURL').'/index.php?q=/modules/'.$session->get('module').'/markbook_view.php&gibbonCourseClassID='.$gibbonCourseClassID.'&reset="+order;
             }
         </script>';
         echo '<div id="dialog" title="'.__('Reset Order').'" style="display:none;">

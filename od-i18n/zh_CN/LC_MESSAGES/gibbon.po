@@ -10126,12 +10126,12 @@ msgstr "学生无法注册，因此需要稍后手动完成注册。"
 #: src/Forms/Builder/View/AssignHouseView.php:39
 #: src/Forms/Builder/View/AssignHouseView.php:39
 msgid "Auto House Assign"
-msgstr "自动分配宿舍"
+msgstr "自动分配学院"
 
 #: src/Forms/Builder/View/AssignHouseView.php:44
 #: src/Forms/Builder/View/AssignHouseView.php:44
 msgid "Automatically place the student in a house."
-msgstr "自动为学生安排一个宿舍。"
+msgstr "自动为学生安排一个学院。"
 
 #: src/Forms/Builder/View/AssignHouseView.php:64
 #: modules/Students/applicationForm_manage_accept.php:393
@@ -10139,7 +10139,7 @@ msgstr "自动为学生安排一个宿舍。"
 #: modules/Students/applicationForm_manage_accept.php:393
 #, php-format
 msgid "The student has automatically been assigned to %1$s house."
-msgstr "该学生已被自动安排到 %1$s 宿舍。"
+msgstr "该学生已被自动安排到 %1$s 学院。"
 
 #: src/Forms/Builder/View/AssignHouseView.php:66
 #: modules/Students/applicationForm_manage_accept.php:389
@@ -10148,7 +10148,7 @@ msgstr "该学生已被自动安排到 %1$s 宿舍。"
 msgid ""
 "The student could not automatically be added to a house, you may wish to "
 "manually add them to a house."
-msgstr "该学生无法自动添加到宿舍中，您可能需要手动将其添加到一个宿舍。"
+msgstr "该学生无法自动添加到学院中，您可能需要手动将其添加到一个学院。"
 
 #: src/Forms/Builder/View/ApplicationSubmitView.php:46
 #: src/Forms/Builder/View/ApplicationAcceptView.php:46
@@ -37132,7 +37132,7 @@ msgstr "{name} 今天缺勤。"
 #: modules/Students/student_view_details.php:438
 #: modules/Students/student_view_details.php:689
 msgid "House"
-msgstr "宿舍"
+msgstr "学院"
 
 #: modules/Staff/staff_view_details.php:230
 #: modules/Staff/staff_view_details.php:338
