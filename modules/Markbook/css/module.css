@@ -81,10 +81,12 @@ th.dataColumn {
 .marksColumn {
 	padding: 0px 0px 30px 0px !important;
 	text-align: center;
-    min-width: 140px;
+    min-width: 220px;
     position: relative;
     vertical-align: top;
     height: 130px;
+    box-sizing: border-box;
+    border-left: 1px solid #666;
 }
 
 .marksColumn .columnActions {
@@ -99,19 +101,90 @@ th.dataColumn {
     width: 100%;
 }
 
+/* Nested sub-header table: no radius (avoids leftover arc beside 调整/Mod) */
+table.columnLabels,
+table.columnLabels th,
+table.columnLabels td {
+	border-radius: 0 !important;
+	box-shadow: none !important;
+}
+
+/* Full-height separators between markbook columns (body cells) */
+td.columnLabel {
+    border-left: 1px solid #666 !important;
+    box-sizing: border-box;
+}
+
+/* Sub-headers sit inside marksColumn which already has a full-height left border */
+th.columnLabel:first-of-type {
+	border-left: none;
+}
+
+/* Group-by-type: stronger left edge between type groups */
+th.marksColumn.marksColumnGroupStart,
+th.markbookGroupHeaderCell.marksColumnGroupStart,
+td.columnLabel.marksColumnGroupStart,
+td.dataColumn.marksColumnGroupStart {
+    border-left: 2px solid #666 !important;
+}
+
+/* Native colspan group-title row — full gray bar + borders from table layout */
+tr.markbookGroupHeaderRow th {
+	height: 24px;
+	max-height: 24px;
+	padding: 0 !important;
+	vertical-align: middle;
+	box-sizing: border-box;
+}
+
+tr.markbookGroupHeaderRow th.markbookGroupHeaderCell {
+	background: #e8e8e8;
+	border-bottom: 1px solid #bbbbbb;
+	border-left: 1px solid #666;
+	overflow: hidden;
+	position: relative;
+}
+
+tr.markbookGroupHeaderRow th.markbookGroupHeaderPad {
+	background: #f3f4f6;
+	border-bottom: 1px solid #bbbbbb;
+}
+
+/*
+ * Title text is positioned by JS to the left edge of the visible portion of this
+ * colspan cell (CSS position:sticky is unreliable inside table cells).
+ */
+.marksColumnGroupLabel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 24px;
+    line-height: 24px;
+    font-size: 90%;
+    font-weight: 600;
+    color: #333;
+    text-align: left;
+    background: #e8e8e8;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 8px;
+    z-index: 2;
+    pointer-events: none;
+}
 
 table.columnLabels {
 	width: 100%;
 	height: 25px;
+	table-layout: fixed;
+	border: none !important;
+	border-radius: 0 !important;
 }
 
 th.columnLabel {
 	text-align: center !important;
-}
-
-td.columnLabel,
-th.columnLabel:first-of-type {
-	border-left: 1px solid #666;
+	border-radius: 0 !important;
 }
 
 .smallColumn {
@@ -252,6 +325,26 @@ select[id$="effortValue"] {
     padding: 5px 12px 5px !important;
     margin:0;
     z-index: 1;
+    box-sizing: border-box;
+}
+
+.doublescroll-container.markbookGrouped tr.head th.firstColumn {
+    top: 24px;
+}
+
+.doublescroll-container tr.markbookGroupHeaderRow th.firstColumn {
+	position: absolute;
+	width: 174px;
+	height: 24px;
+	left: 1px;
+	top: 0;
+	padding: 0 12px !important;
+	margin: 0;
+	z-index: 2;
+	box-sizing: border-box;
+	background: #e8e8e8;
+	border-bottom: 1px solid #bbbbbb;
+	border-right: 1px solid #666;
 }
 
 .doublescroll-container tr.head th.firstColumn span {
@@ -265,11 +358,14 @@ select[id$="effortValue"] {
     width:175px; 
     left:1px;
     top:auto;
-    padding: 5px 12px 5px !important;
+    padding: 0 12px !important;
     border-right: 1px solid #666;
     margin:0;
     z-index: 1;
     text-align: left;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
 }
 
 .doublescroll-container td {

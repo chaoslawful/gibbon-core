@@ -20,33 +20,270 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 jQuery(function($){
 
+    var markbookResizeObserver = null;
 
-	$(window).on('load', function (e) {
-        // Matches the width of the top placeholder to the final table width
-	    $('.doublescroll-top-tablewidth').width($('.doublescroll-container table').width());
+    function layoutMarkbookGroupLabels() {
+        var $container = $('.doublescroll-container');
+        var $labels = $('#myTable.markbook th.markbookGroupHeaderCell .marksColumnGroupLabel');
+        if (!$container.length || !$labels.length) {
+            return;
+        }
 
-        // Start scrolled to the left, where all the recent stuff is
-        $('.doublescroll-container').scrollLeft($('.doublescroll-container table').width());
-	});
+        var containerRect = $container[0].getBoundingClientRect();
 
-	// Pairs the position of the top scrollbar with the bottom scrollbar
-    $('.doublescroll-top').scroll(function(){
-        $('.doublescroll-container')
-            .scrollLeft($('.doublescroll-top').scrollLeft());
+        $labels.each(function () {
+            var $label = $(this);
+            var $th = $label.closest('th.markbookGroupHeaderCell');
+            if (!$th.length) {
+                return;
+            }
+
+            var thRect = $th[0].getBoundingClientRect();
+            var visibleLeft = Math.max(thRect.left, containerRect.left);
+            var visibleRight = Math.min(thRect.right, containerRect.right);
+            var visibleWidth = Math.max(0, visibleRight - visibleLeft);
+
+            if (visibleWidth <= 0) {
+                $label.css({ visibility: 'hidden', width: 0, left: 0 });
+                return;
+            }
+
+            // Pin title to the left edge of the visible slice of this group header
+            var left = Math.max(0, visibleLeft - thRect.left);
+            $label.css({
+                visibility: 'visible',
+                left: left + 'px',
+                width: visibleWidth + 'px',
+            });
+        });
+    }
+
+    function syncMarkbookStickyColumn() {
+        var $table = $('#myTable.markbook');
+        if (!$table.length) return;
+
+        var $container = $table.closest('.doublescroll-container');
+        var isGrouped = $container.hasClass('markbookGrouped') || $table.hasClass('markbookGrouped');
+        var groupHeaderHeight = isGrouped ? ($table.find('thead tr.markbookGroupHeaderRow').outerHeight() || 24) : 0;
+
+        var $headRow = $table.find('thead tr.head');
+        var $headFirst = $headRow.find('th.firstColumn');
+        // Prefer marks columns; dataColumn target/baseline can be shorter in CSS
+        var $headMeasure = $headRow.find('th.marksColumn').first();
+        if (!$headMeasure.length) {
+            $headMeasure = $headRow.find('th.dataColumn').first();
+        }
+        if ($headFirst.length && $headMeasure.length) {
+            var headHeight = $headMeasure.outerHeight();
+            $headFirst.css({
+                height: headHeight + 'px',
+                top: groupHeaderHeight + 'px',
+            });
+            $headFirst.children('span').css({
+                height: headHeight + 'px',
+                display: 'table-cell',
+                verticalAlign: 'middle',
+            });
+        }
+
+        var $groupSpacer = $table.find('thead tr.markbookGroupHeaderRow th.firstColumn');
+        if ($groupSpacer.length) {
+            $groupSpacer.css({
+                height: groupHeaderHeight + 'px',
+                top: '0px',
+            });
+        }
+
+        $table.find('tbody tr').each(function () {
+            var $row = $(this);
+            var $first = $row.children('td.firstColumn');
+            if (!$first.length) return;
+
+            // Prefer a marks data cell; fall back to summary dataColumn
+            var $measure = $row.children('td.columnLabel').first();
+            if (!$measure.length) {
+                $measure = $row.children('td.dataColumn').not('.studentTarget').first();
+            }
+            if (!$measure.length) {
+                $measure = $row.children('td.dataColumn').first();
+            }
+            if (!$measure.length) return;
+
+            // Use the row's in-flow cell height (border box) so absolute student cell matches
+            var rowHeight = $measure.outerHeight();
+            $first.css('height', rowHeight + 'px');
+        });
+
+        // Keep top scrollbar placeholder in sync with final table width
+        var tableWidth = $table.outerWidth();
+        if (tableWidth) {
+            $('.doublescroll-top-tablewidth').width(tableWidth);
+        }
+
+        layoutMarkbookGroupLabels();
+    }
+
+    function scheduleMarkbookLayoutSync() {
+        syncMarkbookStickyColumn();
+
+        if (window.requestAnimationFrame) {
+            window.requestAnimationFrame(function () {
+                syncMarkbookStickyColumn();
+                window.requestAnimationFrame(syncMarkbookStickyColumn);
+            });
+        }
+
+        // Icons/fonts can settle after first paint; retry a few times
+        setTimeout(syncMarkbookStickyColumn, 0);
+        setTimeout(syncMarkbookStickyColumn, 50);
+        setTimeout(syncMarkbookStickyColumn, 150);
+        setTimeout(syncMarkbookStickyColumn, 400);
+        setTimeout(syncMarkbookStickyColumn, 1000);
+
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(function () {
+                syncMarkbookStickyColumn();
+            });
+        }
+    }
+
+    function bindMarkbookLayoutObservers() {
+        var table = document.getElementById('myTable');
+        if (!table || typeof ResizeObserver === 'undefined') {
+            return;
+        }
+
+        if (markbookResizeObserver) {
+            markbookResizeObserver.disconnect();
+            markbookResizeObserver = null;
+        }
+
+        var pending = false;
+        markbookResizeObserver = new ResizeObserver(function () {
+            if (pending) return;
+            pending = true;
+            window.requestAnimationFrame(function () {
+                pending = false;
+                syncMarkbookStickyColumn();
+            });
+        });
+        markbookResizeObserver.observe(table);
+
+        // Nested column label tables / icon swaps can change row height
+        table.querySelectorAll('tbody tr').forEach(function (row) {
+            markbookResizeObserver.observe(row);
+        });
+    }
+
+    function bindMarkbookScrollSync() {
+        var $container = $('.doublescroll-container');
+        var $top = $('.doublescroll-top');
+
+        // Namespaced handlers so HTMX re-init can replace bindings on new nodes
+        $top.off('scroll.markbook').on('scroll.markbook', function () {
+            $container.scrollLeft($top.scrollLeft());
+            layoutMarkbookGroupLabels();
+        });
+        $container.off('scroll.markbook').on('scroll.markbook', function () {
+            $top.scrollLeft($container.scrollLeft());
+            layoutMarkbookGroupLabels();
+        });
+    }
+
+    function scrollMarkbookToRecentColumns() {
+        var $table = $('#myTable.markbook');
+        var $container = $('.doublescroll-container');
+        if (!$table.length || !$container.length) {
+            return;
+        }
+
+        var tableWidth = $table.outerWidth() || $table.width();
+        $('.doublescroll-top-tablewidth').width(tableWidth);
+        // Programmatic scrollLeft often does not fire 'scroll'; update labels explicitly
+        $container.scrollLeft(tableWidth);
+        $('.doublescroll-top').scrollLeft(tableWidth);
+        layoutMarkbookGroupLabels();
+    }
+
+    function initMarkbookDragtable() {
+        var $table = $('#myTable.markbook');
+        if (!$table.length || !$table.find('.dragtable-drag-handle').length) {
+            return;
+        }
+        // New DOM after HTMX swap — always bind once on this element
+        if ($table.data('jb-dragtable')) {
+            return;
+        }
+        $table.dragtable({
+            items: 'thead th .dragtable-drag-handle',
+            scroll: true,
+            appendTarget: ':parent',
+        });
+    }
+
+    /**
+     * Full markbook view bootstrap. Safe to call after HTMX content swaps
+     * (filter form uses enableQuickSubmit → replaces #content-wrap without reload).
+     */
+    function initMarkbookView() {
+        if (!$('#myTable.markbook').length) {
+            return;
+        }
+
+        bindMarkbookScrollSync();
+        bindMarkbookLayoutObservers();
+        initMarkbookDragtable();
+        scrollMarkbookToRecentColumns();
+        scheduleMarkbookLayoutSync();
+    }
+
+    function contentContainsMarkbook(content) {
+        if (!content) {
+            return false;
+        }
+        if (content.id === 'myTable' || (content.classList && content.classList.contains('doublescroll-container'))) {
+            return true;
+        }
+        if (typeof content.querySelector === 'function') {
+            return !!content.querySelector('#myTable.markbook, .doublescroll-container, .markbookGroupHeaderRow');
+        }
+        return false;
+    }
+
+    // First full page load
+    initMarkbookView();
+
+    $(window).on('load', function () {
+        scrollMarkbookToRecentColumns();
+        scheduleMarkbookLayoutSync();
     });
-    $('.doublescroll-container').scroll(function(){
-        $('.doublescroll-top')
-            .scrollLeft($('.doublescroll-container').scrollLeft());
+
+    // If this script runs after window load (cached nav), still init scroll position
+    if (document.readyState === 'complete') {
+        scrollMarkbookToRecentColumns();
+        scheduleMarkbookLayoutSync();
+    }
+
+    $(window).on('resize.markbook', function () {
+        scheduleMarkbookLayoutSync();
     });
 
-
-    // Add dragtable functionality to the markbook table
-    $('#myTable.markbook').dragtable({
-		items: 'thead th .dragtable-drag-handle',
-		scroll: true,
-		appendTarget: ':parent',
-	});
-
+    // Term / filter submit uses HTMX quick-submit — re-bind after #content-wrap swap
+    if (typeof htmx !== 'undefined') {
+        htmx.onLoad(function (content) {
+            if (contentContainsMarkbook(content)) {
+                initMarkbookView();
+            }
+        });
+    }
+    document.body.addEventListener('htmx:afterSettle', function (evt) {
+        var target = evt.detail && evt.detail.target;
+        if (contentContainsMarkbook(target) || (target && target.querySelector && target.querySelector('#myTable.markbook'))) {
+            initMarkbookView();
+        } else if (document.querySelector('#myTable.markbook') && target && target.id === 'content-wrap') {
+            initMarkbookView();
+        }
+    });
     // In markbook_edit_data.php, update the attainment value to match raw score
     // But not the other way around, in case teachers need to adjust the value
 	$('input[id$="attainmentValueRaw"]').change( function() {

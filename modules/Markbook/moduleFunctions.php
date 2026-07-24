@@ -157,6 +157,28 @@ function classChooser($guid, $pdo, $gibbonCourseClassID)
         ->selected($selectFilter)
         ->setClass('flex-1');
 
+    // GROUP BY (column display order; does not rewrite sequenceNumber)
+    $previousGroupBy = $session->get('markbookGroupBy', '');
+    $selectGroupBy = isset($_GET['markbookGroupBy']) ? $_GET['markbookGroupBy'] : $previousGroupBy;
+    if ($selectGroupBy !== 'type') {
+        $selectGroupBy = '';
+    }
+
+    $groupByOptions = array(
+        '' => __('None'),
+        'type' => __('Type'),
+    );
+    $col->addContent(__('Group By').':')->setClass('flex-shrink');
+    $col->addSelect('markbookGroupBy')
+        ->fromArray($groupByOptions)
+        ->selected($selectGroupBy)
+        ->setClass('flex-1');
+
+    $session->set('markbookGroupBy', $selectGroupBy);
+    if (isset($_GET['markbookGroupBy']) && $previousGroupBy !== $selectGroupBy) {
+        $session->set('markbookPage', 0);
+    }
+
     // CLASS
     $col->addContent(__('Class').':')->setClass('flex-shrink');
     $col->addSelectClass('gibbonCourseClassID', $session->get('gibbonSchoolYearID'), $session->get('gibbonPersonID'))

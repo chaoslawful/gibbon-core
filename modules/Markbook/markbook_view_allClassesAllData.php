@@ -141,6 +141,10 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
     $gibbonSchoolYearTermID = $_GET['gibbonSchoolYearTermID'] ?? $session->get('markbookTerm') ?? '';
     $columnFilter = $_GET['markbookFilter'] ?? $session->get('markbookFilter') ?? '';
     $studentOrderBy = $_GET['markbookOrderBy'] ?? $session->get('markbookOrderBy') ?? 'surname';
+    $columnGroupBy = $_GET['markbookGroupBy'] ?? $session->get('markbookGroupBy') ?? '';
+    if ($columnGroupBy !== 'type') {
+        $columnGroupBy = '';
+    }
 
     //Get the current page number
     $pageNum = (int) ($_GET['page'] ?? $session->get('markbookPage') ?? 0);
@@ -152,10 +156,15 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
     // Build the markbook object for this class
     $markbook = new MarkbookView($gibbon, $pdo, $gibbonCourseClassID, $container->get(SettingGateway::class));
 
-    // QUERY
+    // QUERY — Group By only changes display ORDER BY; sequenceNumber is unchanged
+    $columnSortBy = ['gibbonMarkbookColumn.sequenceNumber', 'gibbonMarkbookColumn.date', 'gibbonMarkbookColumn.complete', 'gibbonMarkbookColumn.completeDate'];
+    if ($columnGroupBy === 'type') {
+        array_unshift($columnSortBy, 'gibbonMarkbookColumn.type');
+    }
+
     $criteria = $markbookGateway->newQueryCriteria(true)
         ->searchBy($markbookGateway->getSearchableColumns(), $search)
-        ->sortBy(['gibbonMarkbookColumn.sequenceNumber', 'gibbonMarkbookColumn.date', 'gibbonMarkbookColumn.complete', 'gibbonMarkbookColumn.completeDate'])
+        ->sortBy($columnSortBy)
         ->filterBy('term', $gibbonSchoolYearTermID)
         ->filterBy('show', $columnFilter)
         ->pageSize($markbook->getColumnsPerPage())
@@ -194,19 +203,22 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
 
     // Display the Top Links
     if (isActionAccessible($guid, $connection2, '/modules/Markbook/markbook_edit.php') and $canEditThisClass) {
-        echo '<script>
-            function resetOrder(){
-                $( "#dialog" ).dialog();
-            }
-            function resetOrderAction(order){
-                window.location.href = "'.$session->get('absoluteURL').'/index.php?q=/modules/'.$session->get('module').'/markbook_view.php&gibbonCourseClassID='.$gibbonCourseClassID.'&reset="+order;
-            }
-        </script>';
-        echo '<div id="dialog" title="'.__('Reset Order').'" style="display:none;">
-            '.__('Are you sure you want to reset the ordering of all the columns in this class?').'<br>
-            <button onclick="resetOrderAction(1)" class="my-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">'.__('Reset by entry order').'</button><br>
-            <button onclick="resetOrderAction(2)" class="my-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">'.__('Reset by date').'</button>
-        </div>';
+        // Reordering UI only when not grouping by type (display order ≠ persisted sequenceNumber)
+        if ($columnGroupBy !== 'type') {
+            echo '<script>
+                function resetOrder(){
+                    $( "#dialog" ).dialog();
+                }
+                function resetOrderAction(order){
+                    window.location.href = "'.$session->get('absoluteURL').'/index.php?q=/modules/'.$session->get('module').'/markbook_view.php&gibbonCourseClassID='.$gibbonCourseClassID.'&reset="+order;
+                }
+            </script>';
+            echo '<div id="dialog" title="'.__('Reset Order').'" style="display:none;">
+                '.__('Are you sure you want to reset the ordering of all the columns in this class?').'<br>
+                <button onclick="resetOrderAction(1)" class="my-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">'.__('Reset by entry order').'</button><br>
+                <button onclick="resetOrderAction(2)" class="my-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">'.__('Reset by date').'</button>
+            </div>';
+        }
 
         $form = Form::create('links', '');
 
@@ -235,7 +247,7 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
                 ->displayLabel();
         }
 
-        if ($markbook->getColumnCountTotal() > $markbook->getColumnsPerPage()) {
+        if ($columnGroupBy !== 'type' && $markbook->getColumnCountTotal() > $markbook->getColumnsPerPage()) {
             $form->addHeaderAction('refresh', __('Reset Order'))
                 ->onClick('resetOrder()')
                 ->setURL('#')
@@ -310,33 +322,137 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
         }
 
         // Hook up the Ajax call to the dragtable event - done here to make use of PHP variables
-        ?>
-        <script type='text/javascript'>
-            $(document).ready(function(){
-                $("#myTable").on('dragtablestop', function( event ) {
-                    $.ajax({
-                        url: "<?php echo $session->get('absoluteURL') ?>/modules/Markbook/markbook_viewAjax.php",
-                        data: { order: $(this).dragtable('order'), sequence: <?php echo $markbook->getMinimumSequenceNumber(); ?> },
-                        method: "POST",
-                    })
-                    .done(function( data ) {
-                        if (data != '') alert( data );
-                    })
-                    .fail(function() {
-                        //alert( '<?php echo __('Error'); ?>'  );
+        // Skip when grouping by type: display order is not the persisted sequenceNumber
+        if ($columnGroupBy !== 'type') {
+            ?>
+            <script type='text/javascript'>
+                $(document).ready(function(){
+                    $("#myTable").on('dragtablestop', function( event ) {
+                        $.ajax({
+                            url: "<?php echo $session->get('absoluteURL') ?>/modules/Markbook/markbook_viewAjax.php",
+                            data: { order: $(this).dragtable('order'), sequence: <?php echo $markbook->getMinimumSequenceNumber(); ?> },
+                            method: "POST",
+                        })
+                        .done(function( data ) {
+                            if (data != '') alert( data );
+                        })
+                        .fail(function() {
+                            //alert( '<?php echo __('Error'); ?>'  );
+                        });
                     });
                 });
-            });
-        </script>
-        <?php
+            </script>
+            <?php
+        }
 
         // Wrap the table and add top scroll bar
         echo '<div class="doublescroll-wrapper">';
         echo "<div class='doublescroll-top'><div class='doublescroll-top-tablewidth'></div></div>";
-        echo "<div class='doublescroll-container'>";
+        echo "<div class='doublescroll-container".($columnGroupBy === 'type' ? ' markbookGrouped' : '')."'>";
 
-        echo "<table id='myTable' class='mini markbook colorOddEven' cellspacing='0'>";
+        echo "<table id='myTable' class='mini markbook colorOddEven".($columnGroupBy === 'type' ? ' markbookGrouped' : '')."' cellspacing='0'>";
         echo "<thead>";
+
+        $columnID = array();
+        $attainmentID = array();
+        $effortID = array();
+
+        // When grouping by type: mark first column of each group and group boundaries
+        $groupFirstColumn = [];
+        $groupStartDivider = [];
+        $groupSpanCount = [];
+        $groupTypeAt = [];
+        if ($columnGroupBy === 'type') {
+            $prevType = null;
+            $columnCountThisPage = $markbook->getColumnCountThisPage();
+            for ($i = 0; $i < $columnCountThisPage; ++$i) {
+                $type = $markbook->getColumn($i)->getData('type');
+                $groupFirstColumn[$i] = ($i === 0 || $type !== $prevType);
+                $groupStartDivider[$i] = ($i > 0 && $type !== $prevType);
+                $groupTypeAt[$i] = $type;
+                $prevType = $type;
+            }
+            for ($i = 0; $i < $columnCountThisPage; ++$i) {
+                if (empty($groupFirstColumn[$i])) {
+                    continue;
+                }
+                $span = 1;
+                while (($i + $span) < $columnCountThisPage && empty($groupFirstColumn[$i + $span])) {
+                    ++$span;
+                }
+                $groupSpanCount[$i] = $span;
+            }
+
+            // Dedicated group-title row (native colspan) — avoids absolute overlays clipped by <th>
+            echo "<tr class='markbookGroupHeaderRow'>";
+            echo "<th class='notdraggable firstColumn markbookGroupHeaderSpacer' data-header='student-group'></th>";
+
+            if ($markbook->hasExternalAssessments() == true) {
+                echo "<th class='dataColumn markbookGroupHeaderPad notdraggable' data-header='assessment-group'></th>";
+            }
+            if ($markbook->hasPersonalizedTargets()) {
+                echo "<th class='dataColumn markbookGroupHeaderPad notdraggable' data-header='target-group'></th>";
+            }
+
+            for ($i = 0; $i < $columnCountThisPage; ++$i) {
+                if (empty($groupFirstColumn[$i])) {
+                    continue;
+                }
+                $span = $groupSpanCount[$i] ?? 1;
+                $typeLabel = htmlPrep($markbook->getTypeDescription($groupTypeAt[$i]));
+                $groupCellClass = 'markbookGroupHeaderCell notdraggable';
+                if (!empty($groupStartDivider[$i])) {
+                    $groupCellClass .= ' marksColumnGroupStart';
+                }
+                echo "<th colspan='{$span}' class='{$groupCellClass}' data-header='group-".htmlPrep($groupTypeAt[$i])."'>";
+                echo '<div class="marksColumnGroupLabel" title="'.$typeLabel.'">'.$typeLabel.'</div>';
+                echo '</th>';
+            }
+
+            // Keep column count aligned with average / cumulative headers below
+            if ($markbook->getSetting('enableColumnWeighting') == 'Y' && $columnFilter != 'unmarked') {
+                if ($columnFilter == 'averages') {
+                    if ($markbook->getSetting('enableTypeWeighting') == 'Y' ) {
+                        if ( ($markbook->getSetting('enableGroupByTerm') == 'Y' && $gibbonSchoolYearTermID > 0) ||
+                             ($markbook->getSetting('enableGroupByTerm') == 'N' && $gibbonSchoolYearTermID <= 0) ) {
+                            $isFirstAverageColumn = true;
+                            foreach ($markbook->getGroupedMarkbookTypes('term') as $type) {
+                                $padClass = 'dataColumn markbookGroupHeaderPad notdraggable'.($isFirstAverageColumn ? ' dataDivider' : '');
+                                $isFirstAverageColumn = false;
+                                echo "<th class='{$padClass}'></th>";
+                            }
+                        }
+                    } else if (count($markbook->getGroupedMarkbookTypes('year')) > 0 && $gibbonSchoolYearTermID > 0) {
+                        $isFirstAverageColumn = true;
+                        foreach ($markbook->getGroupedMarkbookTypes('year') as $type) {
+                            $padClass = 'dataColumn markbookGroupHeaderPad notdraggable'.($isFirstAverageColumn ? ' dataDivider' : '');
+                            $isFirstAverageColumn = false;
+                            echo "<th class='{$padClass}'></th>";
+                        }
+                    }
+                    if ( ($markbook->getSetting('enableGroupByTerm') == 'Y' && $gibbonSchoolYearTermID <= 0) ) {
+                        foreach ($markbook->getCurrentTerms() as $term) {
+                            echo "<th class='dataColumn markbookGroupHeaderPad notdraggable'></th>";
+                        }
+                    }
+                }
+                if ($markbook->getSetting('enableGroupByTerm') == 'Y' && $gibbonSchoolYearTermID > 0) {
+                    echo "<th class='dataColumn markbookGroupHeaderPad dataDivider notdraggable'></th>";
+                }
+                echo "<th class='dataColumn markbookGroupHeaderPad dataDivider notdraggable'></th>";
+                if ($markbook->getSetting('enableTypeWeighting') == 'Y' && count($markbook->getGroupedMarkbookTypes('year')) > 0 && $gibbonSchoolYearTermID <= 0) {
+                    if ($columnFilter == 'averages' && $gibbonSchoolYearTermID <= 0) {
+                        foreach ($markbook->getGroupedMarkbookTypes('year') as $type) {
+                            echo "<th class='dataColumn markbookGroupHeaderPad notdraggable'></th>";
+                        }
+                    }
+                    echo "<th class='dataColumn markbookGroupHeaderPad notdraggable'></th>";
+                }
+            }
+
+            echo '</tr>';
+        }
+
         echo "<tr class='head'>";
 	        echo "<th class='notdraggable firstColumn dragtable-drag-boundary' data-header='student'>";
 	            echo "<span>";
@@ -378,14 +494,12 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
             echo '</th>';
         }
 
-        $columnID = array();
-        $attainmentID = array();
-        $effortID = array();
         // Display headers for each of the markbook columns
         for ($i = 0; $i < $markbook->getColumnCountThisPage(); ++$i) {
 
             $column = $markbook->getColumn( $i );
             $columnType = $column->getData('type');
+            $showGroupDivider = !empty($groupStartDivider[$i]);
             $unit = getUnit($connection2, $column->getData('gibbonUnitID'), '', $column->getData('gibbonCourseClassID') );
 
             // Build a mini list for the hover-over info
@@ -441,18 +555,24 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
 
             $columnColor =  $column->getData('columnColor');
             $columnColor = !empty($columnColor) && strtolower($columnColor) != '#ffffff'? 'background-color: '.preg_replace('/[^a-zA-Z0-9\#]/', '', $columnColor).'88;' : '';
-            echo "<th class='marksColumn notdraggable' data-header='".$column->gibbonMarkbookColumnID."' style='padding: 0px 0px 30px 0px !important; text-align: center;vertical-align: top; {$columnColor}'>";
+            $marksColumnClass = 'marksColumn notdraggable';
+            if ($columnGroupBy === 'type' && $showGroupDivider) {
+                $marksColumnClass .= ' marksColumnGroupStart';
+            }
+            echo "<th class='{$marksColumnClass}' data-header='".$column->gibbonMarkbookColumnID."' style='padding: 0px 0px 30px 0px !important; text-align: center;vertical-align: top; {$columnColor}'>";
 
-            echo ($canEditThisClass) ? "<div class='dragtable-drag-handle'></div>" :  "<br/>";
+            echo ($canEditThisClass && $columnGroupBy !== 'type') ? "<div class='dragtable-drag-handle'></div>" :  "<br/>";
 
             echo "<span x-tooltip.bottom='".htmlPrep( $info )."'>".$column->getData('name').'</span><br/>';
             echo "<span class='details'>";
 
-
-            echo $markbook->getTypeDescription( $column->getData('type') );
+            // When grouped by type, type is shown only on the group-first column (label above)
+            if ($columnGroupBy !== 'type') {
+                echo $markbook->getTypeDescription( $column->getData('type') );
+            }
 
             if ($column->hasAttachment( $session->get('absolutePath') )) {
-                echo " | <a 'title='".__('Download more information')."' href='".$session->get('absoluteURL').'/'.$column->getData('attachment')."' target='_blank'>".__("More Info")."</a><br/>";
+                echo ($columnGroupBy !== 'type' ? ' | ' : '')."<a 'title='".__('Download more information')."' href='".$session->get('absoluteURL').'/'.$column->getData('attachment')."' target='_blank'>".__("More Info")."</a><br/>";
             } else {
                 echo '<br/>';
             }
@@ -484,7 +604,7 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
                 echo '</div>';
             }
 
-            echo '<table class="columnLabels blank rounded-t-none" cellspacing=0><tr>';
+            echo '<table class="columnLabels blank" cellspacing=0><tr>';
 
             if ($column->gibbonMarkbookColumnID == false ) { //or $contents == false
             	echo '<th>';
@@ -579,15 +699,21 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
                 if ($markbook->getSetting('enableTypeWeighting') == 'Y' ) {
                     if ( ($markbook->getSetting('enableGroupByTerm') == 'Y' && $gibbonSchoolYearTermID > 0) ||
                          ($markbook->getSetting('enableGroupByTerm') == 'N' && $gibbonSchoolYearTermID <= 0) ) {
+                        $isFirstAverageColumn = true;
                         foreach ($markbook->getGroupedMarkbookTypes('term') as $type) {
-                            echo "<th class='dataColumn notdraggable dragtable-drag-boundary' data-header='$type'>";
+                            $averageClass = 'dataColumn notdraggable dragtable-drag-boundary'.($isFirstAverageColumn ? ' dataDivider' : '');
+                            $isFirstAverageColumn = false;
+                            echo "<th class='{$averageClass}' data-header='$type'>";
                             echo '<div class="verticalText">' . $markbook->getTypeDescription($type) . '</div>';
                             echo '</th>';
                         }
                     }
                 } else if (count($markbook->getGroupedMarkbookTypes('year')) > 0 && $gibbonSchoolYearTermID > 0) {
+                    $isFirstAverageColumn = true;
                     foreach ($markbook->getGroupedMarkbookTypes('year') as $type) {
-                        echo "<th class='dataColumn notdraggable dragtable-drag-boundary' data-header='$type'>";
+                        $averageClass = 'dataColumn notdraggable dragtable-drag-boundary'.($isFirstAverageColumn ? ' dataDivider' : '');
+                        $isFirstAverageColumn = false;
+                        echo "<th class='{$averageClass}' data-header='$type'>";
                         echo '<div class="verticalText">' . $markbook->getTypeDescription($type) . '</div>';
                         echo '</th>';
                     }
@@ -719,6 +845,9 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
 
                 	$column = $markbook->getColumn( $i );
                     $columnClass = 'columnLabel';
+                    if (!empty($groupStartDivider[$i])) {
+                        $columnClass .= ' marksColumnGroupStart';
+                    }
                     
                     $dataEntry = array('gibbonMarkbookColumnID' => $column->gibbonMarkbookColumnID, 'gibbonPersonIDStudent' => $rowStudents['gibbonPersonID']);
                     $sqlEntry = 'SELECT * FROM gibbonMarkbookEntry WHERE gibbonMarkbookColumnID=:gibbonMarkbookColumnID AND gibbonPersonIDStudent=:gibbonPersonIDStudent LIMIT 1';
@@ -960,18 +1089,22 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
                                  ($markbook->getSetting('enableGroupByTerm') == 'N' && $gibbonSchoolYearTermID <= 0) ) {
 
                                 // Display all used column types
+                                $isFirstAverageColumn = true;
                                 foreach ($markbook->getGroupedMarkbookTypes('term') as $type) {
-                                    echo '<td class="dataColumn">';
+                                    echo '<td class="dataColumn'.($isFirstAverageColumn ? ' dataDivider' : '').'">';
                                         echo $markbook->getFormattedAverage( $markbook->getTypeAverage($rowStudents['gibbonPersonID'], $gibbonSchoolYearTermID, $type) );
                                     echo '</td>';
+                                    $isFirstAverageColumn = false;
                                     @$totals['typeAverage'][$type] += floatval($markbook->getTypeAverage($rowStudents['gibbonPersonID'], $gibbonSchoolYearTermID, $type));
                                 }
                             }
                         } else if (count($markbook->getGroupedMarkbookTypes('year')) > 0 && $gibbonSchoolYearTermID > 0) {
+                            $isFirstAverageColumn = true;
                             foreach ($markbook->getGroupedMarkbookTypes('year') as $type) {
-                                echo '<td class="dataColumn">';
+                                echo '<td class="dataColumn'.($isFirstAverageColumn ? ' dataDivider' : '').'">';
                                     echo $markbook->getFormattedAverage( $markbook->getTypeAverage($rowStudents['gibbonPersonID'], $gibbonSchoolYearTermID, $type) );
                                 echo '</td>';
+                                $isFirstAverageColumn = false;
                             }
                         }
 
@@ -1042,11 +1175,12 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
                 $attainmentCount = (isset($totals['attainment'][$i]['count']))? $totals['attainment'][$i]['count'] : 0;
                 $attainmentTotal = (isset($totals['attainment'][$i]['total']))? $totals['attainment'][$i]['total'] : 0;
                 $attainmentAverage = ($attainmentCount > 0 && $attainmentTotal > 0)? ($attainmentTotal / $attainmentCount) : '';
+                $averageClass = 'dataColumn dataDivider dataDividerTop'.(!empty($groupStartDivider[$i]) ? ' marksColumnGroupStart' : '');
 
                 if ($columnFilter == 'raw' && $markbook->getSetting('enableRawAttainment') == 'Y') {
-                    echo '<td class="dataColumn dataDivider dataDividerTop">'.round(floatval($attainmentAverage), 1).'</td>';
+                    echo '<td class="'.$averageClass.'">'.round(floatval($attainmentAverage), 1).'</td>';
                 } else {
-                    echo '<td class="dataColumn dataDivider dataDividerTop">'.$markbook->getFormattedAverage($attainmentAverage).'</td>';
+                    echo '<td class="'.$averageClass.'">'.$markbook->getFormattedAverage($attainmentAverage).'</td>';
                 }
             }
 
@@ -1058,9 +1192,11 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
                     if ( ($markbook->getSetting('enableGroupByTerm') == 'Y' && $gibbonSchoolYearTermID > 0) ||
                          ($markbook->getSetting('enableGroupByTerm') == 'N' && $gibbonSchoolYearTermID <= 0) ) {
 
+                        $isFirstAverageColumn = true;
                         foreach ($markbook->getGroupedMarkbookTypes('term') as $type) {
                             $typeAverage = ($count > 0 && $totals['typeAverage'][$type] > 0)? ($totals['typeAverage'][$type] / $count) : '';
-                            echo '<td class="dataColumn dataDividerTop">'.$markbook->getFormattedAverage($typeAverage).'</td>';
+                            echo '<td class="dataColumn dataDividerTop'.($isFirstAverageColumn ? ' dataDivider' : '').'">'.$markbook->getFormattedAverage($typeAverage).'</td>';
+                            $isFirstAverageColumn = false;
                         }
                     }
                 }
