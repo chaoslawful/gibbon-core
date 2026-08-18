@@ -20,6 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 use Gibbon\Domain\System\SettingGateway;
+use Gibbon\Domain\Timetable\TimetableColumnGateway;
 use Gibbon\Forms\Form;
 use Gibbon\Module\Planner\Forms\PlannerFormFactory;
 use Gibbon\Services\Format;
@@ -218,15 +219,17 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_edit.php')
                     $row->addLabel('date', __('Date'));
                     $row->addDate('date')->required();
 
+                $ttTimes = $container->get(TimetableColumnGateway::class)->getTTColumnTimeOptionsBySchoolYear($session->get('gibbonSchoolYearID'));
+
                 $nextTimeStart = !empty($nextTimeStart) ? substr($nextTimeStart, 0, 5) : null;
                 $row = $form->addRow();
                     $row->addLabel('timeStart', __('Start Time'));
-                    $row->addTime('timeStart')->required();
+                    $row->addTime('timeStart')->setTimes($ttTimes['timeStart'])->required();
 
                 $nextTimeEnd = !empty($nextTimeEnd) ? substr($nextTimeEnd, 0, 5) : null;
                 $row = $form->addRow();
                     $row->addLabel('timeEnd', __('End Time'));
-                    $row->addTime('timeEnd')->required();
+                    $row->addTime('timeEnd')->setTimes($ttTimes['timeEnd'])->required();
 
 
                 //LESSON

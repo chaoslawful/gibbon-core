@@ -22,6 +22,9 @@ CHANGELOG
 v30.0.01
 --------
 
+    Tweaks & Additions
+        Planner: lesson plan start and end time dropdowns now use timetable column period times
+
     Bug Fixes
         System: fixed default collation in gibbon.sql causing installation issues for MariaDB systems
         System: added a upper character limit of 2048 to translation strings, to prevent gettext errors

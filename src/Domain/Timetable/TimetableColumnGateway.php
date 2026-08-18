@@ -114,6 +114,54 @@ class TimetableColumnGateway extends QueryableGateway
         return $this->db()->select($sql, $data);
     }
 
+    /**
+     * Unique start/end times from timetable columns used in a school year.
+     * Falls back to all column rows when none are attached to the year.
+     *
+     * @param string|int $gibbonSchoolYearID
+     * @return array{timeStart: string[], timeEnd: string[]}
+     */
+    public function getTTColumnTimeOptionsBySchoolYear($gibbonSchoolYearID)
+    {
+        $data = ['gibbonSchoolYearID' => $gibbonSchoolYearID];
+        $sql = "SELECT DISTINCT TIME_FORMAT(gibbonTTColumnRow.timeStart, '%H:%i') as timeStart, TIME_FORMAT(gibbonTTColumnRow.timeEnd, '%H:%i') as timeEnd
+                FROM gibbonTTColumnRow
+                JOIN gibbonTTDay ON (gibbonTTDay.gibbonTTColumnID=gibbonTTColumnRow.gibbonTTColumnID)
+                JOIN gibbonTT ON (gibbonTT.gibbonTTID=gibbonTTDay.gibbonTTID)
+                WHERE gibbonTT.gibbonSchoolYearID=:gibbonSchoolYearID
+                ORDER BY gibbonTTColumnRow.timeStart, gibbonTTColumnRow.timeEnd";
+
+        $rows = $this->db()->select($sql, $data)->fetchAll();
+
+        if (empty($rows)) {
+            $sql = "SELECT DISTINCT TIME_FORMAT(timeStart, '%H:%i') as timeStart, TIME_FORMAT(timeEnd, '%H:%i') as timeEnd
+                    FROM gibbonTTColumnRow
+                    ORDER BY timeStart, timeEnd";
+            $rows = $this->db()->select($sql)->fetchAll();
+        }
+
+        $starts = [];
+        $ends = [];
+        foreach ($rows as $row) {
+            if (!empty($row['timeStart'])) {
+                $starts[$row['timeStart']] = $row['timeStart'];
+            }
+            if (!empty($row['timeEnd'])) {
+                $ends[$row['timeEnd']] = $row['timeEnd'];
+            }
+        }
+
+        $starts = array_values($starts);
+        $ends = array_values($ends);
+        sort($starts);
+        sort($ends);
+
+        return [
+            'timeStart' => $starts,
+            'timeEnd' => $ends,
+        ];
+    }
+
     public function insertColumnRow(array $data)
     {
         $sql = "INSERT INTO gibbonTTColumnRow SET gibbonTTColumnID=:gibbonTTColumnID, name=:name, nameShort=:nameShort, timeStart=:timeStart, timeEnd=:timeEnd, type=:type ON DUPLICATE KEY UPDATE gibbonTTColumnID=:gibbonTTColumnID";

@@ -23,6 +23,7 @@ use Gibbon\Forms\Form;
 use Gibbon\Services\Format;
 use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Domain\Planner\PlannerEntryGateway;
+use Gibbon\Domain\Timetable\TimetableColumnGateway;
 use Gibbon\Forms\Builder\Storage\FormSessionStorage;
 use Gibbon\Module\Planner\Forms\PlannerFormFactory;
 use Gibbon\Forms\CustomFieldHandler;
@@ -234,15 +235,17 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_add.php') 
                     $row->addDate('date')->setValue(Format::date($nextDate))->required();
             }
 
+            $ttTimes = $container->get(TimetableColumnGateway::class)->getTTColumnTimeOptionsBySchoolYear($session->get('gibbonSchoolYearID'));
+
             $nextTimeStart = (isset($nextTimeStart)) ? substr($nextTimeStart, 0, 5) : null;
             $row = $form->addRow();
                 $row->addLabel('timeStart', __('Start Time'))->description(__("Format: hh:mm (24hr)"));
-                $row->addTime('timeStart')->setValue($nextTimeStart)->required();
+                $row->addTime('timeStart')->setTimes($ttTimes['timeStart'])->setValue($nextTimeStart)->required();
 
             $nextTimeEnd = (isset($nextTimeEnd)) ? substr($nextTimeEnd, 0, 5) : null;
             $row = $form->addRow();
                 $row->addLabel('timeEnd', __('End Time'))->description(__("Format: hh:mm (24hr)"));
-                $row->addTime('timeEnd')->setValue($nextTimeEnd)->required();
+                $row->addTime('timeEnd')->setTimes($ttTimes['timeEnd'])->setValue($nextTimeEnd)->required();
 
             $form->addRow()->addHeading('Lesson Content', __('Lesson Content'));
 

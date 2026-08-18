@@ -20,6 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 use Gibbon\Domain\System\SettingGateway;
+use Gibbon\Domain\Timetable\TimetableColumnGateway;
 use Gibbon\Forms\Form;
 use Gibbon\Services\Format;
 
@@ -288,13 +289,15 @@ if (isActionAccessible($guid, $connection2, '/modules/Planner/planner_duplicate.
                             $row->addLabel('date', __('Date'));
                             $row->addDate('date')->setValue(Format::date($next['date']))->required();
 
+                        $ttTimes = $container->get(TimetableColumnGateway::class)->getTTColumnTimeOptionsBySchoolYear($session->get('gibbonSchoolYearID'));
+
                         $row = $form->addRow();
                             $row->addLabel('timeStart', __('Start Time'))->description("Format: hh:mm (24hr)");
-                            $row->addTime('timeStart')->setValue(substr($next['start'] ?? '', 0, 5))->required();
+                            $row->addTime('timeStart')->setTimes($ttTimes['timeStart'])->setValue(substr($next['start'] ?? '', 0, 5))->required();
 
                         $row = $form->addRow();
                             $row->addLabel('timeEnd', __('End Time'))->description("Format: hh:mm (24hr)");
-                            $row->addTime('timeEnd')->setValue(substr($next['end'] ?? '', 0, 5))->required();
+                            $row->addTime('timeEnd')->setTimes($ttTimes['timeEnd'])->setValue(substr($next['end'] ?? '', 0, 5))->required();
 
                         if ($values['homework'] == 'Y') {
                             $form->addRow()->addHeading($homeworkNamePlural, __($homeworkNamePlural));

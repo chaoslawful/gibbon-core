@@ -29,7 +29,7 @@ use Gibbon\Forms\Traits\ButtonGroupTrait;
  *
  * Interface for jQuery-timepicker http://jonthornton.github.io/jquery-timepicker/
  *
- * @version v14
+ * @version v30
  * @since   v14
  */
 class Time extends TextField
@@ -41,6 +41,7 @@ class Time extends TextField
     protected $max;
     protected $chained;
     protected $showDuration;
+    protected $times = [];
 
     /**
      * Overload the base loadFrom method to handle converting time formats.
@@ -119,6 +120,20 @@ class Time extends TextField
     }
 
     /**
+     * Limit the timepicker dropdown to a specific list of times (H:i or H:i:s).
+     * Falls back to the default 30-minute interval when the list is empty.
+     *
+     * @param   string[]  $times
+     * @return  self
+     */
+    public function setTimes(array $times)
+    {
+        $this->times = $times;
+
+        return $this;
+    }
+
+    /**
      * Adds time format to the label description
      * @return string|bool
      */
@@ -142,23 +157,61 @@ class Time extends TextField
             'pattern: /^(0[0-9]|[1][0-9]|2[0-3])[:](0[0-9]|[1-5][0-9])/i, failureMessage: "Use hh:mm"'
         );
 
-        $jsonData = [
-            'scrollDefault' => 'now',
-            'timeFormat' => $this->format,
-            'minTime' => $this->min,
-            'maxTime' => $this->max,
-        ];
+        $id = $this->getID();
+        $times = $this->getNormalizedTimesAsSeconds();
 
         $output = '<script type="text/javascript">';
         $output .= '$(document).ready(function () {';
-        $output .= '$("#'.$this->getID().'").timepicker('.json_encode($jsonData).');';
-        if (!empty($this->chained)) {
-            // On change, update this time and set duration
-            $output .= '$("#'.$this->chained.'").on("changeTime", function() {';
-            $output .= 'if ($("#'.$this->getID().'").val() == "") $("#'.$this->getID().'").val($(this).val());';
-            $output .= '$("#'.$this->getID().'").timepicker({ "minTime": $(this).val(), "timeFormat" : "'.$this->format.'", "showDuration" : "'.$this->showDuration.'"});';
-            $output .= '});';
+
+        if (!empty($times)) {
+            $varName = 'gibbonTimepickerTimes_'.preg_replace('/[^a-zA-Z0-9_]/', '_', $id);
+            $initName = $varName.'_init';
+            $scrollDefault = $this->getValue() ?: 'now';
+
+            $output .= 'var '.$varName.' = '.json_encode(array_values($times)).';';
+            $output .= 'var '.$initName.' = function(minTime) {';
+            $output .= 'var times = '.$varName.'.slice();';
+            $output .= 'if (minTime) {';
+            $output .= 'var min = (typeof minTime === "number") ? minTime : (function(t){ var p = String(t).split(":"); return (parseInt(p[0],10)||0)*3600 + (parseInt(p[1],10)||0)*60; })(minTime);';
+            $output .= 'var filtered = times.filter(function(s){ return s >= min; });';
+            $output .= 'if (filtered.length) { times = filtered; }';
+            $output .= '}';
+            $output .= 'return {';
+            $output .= 'scrollDefault: '.json_encode($scrollDefault).',';
+            $output .= 'timeFormat: '.json_encode($this->format).',';
+            $output .= 'minTime: times[0],';
+            $output .= 'maxTime: times[times.length - 1],';
+            // jquery-timepicker 1.11.10 calls step(j) after incrementing j, so j starts at 1.
+            $output .= 'step: function(j) { return (j > 0 && j < times.length) ? Math.max(1, (times[j] - times[j - 1]) / 60) : 1; }';
+            $output .= '};';
+            $output .= '};';
+            $output .= '$("#'.$id.'").timepicker('.$initName.'());';
+
+            if (!empty($this->chained)) {
+                $output .= '$("#'.$this->chained.'").on("changeTime", function() {';
+                $output .= 'if ($("#'.$id.'").val() == "") $("#'.$id.'").val($(this).val());';
+                $output .= '$("#'.$id.'").timepicker("remove");';
+                $output .= '$("#'.$id.'").timepicker('.$initName.'($(this).val()));';
+                $output .= '});';
+            }
+        } else {
+            $jsonData = [
+                'scrollDefault' => 'now',
+                'timeFormat' => $this->format,
+                'minTime' => $this->min,
+                'maxTime' => $this->max,
+            ];
+
+            $output .= '$("#'.$id.'").timepicker('.json_encode($jsonData).');';
+            if (!empty($this->chained)) {
+                // On change, update this time and set duration
+                $output .= '$("#'.$this->chained.'").on("changeTime", function() {';
+                $output .= 'if ($("#'.$id.'").val() == "") $("#'.$id.'").val($(this).val());';
+                $output .= '$("#'.$id.'").timepicker({ "minTime": $(this).val(), "timeFormat" : "'.$this->format.'", "showDuration" : "'.$this->showDuration.'"});';
+                $output .= '});';
+            }
         }
+
         $output .= '});';
         $output .= '</script>';
 
@@ -169,5 +222,61 @@ class Time extends TextField
                 ? $this->autocomplete
                 : '',
         ]).$output;
+    }
+
+    /**
+     * Normalize configured times (and the current value) to unique seconds-from-midnight.
+     *
+     * @return int[]
+     */
+    protected function getNormalizedTimesAsSeconds()
+    {
+        if (empty($this->times)) {
+            return [];
+        }
+
+        $seconds = [];
+
+        foreach ($this->times as $time) {
+            $value = $this->timeToSeconds($time);
+            if ($value !== null) {
+                $seconds[$value] = $value;
+            }
+        }
+
+        $current = $this->timeToSeconds($this->getValue());
+        if ($current !== null) {
+            $seconds[$current] = $current;
+        }
+
+        $seconds = array_values($seconds);
+        sort($seconds, SORT_NUMERIC);
+
+        return $seconds;
+    }
+
+    /**
+     * Convert an H:i or H:i:s time string to seconds from midnight.
+     *
+     * @param mixed $time
+     * @return int|null
+     */
+    protected function timeToSeconds($time)
+    {
+        if (!is_string($time) || $time === '') {
+            return null;
+        }
+
+        if (!preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?/', $time, $matches)) {
+            return null;
+        }
+
+        $hours = (int) $matches[1];
+        $minutes = (int) $matches[2];
+        if ($hours > 23 || $minutes > 59) {
+            return null;
+        }
+
+        return ($hours * 3600) + ($minutes * 60);
     }
 }
