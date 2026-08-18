@@ -24,7 +24,6 @@ use Gibbon\Services\Format;
 use Gibbon\Forms\DatabaseFormFactory;
 use Gibbon\Module\Markbook\MarkbookView;
 use Gibbon\Domain\System\SettingGateway;
-use Gibbon\Domain\School\SchoolYearTermGateway;
 
 function sidebarExtra($guid, $pdo, $gibbonPersonID, $gibbonCourseClassID = '', $basePage = '')
 {
@@ -61,6 +60,82 @@ function sidebarExtra($guid, $pdo, $gibbonPersonID, $gibbonCourseClassID = '', $
     return $output;
 }
 
+/**
+ * Resolve markbook view filters from GET/session, validate, and persist to session.
+ *
+ * @return array
+ */
+function syncMarkbookViewFilters($pdo)
+{
+    global $session;
+
+    $search = $_GET['search'] ?? '';
+
+    $data = array('gibbonSchoolYearID' => $session->get('gibbonSchoolYearID'));
+    $sql = 'SELECT gibbonSchoolYearTermID as value, name FROM gibbonSchoolYearTerm WHERE gibbonSchoolYearID=:gibbonSchoolYearID ORDER BY sequenceNumber';
+    $result = $pdo->executeQuery($data, $sql);
+    $terms = ($result->rowCount() > 0) ? $result->fetchAll(\PDO::FETCH_KEY_PAIR) : array();
+
+    $previousTerm = $session->get('markbookTerm');
+    $previousFilter = $session->get('markbookFilter');
+    $previousGroupBy = $session->get('markbookGroupBy', '');
+
+    // GET always wins. Otherwise keep the last choice, including All Terms (-1).
+    // Never silently substitute "today's term": that ID may belong to another school
+    // year, so the dropdown falls back to All Terms while the query returns no rows.
+    if (isset($_GET['gibbonSchoolYearTermID'])) {
+        $selectTerm = $_GET['gibbonSchoolYearTermID'];
+    } elseif ($previousTerm !== null && $previousTerm !== '') {
+        $selectTerm = $previousTerm;
+    } else {
+        $selectTerm = -1;
+    }
+
+    if (intval($selectTerm) > 0 && !isset($terms[$selectTerm])) {
+        $selectTerm = -1;
+    }
+
+    $selectFilter = ($session->has('markbookFilter')) ? $session->get('markbookFilter') : '';
+    if (isset($_GET['markbookFilter'])) {
+        $selectFilter = $_GET['markbookFilter'];
+    }
+
+    $selectOrderBy = ($session->has('markbookOrderBy')) ? $session->get('markbookOrderBy') : 'surname';
+    if (isset($_GET['markbookOrderBy'])) {
+        $selectOrderBy = $_GET['markbookOrderBy'];
+    }
+
+    $selectGroupBy = isset($_GET['markbookGroupBy']) ? $_GET['markbookGroupBy'] : $previousGroupBy;
+    if ($selectGroupBy !== 'type') {
+        $selectGroupBy = '';
+    }
+
+    if (isset($_GET['gibbonSchoolYearTermID']) && $previousTerm != $selectTerm) {
+        $session->set('markbookPage', 0);
+    }
+    if (isset($_GET['markbookFilter']) && $previousFilter != $selectFilter) {
+        $session->set('markbookPage', 0);
+    }
+    if (isset($_GET['markbookGroupBy']) && $previousGroupBy !== $selectGroupBy) {
+        $session->set('markbookPage', 0);
+    }
+
+    $session->set('markbookTermName', isset($terms[$selectTerm]) ? $terms[$selectTerm] : $selectTerm);
+    $session->set('markbookTerm', $selectTerm);
+    $session->set('markbookFilter', $selectFilter);
+    $session->set('markbookOrderBy', $selectOrderBy);
+    $session->set('markbookGroupBy', $selectGroupBy);
+
+    return [
+        'search' => $search,
+        'gibbonSchoolYearTermID' => $selectTerm,
+        'columnFilter' => $selectFilter,
+        'studentOrderBy' => $selectOrderBy,
+        'columnGroupBy' => $selectGroupBy,
+        'terms' => $terms,
+    ];
+}
+
 function classChooser($guid, $pdo, $gibbonCourseClassID)
 {
     global $session, $container;
@@ -69,6 +144,14 @@ function classChooser($guid, $pdo, $gibbonCourseClassID)
     $enableColumnWeighting = $settingGateway->getSettingByScope('Markbook', 'enableColumnWeighting');
     $enableGroupByTerm = $settingGateway->getSettingByScope('Markbook', 'enableGroupByTerm');
     $enableRawAttainment = $settingGateway->getSettingByScope('Markbook', 'enableRawAttainment');
+
+    $filters = syncMarkbookViewFilters($pdo);
+    $search = $filters['search'];
+    $selectTerm = $filters['gibbonSchoolYearTermID'];
+    $selectFilter = $filters['columnFilter'];
+    $selectOrderBy = $filters['studentOrderBy'];
+    $selectGroupBy = $filters['columnGroupBy'];
+    $terms = $filters['terms'];
 
     $output = '';
 
@@ -85,29 +168,10 @@ function classChooser($guid, $pdo, $gibbonCourseClassID)
     $col = $form->addRow();
 
     // SEARCH
-    $search = $_GET['search'] ?? '';
-
     $col->addContent(__('Search').':')->setClass('flex-shrink');
     $col->addTextField('search')
         ->setClass('flex-1')
         ->setValue($search);
-
-    $selectTerm = ($session->has('markbookTerm'))? $session->get('markbookTerm') : -1;
-    $selectTerm = (isset($_GET['gibbonSchoolYearTermID']))? $_GET['gibbonSchoolYearTermID'] : $selectTerm;
-
-    if (!isset($_GET['gibbonSchoolYearTermID']) && $enableColumnWeighting == 'Y') { //Set to current term if not already set
-        $schoolYearTermGateway = $container->get(SchoolYearTermGateway::class);
-        $currentTerm = $schoolYearTermGateway->getCurrentTermByDate(date('Y-m-d'));
-        if (isset($currentTerm['gibbonSchoolYearTermID'])) {
-            $selectTerm = $currentTerm['gibbonSchoolYearTermID'];
-        }
-
-    }
-    
-    $data = array("gibbonSchoolYearID" => $session->get('gibbonSchoolYearID'));
-    $sql = "SELECT gibbonSchoolYearTermID as value, name FROM gibbonSchoolYearTerm WHERE gibbonSchoolYearID=:gibbonSchoolYearID ORDER BY sequenceNumber";
-    $result = $pdo->executeQuery($data, $sql);
-    $terms = ($result->rowCount() > 0)? $result->fetchAll(\PDO::FETCH_KEY_PAIR) : array();
 
     $col->addContent(__('Term').':')->setClass('flex-shrink');
     $col->addSelect('gibbonSchoolYearTermID')
@@ -116,18 +180,12 @@ function classChooser($guid, $pdo, $gibbonCourseClassID)
         ->selected($selectTerm)
         ->setClass('flex-1');
 
-    $session->set('markbookTermName', isset($terms[$selectTerm])? $terms[$selectTerm] : $selectTerm);
-    $session->set('markbookTerm', $selectTerm);
-
     // SORT BY
     $data = array('gibbonCourseClassID' => $gibbonCourseClassID, 'gibbonSchoolYearID'=>$session->get('gibbonSchoolYearID') );
     $sql = "SELECT COUNT(DISTINCT rollOrder) FROM gibbonCourseClassPerson INNER JOIN gibbonPerson ON (gibbonCourseClassPerson.gibbonPersonID=gibbonPerson.gibbonPersonID) LEFT JOIN gibbonStudentEnrolment ON (gibbonStudentEnrolment.gibbonPersonID=gibbonCourseClassPerson.gibbonPersonID) WHERE role='Student' AND gibbonCourseClassID=:gibbonCourseClassID AND status='Full' AND (dateStart IS NULL OR dateStart<='".date('Y-m-d')."') AND (dateEnd IS NULL  OR dateEnd>='".date('Y-m-d')."') AND gibbonSchoolYearID=:gibbonSchoolYearID";
     $result = $pdo->executeQuery($data, $sql);
     $rollOrderCount = ($result->rowCount() > 0)? $result->fetchColumn(0) : 0;
     if ($rollOrderCount > 0) {
-        $selectOrderBy = ($session->has('markbookOrderBy'))? $session->get('markbookOrderBy') : 'surname';
-        $selectOrderBy = (isset($_GET['markbookOrderBy']))? $_GET['markbookOrderBy'] : $selectOrderBy;
-
         $orderBy = array(
             'rollOrder'     => __('Roll Order'),
             'surname'       => __('Surname'),
@@ -135,16 +193,9 @@ function classChooser($guid, $pdo, $gibbonCourseClassID)
         );
         $col->addContent(__('Sort By').':')->setClass('flex-shrink');
         $col->addSelect('markbookOrderBy')->fromArray($orderBy)->selected($selectOrderBy)->setClass('flex-1');
-
-        $session->set('markbookOrderBy', $selectOrderBy);
     }
 
     // SHOW
-    $selectFilter = ($session->has('markbookFilter'))? $session->get('markbookFilter') : '';
-    $selectFilter = (isset($_GET['markbookFilter']))? $_GET['markbookFilter'] : $selectFilter;
-
-    $session->set('markbookFilter', $selectFilter);
-
     $filters = array('' => __('All Columns'));
     if ($enableColumnWeighting == 'Y') $filters['averages'] = __('Overall Grades');
     if ($enableRawAttainment == 'Y') $filters['raw'] = __('Raw Marks');
@@ -158,12 +209,6 @@ function classChooser($guid, $pdo, $gibbonCourseClassID)
         ->setClass('flex-1');
 
     // GROUP BY (column display order; does not rewrite sequenceNumber)
-    $previousGroupBy = $session->get('markbookGroupBy', '');
-    $selectGroupBy = isset($_GET['markbookGroupBy']) ? $_GET['markbookGroupBy'] : $previousGroupBy;
-    if ($selectGroupBy !== 'type') {
-        $selectGroupBy = '';
-    }
-
     $groupByOptions = array(
         '' => __('None'),
         'type' => __('Type'),
@@ -173,11 +218,6 @@ function classChooser($guid, $pdo, $gibbonCourseClassID)
         ->fromArray($groupByOptions)
         ->selected($selectGroupBy)
         ->setClass('flex-1');
-
-    $session->set('markbookGroupBy', $selectGroupBy);
-    if (isset($_GET['markbookGroupBy']) && $previousGroupBy !== $selectGroupBy) {
-        $session->set('markbookPage', 0);
-    }
 
     // CLASS
     $col->addContent(__('Class').':')->setClass('flex-shrink');

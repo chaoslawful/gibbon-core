@@ -98,6 +98,11 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
         return;
     }
 
+    $previousClass = $session->get('markbookClass');
+    if ($gibbonCourseClassID != '' && $previousClass != $gibbonCourseClassID) {
+        $session->set('markbookPage', 0);
+    }
+
     $session->set('markbookClass', $gibbonCourseClassID);
 
     //Check existence of and access to this class.
@@ -127,7 +132,7 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
     ]));
 
 
-    //Get class chooser
+    //Get class chooser (also syncs filter session values)
     echo classChooser($guid, $pdo, $gibbonCourseClassID);
 
     $departmentAccess = $container->get(DepartmentGateway::class)->selectMemberOfDepartmentByRole($class['gibbonDepartmentID'], $session->get('gibbonPersonID'), ['Coordinator', 'Teacher (Curriculum)'])->fetch();
@@ -136,12 +141,15 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
     $teacherList = getTeacherList( $pdo, $gibbonCourseClassID );
 	$canEditThisClass = (isset($teacherList[ $session->get('gibbonPersonID') ]) || $highestAction2 == 'Edit Markbook_everything' || ($highestAction2 == 'Edit Markbook_multipleClassesInDepartment' && !empty($departmentAccess)));
 
-    // Get criteria filter values, including session defaults
+    // Use session filter values synced by classChooser (same values as the form)
     $search = $_GET['search'] ?? '';
-    $gibbonSchoolYearTermID = $_GET['gibbonSchoolYearTermID'] ?? $session->get('markbookTerm') ?? '';
-    $columnFilter = $_GET['markbookFilter'] ?? $session->get('markbookFilter') ?? '';
-    $studentOrderBy = $_GET['markbookOrderBy'] ?? $session->get('markbookOrderBy') ?? 'surname';
-    $columnGroupBy = $_GET['markbookGroupBy'] ?? $session->get('markbookGroupBy') ?? '';
+    $gibbonSchoolYearTermID = $session->get('markbookTerm', -1);
+    if (intval($gibbonSchoolYearTermID) <= 0) {
+        $gibbonSchoolYearTermID = -1;
+    }
+    $columnFilter = $session->get('markbookFilter', '');
+    $studentOrderBy = $session->get('markbookOrderBy', 'surname');
+    $columnGroupBy = $session->get('markbookGroupBy', '');
     if ($columnGroupBy !== 'type') {
         $columnGroupBy = '';
     }
@@ -165,11 +173,10 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
     $criteria = $markbookGateway->newQueryCriteria(true)
         ->searchBy($markbookGateway->getSearchableColumns(), $search)
         ->sortBy($columnSortBy)
-        ->filterBy('term', $gibbonSchoolYearTermID)
+        ->filterBy('term', $gibbonSchoolYearTermID > 0 ? $gibbonSchoolYearTermID : null)
         ->filterBy('show', $columnFilter)
         ->pageSize($markbook->getColumnsPerPage())
-        ->page($pageNum+1)
-        ->fromPOST();
+        ->page($pageNum+1);
 
     $columns = $markbookGateway->queryMarkbookColumnsByClass($criteria, $gibbonCourseClassID);
     $columns->transform(function (&$column) use ($plannerGateway) {
@@ -180,6 +187,29 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
 
     // Load the columns for the current page
     $markbook->loadColumnsFromDataSet($columns);
+
+    // If pagination is out of range (e.g. after switching class), reload page 0
+    if ($markbook->getColumnCountTotal() > 0 && $markbook->getColumnCountThisPage() <= 0 && $pageNum > 0) {
+        $pageNum = 0;
+        $session->set('markbookPage', 0);
+
+        $criteria = $markbookGateway->newQueryCriteria(true)
+            ->searchBy($markbookGateway->getSearchableColumns(), $search)
+            ->sortBy($columnSortBy)
+            ->filterBy('term', $gibbonSchoolYearTermID > 0 ? $gibbonSchoolYearTermID : null)
+            ->filterBy('show', $columnFilter)
+            ->pageSize($markbook->getColumnsPerPage())
+            ->page(1);
+
+        $columns = $markbookGateway->queryMarkbookColumnsByClass($criteria, $gibbonCourseClassID);
+        $columns->transform(function (&$column) use ($plannerGateway) {
+            if (isset($column['gibbonPlannerEntryID'])) {
+                $column['gibbonPlannerEntry'] = $plannerGateway->getPlannerEntryByID($column['gibbonPlannerEntryID']);
+            }
+        });
+
+        $markbook->loadColumnsFromDataSet($columns);
+    }
 
 
     // Display Pagination
