@@ -32215,7 +32215,7 @@ msgstr "清除缓存"
 #: ⁨modules/System Admin/import_history.php⁩:36
 #: ⁨modules/System Admin/import_history.php⁩:57
 msgid "Import History"
-msgstr "%s-ID:%s 导入历史记录"
+msgstr "导入历史记录"
 
 #: ⁨modules/System Admin/customFields_edit.php⁩:35
 #: ⁨modules/System Admin/customFields_edit.php⁩:35
