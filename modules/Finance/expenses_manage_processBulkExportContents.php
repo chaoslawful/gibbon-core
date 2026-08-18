@@ -84,7 +84,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
 
         //Auto set column widths
         // XXX: modified by wxz
-        for($col = 'A'; $col !== 'Q'; $col++)
+        for($col = 'A'; $col !== 'R'; $col++)
             $excel->getActiveSheet()->getColumnDimension($col)->setAutoSize(true);
         // XXX: ends here
 
@@ -138,6 +138,11 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
         $excel->getActiveSheet()->setCellValueByColumnAndRow(16, 1, __('Reimbursement Complete Timestamp'));
         $excel->getActiveSheet()->getStyleByColumnAndRow(16, 1)->applyFromArray($style_border);
         $excel->getActiveSheet()->getStyleByColumnAndRow(16, 1)->applyFromArray($style_head_fill);
+        // XXX: added by wxz
+        $excel->getActiveSheet()->setCellValueByColumnAndRow(17, 1, __('Date Self Paid'));
+        $excel->getActiveSheet()->getStyleByColumnAndRow(17, 1)->applyFromArray($style_border);
+        $excel->getActiveSheet()->getStyleByColumnAndRow(17, 1)->applyFromArray($style_head_fill);
+        // XXX: ends here
 		$excel->getActiveSheet()->getStyle("1:1")->getFont()->setBold(true);
 
 
@@ -197,6 +202,11 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
             //Column P
             $excel->getActiveSheet()->setCellValueByColumnAndRow(16, $count, $row['reimbursementCompleteTimestampLog']);
             $excel->getActiveSheet()->getStyleByColumnAndRow(16, $count)->applyFromArray($style_border);
+            // XXX: added by wxz
+            //Column Q
+            $excel->getActiveSheet()->setCellValueByColumnAndRow(17, $count, $row['selfPaymentDate'] ?? '');
+            $excel->getActiveSheet()->getStyleByColumnAndRow(17, $count)->applyFromArray($style_border);
+            // XXX: ends here
         }
         if ($count == 0) {
  			//Column A

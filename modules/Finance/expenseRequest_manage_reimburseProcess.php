@@ -103,10 +103,18 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                         $row = $result->fetch();
 
                         //Get relevant
-                        $paymentDate = !empty($_POST['paymentDate']) ? Format::dateConvert($_POST['paymentDate']) : null;
+                        // XXX: modified by wxz
+                        $selfPaymentDate = !empty($_POST['selfPaymentDate']) ? Format::dateConvert($_POST['selfPaymentDate']) : null;
+                        // XXX: ends here
                         $paymentAmount = $_POST['paymentAmount'] ?? '';
                         $gibbonPersonIDPayment = $_POST['gibbonPersonIDPayment'] ?? '';
                         $paymentMethod = $_POST['paymentMethod'] ?? '';
+
+                        if (empty($selfPaymentDate)) {
+                            $URL .= '&return=error1';
+                            header("Location: {$URL}");
+                            exit();
+                        }
 
                         $fileUploader = new Gibbon\FileUploader($pdo, $session);
 
@@ -123,8 +131,10 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
 
                         //Write back to gibbonFinanceExpense
                         try {
-                            $data = array('gibbonFinanceExpenseID' => $gibbonFinanceExpenseID, 'status' => 'Paid', 'paymentDate' => $paymentDate, 'paymentAmount' => $paymentAmount, 'gibbonPersonIDPayment' => $gibbonPersonIDPayment, 'paymentMethod' => $paymentMethod, 'paymentReimbursementReceipt' => $attachment, 'paymentReimbursementStatus' => 'Requested');
-                            $sql = 'UPDATE gibbonFinanceExpense SET status=:status, paymentDate=:paymentDate, paymentAmount=:paymentAmount, gibbonPersonIDPayment=:gibbonPersonIDPayment, paymentMethod=:paymentMethod, paymentReimbursementReceipt=:paymentReimbursementReceipt, paymentReimbursementStatus=:paymentReimbursementStatus WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID';
+                            // XXX: modified by wxz — store out-of-pocket date only; school transfer date is filled when reimbursement is completed
+                            $data = array('gibbonFinanceExpenseID' => $gibbonFinanceExpenseID, 'status' => 'Paid', 'selfPaymentDate' => $selfPaymentDate, 'paymentAmount' => $paymentAmount, 'gibbonPersonIDPayment' => $gibbonPersonIDPayment, 'paymentMethod' => $paymentMethod, 'paymentReimbursementReceipt' => $attachment, 'paymentReimbursementStatus' => 'Requested');
+                            $sql = 'UPDATE gibbonFinanceExpense SET status=:status, selfPaymentDate=:selfPaymentDate, paymentAmount=:paymentAmount, gibbonPersonIDPayment=:gibbonPersonIDPayment, paymentMethod=:paymentMethod, paymentReimbursementReceipt=:paymentReimbursementReceipt, paymentReimbursementStatus=:paymentReimbursementStatus WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID';
+                            // XXX: ends here
                             $result = $connection2->prepare($sql);
                             $result->execute($data);
                         } catch (PDOException $e) {

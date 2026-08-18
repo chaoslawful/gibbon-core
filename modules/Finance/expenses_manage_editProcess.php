@@ -121,6 +121,18 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                                 if ($paymentReimbursementStatus != 'Requested' and $paymentReimbursementStatus != 'Complete') {
                                     $paymentReimbursementStatus = null;
                                 }
+                                if ($row['status'] == 'Paid' and $row['purchaseBy'] == 'Self' and $row['paymentReimbursementStatus'] == 'Requested') {
+                                    // XXX: added by wxz — record bank transfer date only when reimbursement is completed
+                                    if ($paymentReimbursementStatus == 'Complete') {
+                                        $paymentDate = !empty($_POST['paymentDate']) ? Format::dateConvert($_POST['paymentDate']) : null;
+                                        if (empty($paymentDate)) {
+                                            $URL .= '&return=error1';
+                                            header("Location: {$URL}");
+                                            exit();
+                                        }
+                                    }
+                                    // XXX: ends here
+                                }
                                 if ($row['status'] == 'Paid' and $row['purchaseBy'] == 'Self' and $row['paymentReimbursementStatus'] == 'Requested' and $paymentReimbursementStatus == 'Complete') {
                                     $paymentID = $_POST['paymentID'] ?? '';
                                     $reimbursementComment = $_POST['reimbursementComment'] ?? '';

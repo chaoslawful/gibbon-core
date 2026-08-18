@@ -2175,6 +2175,7 @@ CREATE TABLE `gibbonFinanceExpense` (
   `purchaseDetails` text NOT NULL,
   `paymentMethod` enum('Cash','Cheque','Credit Card','Bank Transfer','Other') DEFAULT NULL,
   `paymentDate` date DEFAULT NULL,
+  `selfPaymentDate` date DEFAULT NULL,
   `paymentAmount` decimal(12,2) DEFAULT NULL,
   `gibbonPersonIDPayment` int(10) UNSIGNED ZEROFILL DEFAULT NULL,
   `paymentID` varchar(100) DEFAULT NULL,

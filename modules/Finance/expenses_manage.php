@@ -286,7 +286,16 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
     $table->addColumn('timestampCreator', __('Timestamp'))
         ->format(Format::using('date', 'timestampCreator'));
     $table->addColumn('paymentDate', __('Payment Date'))
-        ->format(Format::using('date', 'paymentDate'));
+        // XXX: added by wxz
+        ->description(__('Date Self Paid'))
+        ->format(Format::using('date', 'paymentDate'))
+        ->formatDetails(function ($values) {
+            if (($values['purchaseBy'] ?? '') == 'Self' && !empty($values['selfPaymentDate'])) {
+                return Format::small(Format::date($values['selfPaymentDate']));
+            }
+            return '';
+        });
+        // XXX: ends here
 
     if ($budgetsActionAccess) {
     $table->addActionColumn()

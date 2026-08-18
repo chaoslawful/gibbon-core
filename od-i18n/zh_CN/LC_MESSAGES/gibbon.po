@@ -14746,6 +14746,19 @@ msgstr "付款金额"
 msgid "Date Paid"
 msgstr "付款日期"
 
+msgid "Date Self Paid"
+msgstr "自付日期"
+
+msgid "Date you paid out of pocket, not the school reimbursement transfer."
+msgstr "个人实际垫付日期，不是学校报销转账日期。"
+
+msgid "Date paid out of pocket, not the school reimbursement transfer."
+msgstr "个人实际垫付日期，不是学校报销转账日期。"
+
+msgid "Date of school reimbursement / bank transfer."
+msgstr "学校报销转账日期。"
+
+
 #: src/Forms/Builder/FormPayment.php:184
 #: modules/Admissions/applicationForm_payFeeProcess.php:93
 #: modules/Admissions/applicationForm_payFee.php:55

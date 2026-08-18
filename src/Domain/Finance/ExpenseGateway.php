@@ -49,6 +49,7 @@ class ExpenseGateway extends QueryableGateway
                 'gibbonFinanceExpense.paymentDate',
                 'gibbonFinanceExpense.cost',
                 // XXX: added by wxz
+                'gibbonFinanceExpense.selfPaymentDate',
                 'gibbonFinanceExpense.paymentAmount',
                 // XXX: ends here
                 'gibbonFinanceExpense.purchaseBy',

@@ -242,9 +242,18 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenseRequest_man
                                 return $output;
                             });
                         $table->addColumn('paymentDate', __('Payment Date'))
+                            // XXX: added by wxz
+                            ->description(__('Date Self Paid'))
                             ->format(function ($expense) {
                                 return Format::date($expense['paymentDate']);
+                            })
+                            ->formatDetails(function ($expense) {
+                                if (($expense['purchaseBy'] ?? '') == 'Self' && !empty($expense['selfPaymentDate'])) {
+                                    return Format::small(Format::date($expense['selfPaymentDate']));
+                                }
+                                return '';
                             });
+                            // XXX: ends here
 
                         // ACTIONS
                         $table->addActionColumn()

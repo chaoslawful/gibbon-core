@@ -193,6 +193,14 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_vi
 
                                 $form->addRow()->addHeading('PaymentInformation', __('Payment Information'));
 
+                                // XXX: added by wxz
+                                if (!empty($values['selfPaymentDate'])) {
+                                    $row = $form->addRow();
+                                        $row->addLabel('selfPaymentDate', __('Date Self Paid'))->description(__('Date paid out of pocket, not the school reimbursement transfer.'));
+                                        $row->addDate('selfPaymentDate')->maxLength(10)->readonly()->setValue(Format::date($values['selfPaymentDate']));
+                                }
+                                // XXX: ends here
+
                                 $row = $form->addRow();
                                     $row->addLabel('paymentDate', __('Date Paid'))->description(__('Date of payment, not entry to system'));
                                     $row->addDate('paymentDate')->maxLength(10)->required()->readonly()->setValue(Format::date($values['paymentDate']));

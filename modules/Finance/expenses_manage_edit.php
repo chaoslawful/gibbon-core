@@ -222,15 +222,33 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_ed
                             $form->addRow()->addContent($expenseLog->getOutput());
 
 							$isPaid = $values['status'] == 'Paid';
+							// XXX: added by wxz
+							$isReimbursementPending = $isPaid && $values['purchaseBy'] == 'Self' && $values['paymentReimbursementStatus'] == 'Requested';
+							$paymentDateReadonly = $isPaid && !$isReimbursementPending;
+							if ($isReimbursementPending && empty($values['paymentDate'])) {
+								$values['paymentDate'] = date('Y-m-d');
+							}
+							// XXX: ends here
 							if (!$isPaid) {
 								$form->toggleVisibilityByClass('paymentInfo')->onSelect('status')->when('Paid');
 							}
 
 							$form->addRow()->addHeading('Payment Information', __('Payment Information'))->addClass('paymentInfo');
 
+							// XXX: added by wxz
+							if ($values['purchaseBy'] == 'Self' && ($values['selfPaymentDate'] || $values['paymentReimbursementStatus'] != '')) {
+								$row = $form->addRow()->addClass('paymentInfo');
+									$row->addLabel('selfPaymentDate', __('Date Self Paid'))->description(__('Date paid out of pocket, not the school reimbursement transfer.'));
+									$row->addDate('selfPaymentDate')->readonly()->setValue(Format::date($values['selfPaymentDate']));
+							}
+							// XXX: ends here
+
 							$row = $form->addRow()->addClass('paymentInfo');
-								$row->addLabel('paymentDate', __('Date Paid'))->description(__('Date of payment, not entry to system.'));
-								$row->addDate('paymentDate')->required()->setValue(Format::date($values['paymentDate']))->readonly($isPaid);
+								$paymentDateDescription = $isReimbursementPending
+									? __('Date of school reimbursement / bank transfer.')
+									: __('Date of payment, not entry to system.');
+								$row->addLabel('paymentDate', __('Date Paid'))->description($paymentDateDescription);
+								$row->addDate('paymentDate')->required()->setValue(Format::date($values['paymentDate']))->readonly($paymentDateReadonly);
 
 							$row = $form->addRow()->addClass('paymentInfo');
 								$row->addLabel('paymentAmount', __('Amount Paid'))->description(__('Final amount paid.'));

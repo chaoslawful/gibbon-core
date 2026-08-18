@@ -158,8 +158,10 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenseRequest_man
                     $form->addRow()->addHeading('Payment Information', __('Payment Information'))->addClass('payment');
 
                     $row = $form->addRow()->addClass('payment');
-                        $row->addLabel('paymentDate', __('Date Paid'))->description(__('Date of payment, not entry to system.'));
-                        $row->addDate('paymentDate')->required();
+                        // XXX: modified by wxz
+                        $row->addLabel('selfPaymentDate', __('Date Self Paid'))->description(__('Date you paid out of pocket, not the school reimbursement transfer.'));
+                        $row->addDate('selfPaymentDate')->required();
+                        // XXX: ends here
 
                     $row = $form->addRow()->addClass('payment');
                     	$row->addLabel('paymentAmount', __('Amount paid'))->description(__('Final amount paid.'));
