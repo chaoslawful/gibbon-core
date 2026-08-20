@@ -27,18 +27,18 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 3. `POST /v1/timetables` → `{ "name":"...", "nameShort":"...", "gibbonYearGroupIDList":"001,002" }`，记下 `gibbonTTID`。
 4. `POST /v1/timetables/{id}/days` → `{ "name":"Day 1", "nameShort":"D1", "gibbonTTColumnID":"..." }`。
-5. 把日历日期绑到课表日：`POST /v1/timetables/{id}/dates` → `{ "gibbonTTDayID":"...", "date":"2026-08-20" }`。可按学期逐日或按循环重复。
+5. 把日历日期绑到课表日：`POST /v1/timetables/{id}/dates` → `{ "gibbonTTDayID":"...", "date":"2026-08-20" }`。可按学期逐日或按循环重复；同一日期已被占用会 422。
 6. 需要课程/班：`POST /v1/courses` 再 `POST /v1/courses/{id}/classes`（`timetable.courses`）。
-7. 排班：`POST /v1/timetables/{ttId}/days/{dayId}/slots`。教室 `GET /v1/spaces`。
+7. 排班：`POST /v1/timetables/{ttId}/days/{dayId}/slots`。教室 `GET /v1/spaces`；节次 ID 用 `GET /v1/timetables/{id}/days/{dayId}/rows` 查（含每节已排班数 `classCount`）。
 8. 某学生不上这节：`POST /v1/timetable-slots/{slotId}/exceptions` → `{ "gibbonPersonID":"..." }`。
 
-改课格：`PATCH /v1/timetable-slots/{gibbonTTDayRowClassID}`。删课格不会自动删教案。
+改课格：`PATCH /v1/timetable-slots/{gibbonTTDayRowClassID}`。删课格不会自动删教案；但**删作息模板会连带删其全部节次**，删课表日前想清楚。
 
 ---
 
 ## C. 课程规划：查缺教案 / 按课格补
 
-1. `GET /v1/planner/classes/{classId}/coverage?from=&to=`
+1. `GET /v1/planner/classes/{classId}/coverage?from=&to=` → 返回 `expected`（课格总数）、`filled`、`missing`、`coverageRate`、`missingSlots`。
 2. 对 `missingSlots` 逐条 `POST /v1/planner/lessons`，**时间必须与课格一致**。
 3. 再打 coverage 核对 `missing` 是否下降。
 
@@ -53,10 +53,10 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 1. `POST /v1/planner/units` → `{ "gibbonCourseID":"...", "name":"单元名" }`
 2. `POST /v1/planner/units/{id}/blocks` → `{ "title":"块标题", "contents":"...", "length":"45" }`
 3. 只挂班、还不生成教案：`POST /v1/planner/units/{id}/classes` → `{ "gibbonCourseClassID":"...", "running":"Y" }`
-4. 按课表日期生成教案：先用 coverage/slots 拿到该班时段，再 `POST /v1/planner/units/{id}/deploy`，`lessons[].blocks` 用智能块 ID。
-5. 复制到下学年课程：`POST /v1/planner/units/{id}/copy-forward` → `{ "gibbonCourseID":"目标课程" }`
-6. 工作副本改完拷回：`POST /v1/planner/unit-classes/{gibbonUnitClassID}/copy-back`
-7. 从已有教案生成块：`POST /v1/planner/units/{id}/smart-blockify` → `{ "gibbonPlannerEntryID":"..." }`
+4. 按课表日期生成教案：先用 coverage/slots 拿到该班时段，再 `POST /v1/planner/units/{id}/deploy`，`lessons[].blocks` 用智能块 ID。没给 `name` 的课自动叫「单元名 N」；deploy 出的教案 `viewableStudents`/`viewableParents` 默认 `N`（与直建教案相反），要对学生可见就显式传 `Y`。
+5. 复制到下学年课程：`POST /v1/planner/units/{id}/copy-forward` → `{ "gibbonCourseID":"目标课程" }`（连同块一起复制）
+6. 工作副本改完拷回：`POST /v1/planner/unit-classes/{gibbonUnitClassID}/copy-back` —— **会清空单元原有全部块再覆盖，先跟用户确认**
+7. 从已有教案生成块：`POST /v1/planner/units/{id}/smart-blockify` → `{ "gibbonPlannerEntryID":"..." }`（追加，不动已有块）
 
 教师改作业提交：`GET/POST /v1/planner/lessons/{id}/homework`。
 
@@ -99,11 +99,11 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 需对应 `attendance.*`。先 `GET /v1/attendance/codes`，`type` 用返回的 `name`。
 
-1. 教学班：`GET /v1/attendance/classes/{classId}?date=YYYY-MM-DD` 看学生名单和是否已点，再 POST `records`。
-2. 行政班：路径换成 `/v1/attendance/form-groups/{id}`。
+1. 教学班：`GET /v1/attendance/classes/{classId}?date=YYYY-MM-DD` 看学生名单、`taken`（是否已点）和每人的默认 `type`，再 POST `records`。名单以外或当天有课格例外的人会被 422 拒绝。
+2. 行政班：路径换成 `/v1/attendance/form-groups/{id}`。行政班 `attendance=N` 或不是你导师的班（无 `_all` 权限时）会直接 403。
 3. 个人：`POST /v1/attendance/people/{gibbonPersonID}`。
 
-不要给未来日期或停课日点名（会 422）。不要改出勤代码、不要走报表接口。
+不要给未来日期或停课日点名（会 422）。重复 POST 同一天是覆盖更新。不要改出勤代码、不要走报表接口。
 
 ---
 
@@ -112,11 +112,11 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 需 `markbook.write`。
 
 1. `GET /v1/grade-scales` 再 `GET /v1/grade-scales/{id}` 拿 `value`。
-2. `POST /v1/markbook/classes/{classId}/columns` 建栏目（`type` 用 GET columns 返回的 `types`）。
-3. `GET /v1/markbook/columns/{id}/entries` 看学生。
-4. `PUT /v1/markbook/columns/{id}/entries` 按学生 upsert 分数/努力/评语。
+2. `POST /v1/markbook/classes/{classId}/columns` 建栏目（`type` 用 GET columns 返回的 `types`；学校没开 effort 就别传 `effort`，传了也会被清成 `N`）。
+3. `GET /v1/markbook/columns/{id}/entries` 看学生（全班都在 `data` 里，没给分的字段为 `null`）。
+4. `PUT /v1/markbook/columns/{id}/entries` 按学生 upsert 分数/努力/评语；`attainmentValue` 传空字符串即清除该生分数。
 
-不要做权重、目标分、量规、正式评估。
+不要做权重、目标分、量规、正式评估。删栏目会连带删全部给分，先确认。
 
 ---
 
