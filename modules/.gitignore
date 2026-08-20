@@ -5,6 +5,8 @@
 !.gitignore
 
 # whitelist all core modules
+!/API
+!/API/**
 !/Activities
 !/Activities/**
 !/Admissions
