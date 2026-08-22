@@ -134,7 +134,7 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 ## I. 报销与预算
 
-需对应 `finance.*`。**不要**调费用类别、账单、在线支付。
+需对应 `finance.*`。账单、缴费、在线支付没有接口，不要尝试。
 
 1. `GET /v1/finance/budget-cycles` 拿周期 ID。列出该周期费用：`GET /v1/finance/expenses?gibbonFinanceBudgetCycleID=`，可选 `status`、`gibbonFinanceBudgetID`。需要收费目录时：`GET /v1/finance/fee-categories`、`GET /v1/finance/fees?gibbonSchoolYearID=`。
 2. 给该周期各预算科目额度：`PUT /v1/finance/budget-cycles/{id}/allocations`，或先 `GET .../allocations` 看现有科目。

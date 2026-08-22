@@ -27,7 +27,7 @@ disable-model-invocation: true
 
 ## 每次会话开始
 
-1. 在 **本 skill 目录** 读 `.env`。没有就复制 `.env.example`，停下来问用户要 base 和 token。
+1. 确认 **本 skill 目录** 的 `.env` 已填好。没有就复制 `.env.example`，停下来问用户要 base 和 token。加载用 shell `source`（见下方命令）；**不要用读文件工具打开或打印 `.env`**（部分运行环境会直接拒绝读取）。
 2. `GIBBON_API_BASE` 推荐 `http://主机/api.php`（不依赖 `/api` rewrite）。不要末尾斜杠。
 3. 先探测身份，失败则停止，把响应里的 `error` 原样告诉用户：
 

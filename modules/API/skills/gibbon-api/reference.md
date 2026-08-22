@@ -10,7 +10,7 @@ Base：`$GIBBON_API_BASE`（例 `http://localhost/api.php`）。路径均以 `/v
 |---|---|---|---|
 | GET | `/v1/openapi.json` | 无 | OpenAPI 3.0.3 |
 | GET | `/v1/me` | 令牌有效 | 身份、锁定角色、`capabilities`、学年 |
-| GET | `/v1/school-year` | 令牌有效 | 当前学年首末日 |
+| GET | `/v1/school-year` | 令牌有效 | 当前学年 `gibbonSchoolYearID`、`gibbonSchoolYearName`、`firstDay`、`lastDay` |
 
 `/v1/me` 响应：`gibbonPersonID`、`username`、`preferredName`、`surname`、`gibbonRoleID`（锁定角色）、`roleName`、`roleCategory`、`gibbonSchoolYearID`、`token`（令牌 ID/名称/类型/过期时间）、`capabilities`。
 
@@ -283,7 +283,7 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 
 **没有**收费计划、缴费人、学生账单、在线支付、Excel/PDF。打印接口返回 JSON 明细，不是文件。网页也不提供删除费用条目，所以 API 没有 DELETE `/v1/finance/fees/{id}`。内置类别 ID `0001`（Other）不能改、不能删；删除其它类别时，其下费用条目与发票费用行会被迁移到 `0001`。删除预算会连带删其 staff 授权。
 
-报销审批按资源创建，**不直接改 `status`**：`POST /v1/finance/expenses/{id}/approvals`，`decision`=`approve`/`reject`/`comment`。服务端按网页同一套审批链写日志、推进状态并发通知。令牌用户必须是审批链上**这一轮**该批的人（`reject`/`comment` 除外），否则 403，状态不会变。成功 **201**，body 是新日志行，并带上更新后的 `expense`。
+报销审批按资源创建，**不直接改 `status`**：`POST /v1/finance/expenses/{id}/approvals`，`decision`=`approve`/`reject`/`comment`。服务端按网页同一套审批链写日志、推进状态并发通知。令牌用户必须是审批链上**这一轮**该批的人（`reject`/`comment` 除外），否则 403，状态不会变。只有 `Requested` 状态的报销能 approve/reject，否则 422；学校未配置审批设置（`expenseApprovalType` 或审批人为空）也 422。成功 **201**，body 是新日志行，并带上更新后的 `expense`。
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
