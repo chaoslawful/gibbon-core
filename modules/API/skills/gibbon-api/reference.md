@@ -32,7 +32,7 @@ Base：`$GIBBON_API_BASE`（例 `http://localhost/api.php`）。路径均以 `/v
 | GET/POST | `/v1/school-years` | `schoolYear_manage` |
 | PATCH/DELETE | `/v1/school-years/{id}` | 同上 |
 
-学年创建必填：`name`、`status`（`Past`/`Current`/`Upcoming`）、`sequenceNumber`、`firstDay`、`lastDay`。
+学年创建必填：`name`、`status`、`sequenceNumber`、`firstDay`、`lastDay`。`status` 取 `Past`/`Current`/`Upcoming`（服务端**不校验**，写错会原样入库）。
 
 年级组创建必填：`name`、`nameShort`、`sequenceNumber`；可选 `gibbonPersonIDHOY`（年级主任）。学部创建必填：`name`、`nameShort`；`type` 默认 `Learning Area`。学院创建必填：`name`、`nameShort`。
 
@@ -79,11 +79,11 @@ Timing Change 可带 `schoolOpen` / `schoolStart` / `schoolEnd` / `schoolClose`�
 | GET/POST | `/v1/timetable-slots/{id}/exceptions` | 读/写（某人不上这节） |
 | DELETE | `/v1/timetable-slot-exceptions/{id}` | 写 |
 
-课表创建必填 `name`、`nameShort`。`gibbonSchoolYearID` 可省，默认当前学年；`active` 默认 `Y`。`nameShortDisplay` 只能是 `Day Of The Week` 或 `Timetable Day Short Name`（默认前者）。`gibbonYearGroupIDList` 为年级组 ID 逗号串（或数组）。GET 列表可带 `gibbonSchoolYearID` 参数（默认当前学年），返回行里年级组字段叫 `yearGroups`。
+课表创建必填 `name`、`nameShort`。`gibbonSchoolYearID` 可省，默认当前学年；`active` 默认 `Y`。`nameShortDisplay` 取 `Day Of The Week` 或 `Timetable Day Short Name`（默认前者；服务端**不校验**，写错原样入库）。`gibbonYearGroupIDList` 为年级组 ID 逗号串（或数组）。GET 列表可带 `gibbonSchoolYearID` 参数（默认当前学年），返回行里年级组字段叫 `yearGroups`。
 
 课表日必填 `name`、`nameShort`、`gibbonTTColumnID`。`color`/`fontColor` 默认 `#ffffff` / `#000000`。
 
-节次必填 `name`、`nameShort`、`timeStart`、`timeEnd`。`type` 默认 `Lesson`，枚举：`Lesson`、`Pastoral`、`Sport`、`Break`、`Service`、`Other`。**删除作息模板会连带删掉它的全部节次。**
+节次必填 `name`、`nameShort`、`timeStart`、`timeEnd`。`type` 默认 `Lesson`，取值 `Lesson`、`Pastoral`、`Sport`、`Break`、`Service`、`Other`（服务端**不校验**，写错原样入库）。**删除作息模板会连带删掉它的全部节次。**
 
 日期映射 POST：`{ "gibbonTTDayID":"...", "date":"YYYY-MM-DD" }`。同一日期已被占用会 422。GET 的 `from`/`to` 可省，默认当前学年首末日。
 
@@ -197,7 +197,7 @@ GET `/v1/planner/lessons` 可带 `gibbonSchoolYearID`（默认当前学年）、
 
 作业提交 POST 必填 `gibbonPersonID`。`type` 默认 `File`（`File`/`Link`），`status` 默认 `On Time`，`version` 默认 `Final`，`count` 默认 `1`。
 
-deploy 注意：未给 `name` 的课会自动命名「单元名 N」；`running` 默认 `Y`；`blocks` 里引用不存在的块 ID 会 404 且整批失败。copy-forward 连同单元块一起复制。**copy-back 会先清空单元原有的全部块**，再用该班工作副本的块覆盖——不可逆，执行前向用户确认。smart-blockify 是追加（把教案的工作块拷进单元，不动已有块）。
+deploy 注意：未给 `name` 的课会自动命名「单元名 N」；`running` 默认 `Y`；`blocks` 里引用不存在的块 ID 会 404 中止——但 **deploy 没有事务**，中止前已创建的教案保留在库里，不会回滚；失败后先打 coverage 核对实际建到哪，再决定清理还是补齐，不要原样重跑整批（会重复建课）。copy-forward 连同单元块一起复制。**copy-back 会先清空单元原有的全部块**，再用该班工作副本的块覆盖——不可逆，执行前向用户确认。smart-blockify 是追加（把教案的工作块拷进单元，不动已有块）。
 
 ## 出勤
 
@@ -300,7 +300,7 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 | DELETE | `/v1/finance/budget-staff/{id}` | 同上 |
 | GET/POST | `/v1/finance/expense-approvers` | `expenseApprovers_manage` |
 | PATCH/DELETE | `/v1/finance/expense-approvers/{id}` | 同上 |
-| GET/POST | `/v1/finance/expenses` | GET：`expenses_manage` 或 `expenseRequest_manage`；POST 默认走「我的申请」；管理员且学校允许直接加报销时可带 `status` |
+| GET/POST | `/v1/finance/expenses` | GET：`expenses_manage` 或 `expenseRequest_manage`；POST 默认走「我的申请」（需 `expenseRequest_manage`）；仅 `expensesAll` 且学校开启直接添加（`allowExpenseAdd`）时，传非 `Requested` 的 `status` 才生效，否则 `status` 被静默改回 `Requested`，不报错 |
 | GET | `/v1/finance/expenses/{id}`、`.../print` | 同上；含 `log` |
 | POST | `/v1/finance/expenses/{id}/approve` | `expenses_manage` |
 | POST | `/v1/finance/expenses/{id}/reimburse` | `expenseRequest_manage` |
@@ -368,5 +368,5 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 }
 ```
 
-一次多人：把 `gibbonPersonID` 换成 `gibbonPersonIDs": ["0000000001","0000000002"]`，返回 `{ "gibbonMultiIncidentID": "...", "data": [ ... ] }`。
+一次多人：把 `gibbonPersonID` 换成 `gibbonPersonIDs` 数组，如 `"gibbonPersonIDs": ["0000000001","0000000002"]`，返回 `{ "gibbonMultiIncidentID": "...", "data": [ ... ] }`。
 

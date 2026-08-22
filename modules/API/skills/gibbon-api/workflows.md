@@ -104,7 +104,7 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 需对应 `attendance.*`。先 `GET /v1/attendance/codes`，`type` 用返回的 `name`。
 
 1. 教学班：`GET /v1/attendance/classes/{classId}?date=YYYY-MM-DD` 看学生名单、`taken`（是否已点）和每人的默认 `type`，再 POST `records`。名单以外或当天有课格例外的人会被 422 拒绝。
-2. 行政班：路径换成 `/v1/attendance/form-groups/{id}`。行政班 `attendance=N` 或不是你导师的班（无 `_all` 权限时）会直接 403。
+2. 行政班：路径换成 `/v1/attendance/form-groups/{id}`。行政班 `attendance=N` 或不是你导师的班（无 `_all` 权限时）会直接 403；有 `_all` 权限时不查 `attendance` 标志，`attendance=N` 的班也能点。
 3. 个人：`POST /v1/attendance/people/{gibbonPersonID}`。
 
 不要给未来日期或停课日点名（会 422）。重复 POST 同一天是覆盖更新。改出勤代码用学校管理员令牌：`POST/PATCH/DELETE /v1/attendance/codes`；内置 `Core` 代码不能删。

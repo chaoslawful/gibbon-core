@@ -14,7 +14,7 @@ disable-model-invocation: true
 
 ## 安装（给其它 agent）
 
-把**本目录**（含 `SKILL.md`）完整拷到目标产品的 skills 目录，文件夹名保持 `gibbon-api`。
+把**本目录**（含 `SKILL.md`）完整拷到目标产品的 skills 目录，文件夹名保持 `gibbon-api`。**不要拷 `.env`**——里面是本机的真实令牌，到目标机后从 `.env.example` 重新建。
 
 然后：
 
