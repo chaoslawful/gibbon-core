@@ -18,6 +18,7 @@ use Gibbon\Module\API\Controllers\TimetableController;
 use Gibbon\Module\API\Controllers\TimetableSlotController;
 use Gibbon\Module\API\Http\Middleware\AuditMiddleware;
 use Gibbon\Module\API\Http\Middleware\AuthMiddleware;
+use Gibbon\Services\ModuleLoader;
 use GuzzleHttp\Psr7\HttpFactory;
 use GuzzleHttp\Psr7\ServerRequest;
 use Psr\Container\ContainerInterface;
@@ -79,6 +80,7 @@ class Kernel
     protected function registerRoutes(App $app): void
     {
         $c = $this->container;
+        $c->get(ModuleLoader::class)->registerModuleNamespace('Attendance');
 
         $app->get('/v1/openapi.json', function ($request, $response) use ($c) {
             return $c->get(OpenApiController::class)->show($request, $response);

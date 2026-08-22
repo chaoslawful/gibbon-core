@@ -194,7 +194,9 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
-| GET | `/v1/attendance/codes` | 任一出勤点名权限 |
+| GET | `/v1/attendance/codes` | 任一出勤点名权限，或 School Admin 出勤设置 |
+| POST | `/v1/attendance/codes` | School Admin `attendanceSettings`（`attendance.codes`） |
+| GET/PATCH/DELETE | `/v1/attendance/codes/{id}` | GET 同列表；PATCH/DELETE 同 POST。`type=Core` 的内置代码不能删，可以改 |
 | GET/POST | `/v1/attendance/classes/{id}` | `attendance.class`；GET **必填** `date`；可选 `gibbonTTDayRowClassID` |
 | GET/POST | `/v1/attendance/form-groups/{id}` | `attendance.formGroup`；GET **必填** `date`。无 `_all` 时只能点自己导师的行政班 |
 | GET/POST | `/v1/attendance/people/{id}` | `attendance.person`；GET **必填** `date` |
@@ -212,6 +214,8 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 ```
 
 个人 POST：`{ "date":"2026-08-20", "type":"Present", "reason":"", "comment":"" }`。
+
+新建出勤代码（学校管理员）必填：`name`、`nameShort`、`direction`（`In`/`Out`）、`scope`（`Onsite` / `Onsite - Late` / `Offsite` / `Offsite - Left` / `Offsite - Late`）、`sequenceNumber`。`type` 固定为 `Additional`。可选 `active`/`reportable`/`prefill`/`future`（`Y`/`N`），`gibbonRoleIDAll` 为可用角色 ID 列表。
 
 ## 记分册
 
@@ -244,3 +248,112 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 ```
 
 `attainmentValue` / `effortValue` 必须是该栏目量表里的 `value`，否则 422；传空字符串表示清除该生分数。只对栏目开启的维度给分（栏目 `comment=N` 时评语会被丢弃）。
+
+## 出勤报表
+
+全部只读 JSON，不生成图片或 PDF。权限跟对应网页报表。`date` 一律 `YYYY-MM-DD`，不能是未来。
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/v1/attendance/reports/student-history` | Attendance `report_studentHistory` | `_all` 必填 `gibbonPersonID`；`_my` 强制自己；`_myChildren` 只能查子女 |
+| GET | `/v1/attendance/reports/consecutive-absences` | `report_consecutiveAbsences` | `numberOfSchoolDays` 默认 7（1–99） |
+| GET | `/v1/attendance/reports/not-present` | `report_studentsNotPresent_byDate` | **必填** `date`；可选 `allStudents=Y` |
+| GET | `/v1/attendance/reports/not-onsite` | `report_studentsNotOnsite_byDate` | 同上 |
+| GET | `/v1/attendance/reports/not-in-class` | `report_studentsNotInClass_byDate` | **必填** `date`；可选 `allStudents`、`types`、`gibbonYearGroupIDList` |
+| GET | `/v1/attendance/reports/form-groups-not-registered` | `report_formGroupsNotRegistered_byDate` | `dateStart`/`dateEnd` 或单个 `date` |
+| GET | `/v1/attendance/reports/classes-not-registered` | `report_courseClassesNotRegistered_byDate` | 同上 |
+| GET | `/v1/attendance/reports/trends` | `report_graph_byType` | 返回 `{ days, series }` 计数，不是图；可选 `dateStart`/`dateEnd`/`gibbonFormGroupID` |
+
+`capabilities.attendance.reports` 为任一上述报表即可。
+
+## 财务（学校支出）
+
+**没有**收费计划、缴费人、学生账单、在线支付、Excel/PDF。打印接口返回 JSON 明细，不是文件。网页也不提供删除费用条目，所以 API 没有 DELETE `/v1/finance/fees/{id}`。内置类别 ID `0001`（Other）不能改、不能删。
+
+报销审批 **不在 API 里另写规则**：`POST /v1/finance/expenses/{id}/approve` 会带着当前令牌用户的会话去跑网页的 `expenses_manage_approveProcess.php`（批准链、通知都走网页）。`approval` 与网页下拉框相同：`Approval`（或 `Approval - Partial`）、`Rejection`、`Comment`。
+
+| 方法 | 路径 | 权限 |
+|---|---|---|
+| GET/POST | `/v1/finance/fee-categories` | `feeCategories_manage` |
+| GET/PATCH/DELETE | `/v1/finance/fee-categories/{id}` | 同上 |
+| GET/POST | `/v1/finance/fees` | `fees_manage`；GET **必填** `gibbonSchoolYearID` |
+| GET/PATCH | `/v1/finance/fees/{id}` | 同上 |
+| GET/POST | `/v1/finance/budget-cycles` | `budgetCycles_manage`；POST 可带 `allocations` |
+| GET/PATCH/DELETE | `/v1/finance/budget-cycles/{id}` | 同上；GET 含各预算科目额度 `allocations` |
+| GET/PUT | `/v1/finance/budget-cycles/{id}/allocations` | 同上；PUT 按预算科目 upsert 额度 |
+| GET/POST | `/v1/finance/budgets` | `budgets_manage` |
+| GET/PATCH/DELETE | `/v1/finance/budgets/{id}` | 同上；GET 含 `staff` |
+| POST | `/v1/finance/budgets/{id}/staff` | 同上；`gibbonPersonID` + `access`=`Full`/`Write`/`Read` |
+| DELETE | `/v1/finance/budget-staff/{id}` | 同上 |
+| GET/POST | `/v1/finance/expense-approvers` | `expenseApprovers_manage` |
+| PATCH/DELETE | `/v1/finance/expense-approvers/{id}` | 同上 |
+| GET/POST | `/v1/finance/expenses` | GET：`expenses_manage` 或 `expenseRequest_manage`；POST 默认走「我的申请」；管理员且学校允许直接加报销时可带 `status` |
+| GET | `/v1/finance/expenses/{id}`、`.../print` | 同上；含 `log` |
+| POST | `/v1/finance/expenses/{id}/approve` | `expenses_manage` |
+| POST | `/v1/finance/expenses/{id}/reimburse` | `expenseRequest_manage` |
+| GET/POST | `/v1/finance/petty-cash` | `pettyCash`；GET 可选 `gibbonSchoolYearID` |
+| PATCH/DELETE | `/v1/finance/petty-cash/{id}` | 同上 |
+| POST | `/v1/finance/petty-cash/{id}/action` | 同上；按 `actionRequired` 标 `Repaid`/`Refunded` |
+
+`GET /v1/finance/expenses` **必填** `gibbonFinanceBudgetCycleID`。`mine=Y` 只看自己的申请。
+
+报销申请 POST：
+
+```json
+{
+  "gibbonFinanceBudgetCycleID": "000001",
+  "gibbonFinanceBudgetID": "0001",
+  "title": "打印机墨盒",
+  "cost": "120.00",
+  "countAgainstBudget": "Y",
+  "purchaseBy": "School",
+  "body": "",
+  "purchaseDetails": ""
+}
+```
+
+批准 POST：`{ "approval": "Approval", "comment": "" }`（由网页审批流程处理，不是 API 自己改状态）。标已报销：`{ "paymentDate": "2026-08-21", "paymentAmount": "120.00", "paymentMethod": "Bank Transfer" }`。
+
+费用类别创建必填：`name`、`nameShort`、`active`。费用条目创建必填：`name`、`nameShort`、`active`、`gibbonFinanceFeeCategoryID`、`fee`；`gibbonSchoolYearID` 默认当前学年。
+
+预算周期创建必填：`name`、`status`（`Past`/`Current`/`Upcoming`）、`sequenceNumber`、`dateStart`、`dateEnd`。可选 `allocations`，与单独 PUT 额度相同。预算创建必填：`name`、`nameShort`、`active`、`category`；可选 `staff` 数组和统一 `access`。
+
+周期额度 PUT（网页编辑周期时给每个预算科目填的金额）：
+
+```json
+{
+  "allocations": [
+    { "gibbonFinanceBudgetID": "0001", "value": "10000.00" }
+  ]
+}
+```
+
+未出现在数组里的科目不会被删掉，只更新/插入给出的项。GET 会列出全部预算科目，没有额度的 `value` 为 `0.00`。删周期会连带删该周期全部额度。
+
+## 行为记录
+
+无行为信、无模式分析。`type` 只能是 `Positive` / `Negative` / `Observation`。学校开了描述词（`enableDescriptors=Y`）时 `descriptor` 必填。`Manage Behaviour Records_my` 只能改自己写的记录。
+
+| 方法 | 路径 | 权限 |
+|---|---|---|
+| GET/POST | `/v1/behaviour` | `behaviour_manage` |
+| GET/PATCH/DELETE | `/v1/behaviour/{id}` | 同上；GET 含 `followUps` |
+| POST | `/v1/behaviour/{id}/follow-up` | 同上；`{ "followUp": "..." }` |
+
+单人 POST：
+
+```json
+{
+  "gibbonPersonID": "0000000001",
+  "date": "2026-08-21",
+  "type": "Negative",
+  "descriptor": "Disruptive",
+  "level": "",
+  "comment": "...",
+  "followUp": "",
+  "copyToNotes": "Y"
+}
+```
+
+一次多人：把 `gibbonPersonID` 换成 `gibbonPersonIDs": ["0000000001","0000000002"]`，返回 `{ "gibbonMultiIncidentID": "...", "data": [ ... ] }`。
+

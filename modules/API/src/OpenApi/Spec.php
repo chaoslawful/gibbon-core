@@ -82,8 +82,8 @@ class Spec
             'openapi' => '3.0.3',
             'info' => [
                 'title' => 'Gibbon Agent API',
-                'version' => '1.2.00',
-                'description' => 'REST API for authorised agents. Requests run as the token owner with the role locked at token creation. Covers school structure, terms, special days, timetables, courses, people, units, lesson planner, attendance and markbook.',
+                'version' => '1.3.03',
+                'description' => 'REST API for authorised agents. Requests run as the token owner with the role locked at token creation. Covers school structure, terms, special days, timetables, courses, people, units, lesson planner, attendance, attendance reports, markbook, behaviour, and finance expenses.',
             ],
             'servers' => [
                 ['url' => $baseUrl.'/api.php', 'description' => 'API front controller'],
@@ -389,7 +389,11 @@ class Spec
                 'post' => ['summary' => 'Create special day (School Closure, Timing Change, Off Timetable)', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
             ],
             '/v1/special-days/{id}' => $item('special day'),
-            '/v1/attendance/codes' => ['get' => ['summary' => 'List attendance codes', 'responses' => ['200' => $ok, '403' => $err]]],
+            '/v1/attendance/codes' => [
+                'get' => ['summary' => 'List attendance codes', 'responses' => ['200' => $ok, '403' => $err]],
+                'post' => ['summary' => 'Create an additional attendance code', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
+            '/v1/attendance/codes/{id}' => array_merge(['get' => ['summary' => 'Get attendance code', 'parameters' => [$idParam('id', 'gibbonAttendanceCodeID')], 'responses' => ['200' => $ok]]], $item('attendance code')),
             '/v1/attendance/classes/{id}' => [
                 'get' => ['summary' => 'Class attendance sheet', 'parameters' => [$idParam('id', 'gibbonCourseClassID'), ['name' => 'date', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string']], $query('gibbonTTDayRowClassID', 'Optional slot')], 'responses' => ['200' => $ok, '403' => $err]],
                 'post' => ['summary' => 'Take class attendance', 'parameters' => [$idParam('id', 'gibbonCourseClassID')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]],
@@ -413,6 +417,68 @@ class Spec
                 'get' => ['summary' => 'List markbook entries for a column', 'parameters' => [$idParam('id', 'gibbonMarkbookColumnID')], 'responses' => ['200' => $ok]],
                 'put' => ['summary' => 'Upsert markbook entries for a class', 'parameters' => [$idParam('id', 'gibbonMarkbookColumnID')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]],
             ],
+            '/v1/attendance/reports/student-history' => ['get' => ['summary' => 'Student attendance history for the current year', 'parameters' => [$query('gibbonPersonID', 'Student id')], 'responses' => ['200' => $ok, '403' => $err]]],
+            '/v1/attendance/reports/consecutive-absences' => ['get' => ['summary' => 'Students with consecutive absences', 'parameters' => [$query('numberOfSchoolDays', 'School days, 1-99')], 'responses' => ['200' => $ok, '403' => $err]]],
+            '/v1/attendance/reports/not-present' => ['get' => ['summary' => 'Students not present on a date', 'parameters' => [$query('date', 'YYYY-MM-DD')], 'responses' => ['200' => $ok, '403' => $err]]],
+            '/v1/attendance/reports/not-onsite' => ['get' => ['summary' => 'Students not onsite on a date', 'parameters' => [$query('date', 'YYYY-MM-DD')], 'responses' => ['200' => $ok, '403' => $err]]],
+            '/v1/attendance/reports/not-in-class' => ['get' => ['summary' => 'Students not in class on a date', 'parameters' => [$query('date', 'YYYY-MM-DD')], 'responses' => ['200' => $ok, '403' => $err]]],
+            '/v1/attendance/reports/form-groups-not-registered' => ['get' => ['summary' => 'Form groups that have not taken attendance', 'parameters' => [$query('dateStart', 'Start date'), $query('dateEnd', 'End date')], 'responses' => ['200' => $ok, '403' => $err]]],
+            '/v1/attendance/reports/classes-not-registered' => ['get' => ['summary' => 'Classes that have not taken attendance', 'parameters' => [$query('dateStart', 'Start date'), $query('dateEnd', 'End date')], 'responses' => ['200' => $ok, '403' => $err]]],
+            '/v1/attendance/reports/trends' => ['get' => ['summary' => 'Attendance counts by type over a date range (JSON series)', 'parameters' => [$query('dateStart', 'Start date'), $query('dateEnd', 'End date')], 'responses' => ['200' => $ok, '403' => $err]]],
+            '/v1/finance/budget-cycles' => [
+                'get' => ['summary' => 'List budget cycles', 'responses' => ['200' => $ok, '403' => $err]],
+                'post' => ['summary' => 'Create budget cycle', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
+            '/v1/finance/budget-cycles/{id}' => array_merge(['get' => ['summary' => 'Get budget cycle with allocations', 'parameters' => [$idParam('id', 'gibbonFinanceBudgetCycleID')], 'responses' => ['200' => $ok]]], $item('budget cycle')),
+            '/v1/finance/budget-cycles/{id}/allocations' => [
+                'get' => ['summary' => 'List budget allocations for a cycle', 'parameters' => [$idParam('id', 'gibbonFinanceBudgetCycleID')], 'responses' => ['200' => $ok, '403' => $err]],
+                'put' => ['summary' => 'Upsert budget allocations for a cycle', 'parameters' => [$idParam('id', 'gibbonFinanceBudgetCycleID')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]],
+            ],
+            '/v1/finance/budgets' => [
+                'get' => ['summary' => 'List budgets', 'responses' => ['200' => $ok, '403' => $err]],
+                'post' => ['summary' => 'Create budget', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
+            '/v1/finance/budgets/{id}' => array_merge(['get' => ['summary' => 'Get budget with staff', 'parameters' => [$idParam('id', 'gibbonFinanceBudgetID')], 'responses' => ['200' => $ok]]], $item('budget')),
+            '/v1/finance/budgets/{id}/staff' => ['post' => ['summary' => 'Add staff to a budget', 'parameters' => [$idParam('id', 'gibbonFinanceBudgetID')], 'responses' => ['201' => $created, '403' => $err]]],
+            '/v1/finance/budget-staff/{id}' => ['delete' => ['summary' => 'Remove staff from a budget', 'parameters' => [$idParam('id', 'gibbonFinanceBudgetPersonID')], 'responses' => ['204' => $ok]]],
+            '/v1/finance/expense-approvers' => [
+                'get' => ['summary' => 'List expense approvers', 'responses' => ['200' => $ok, '403' => $err]],
+                'post' => ['summary' => 'Add expense approver', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
+            '/v1/finance/expense-approvers/{id}' => $item('expense approver'),
+            '/v1/finance/expenses' => [
+                'get' => ['summary' => 'List expenses', 'parameters' => [['name' => 'gibbonFinanceBudgetCycleID', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string']], $query('mine', 'Y for own requests')], 'responses' => ['200' => $ok, '403' => $err]],
+                'post' => ['summary' => 'Create expense request (or admin expense if allowed)', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
+            '/v1/finance/expenses/{id}' => ['get' => ['summary' => 'Get expense with log', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok, '404' => $err]]],
+            '/v1/finance/expenses/{id}/print' => ['get' => ['summary' => 'Print payload for an expense (JSON, not PDF)', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok]]],
+            '/v1/finance/expenses/{id}/approve' => ['post' => ['summary' => 'Call the web expense approval process (Approve / Reject / Comment)', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
+            '/v1/finance/expenses/{id}/reimburse' => ['post' => ['summary' => 'Mark an approved expense as reimbursed', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
+            '/v1/finance/petty-cash' => [
+                'get' => ['summary' => 'List petty cash', 'parameters' => [$query('gibbonSchoolYearID', 'Year id')], 'responses' => ['200' => $ok, '403' => $err]],
+                'post' => ['summary' => 'Create petty cash record', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
+            '/v1/finance/petty-cash/{id}' => $item('petty cash record'),
+            '/v1/finance/petty-cash/{id}/action' => ['post' => ['summary' => 'Mark petty cash repaid or refunded', 'parameters' => [$idParam('id', 'gibbonFinancePettyCashID')], 'responses' => ['200' => $ok, '403' => $err]]],
+            '/v1/finance/fee-categories' => [
+                'get' => ['summary' => 'List fee categories', 'responses' => ['200' => $ok, '403' => $err]],
+                'post' => ['summary' => 'Create fee category', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
+            '/v1/finance/fee-categories/{id}' => array_merge(['get' => ['summary' => 'Get fee category', 'parameters' => [$idParam('id', 'gibbonFinanceFeeCategoryID')], 'responses' => ['200' => $ok]]], $item('fee category')),
+            '/v1/finance/fees' => [
+                'get' => ['summary' => 'List fees', 'parameters' => [['name' => 'gibbonSchoolYearID', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string']]], 'responses' => ['200' => $ok, '403' => $err]],
+                'post' => ['summary' => 'Create fee', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
+            '/v1/finance/fees/{id}' => [
+                'get' => ['summary' => 'Get fee', 'parameters' => [$idParam('id', 'gibbonFinanceFeeID')], 'responses' => ['200' => $ok, '404' => $err]],
+                'patch' => ['summary' => 'Update fee', 'parameters' => [$idParam('id', 'gibbonFinanceFeeID')], 'responses' => ['200' => $ok, '403' => $err]],
+            ],
+            '/v1/behaviour' => [
+                'get' => ['summary' => 'List behaviour records', 'parameters' => [$query('gibbonSchoolYearID', 'Year id'), $query('type', 'Positive, Negative or Observation')], 'responses' => ['200' => $ok, '403' => $err]],
+                'post' => ['summary' => 'Create one or many behaviour records', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
+            '/v1/behaviour/{id}' => array_merge(['get' => ['summary' => 'Get behaviour record with follow-ups', 'parameters' => [$idParam('id', 'gibbonBehaviourID')], 'responses' => ['200' => $ok]]], $item('behaviour record')),
+            '/v1/behaviour/{id}/follow-up' => ['post' => ['summary' => 'Add a follow-up comment', 'parameters' => [$idParam('id', 'gibbonBehaviourID')], 'responses' => ['201' => $created, '403' => $err]]],
         ];
     }
 }

@@ -1,14 +1,14 @@
 ---
 name: gibbon-api
 description: >-
-  通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、出勤与记分册。
+  通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、出勤、记分册、行为记录与财务支出。
   仅在用户明确要求使用 gibbon-api skill、按该 REST API 操作 Gibbon、或安装本 skill 后点名操作课表/课程规划时使用。
 disable-model-invocation: true
 ---
 
 # Gibbon Agent REST API
 
-用个人访问令牌（PAT）调用 Gibbon REST。权限等于令牌所有者 + 创建时锁定的那一个角色。正式评估、出勤报表、学习成果、教案讨论不在范围内。
+用个人访问令牌（PAT）调用 Gibbon REST。权限等于令牌所有者 + 创建时锁定的那一个角色。正式评估、学习成果写入、教案讨论不在范围内。
 
 完整接口见 [reference.md](reference.md)。工作流见 [workflows.md](workflows.md)。
 
@@ -21,7 +21,7 @@ disable-model-invocation: true
 1. 复制 `.env.example` 为 `.env`
 2. 填写 `GIBBON_API_BASE` 和 `GIBBON_API_TOKEN`
 3. 在 Gibbon 网页 **API → Manage API Tokens** 创建令牌（明文只显示一次，前缀 `gib_pat_`）
-4. 教师写教案、点名、记分册，排课管理员改课表，学校管理员改结构/学期，用户管理员改人员，通常需要**不同角色的令牌**，不要混用
+4. 教师写教案、点名、记分册，排课管理员改课表，学校管理员改结构/学期，用户管理员改人员，财务管报销/预算，通常需要**不同角色的令牌**，不要混用
 
 `.env` 只放本机，不要写入 skill 正文或 git。
 
@@ -85,6 +85,6 @@ GET 直接执行。任何 **POST/PATCH/PUT/DELETE 之前必须停下出确认报
 
 ## 仍然没有的接口
 
-不要尝试：出勤报表、未来出勤、Ad Hoc、学生自签、出勤代码增删改、正式评估（Formal Assessment）、记分册权重/目标分/量规/复制栏目、学习成果的写入（教案详情会只读返回已有 `outcomes`）、教案讨论/访客、资源库、报告、导入、OAuth、照片上传、角色权限矩阵、个人证件。需要时说明接口没有，改走网页。
+不要尝试：未来出勤、Ad Hoc、学生自签、正式评估（Formal Assessment）、记分册权重/目标分/量规/复制栏目、学习成果的写入（教案详情会只读返回已有 `outcomes`）、教案讨论/访客、资源库、导入、OAuth、照片上传、角色权限矩阵、个人证件、收费计划/缴费人/学生账单/在线支付、报销发票文件、行为信、行为模式分析、Excel/PDF 导出。需要时说明接口没有，改走网页。
 
 注意：教案创建/更新接受 `homeworkCrowdAssess*` 系列开关字段（同伴互评的可见性设置），但没有互评评分接口——只能设开关，不能代替学生互评。

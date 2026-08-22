@@ -105,7 +105,15 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 2. 行政班：路径换成 `/v1/attendance/form-groups/{id}`。行政班 `attendance=N` 或不是你导师的班（无 `_all` 权限时）会直接 403。
 3. 个人：`POST /v1/attendance/people/{gibbonPersonID}`。
 
-不要给未来日期或停课日点名（会 422）。重复 POST 同一天是覆盖更新。不要改出勤代码、不要走报表接口。
+不要给未来日期或停课日点名（会 422）。重复 POST 同一天是覆盖更新。改出勤代码用学校管理员令牌：`POST/PATCH/DELETE /v1/attendance/codes`；内置 `Core` 代码不能删。
+
+历史与报表（只读）：
+
+1. 某个学生：`GET /v1/attendance/reports/student-history?gibbonPersonID=`
+2. 连续缺勤：`GET /v1/attendance/reports/consecutive-absences?numberOfSchoolDays=7`
+3. 某天谁没来/不在校/不在课上：`not-present` / `not-onsite` / `not-in-class`，都要 `date=`
+4. 哪些班还没点名：`form-groups-not-registered`、`classes-not-registered`
+5. 按类型统计：`GET /v1/attendance/reports/trends`（JSON 数列，不是图）
 
 ---
 
@@ -122,6 +130,30 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 ---
 
+## I. 报销与预算
+
+需对应 `finance.*`。**不要**调费用类别、账单、在线支付。
+
+1. `GET /v1/finance/budget-cycles` 拿周期 ID。需要收费目录时：`GET /v1/finance/fee-categories`、`GET /v1/finance/fees?gibbonSchoolYearID=`。
+2. 给该周期各预算科目额度：`PUT /v1/finance/budget-cycles/{id}/allocations`，或先 `GET .../allocations` 看现有科目。
+3. 提交：`POST /v1/finance/expenses`（`gibbonFinanceBudgetCycleID`、预算、标题、金额、`purchaseBy`=`School`/`Self`、`countAgainstBudget`）。
+4. 审批：`POST /v1/finance/expenses/{id}/approve`，`approval`=`Approval`/`Rejection`/`Comment`。这会调用网页审批，不要自己改 `status`。
+5. 打印用 `GET /v1/finance/expenses/{id}/print`（JSON）。标已付：`POST .../reimburse`。
+6. 零用金：`POST /v1/finance/petty-cash`，需要还款/退款时再 `POST .../action`。
+
+---
+
+## J. 学生行为记录
+
+需 `behaviour.write`。
+
+1. `GET /v1/behaviour` 可加 `type=Positive|Negative|Observation`。
+2. 单人：`POST /v1/behaviour`。多人同一事件用 `gibbonPersonIDs`。
+3. 跟进：`POST /v1/behaviour/{id}/follow-up`。需要进学生备注时创建时带 `"copyToNotes": "Y"`。
+4. 不要做行为信、模式分析。
+
+---
+
 ## 权限对照
 
 | 网页能力（锁定角色） | API |
@@ -135,6 +167,10 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 | Admissions 入学名册 | student-enrolments |
 | Students 医疗 | 人员医疗表 |
 | Attendance 按班/行政班/个人点名 | attendance.* |
+| School Admin 出勤设置 | attendance.codes |
+| Attendance 报表 | attendance.reports |
 | Markbook 编辑 | 记分册栏目与给分 |
+| Finance 报销/预算/零用金/费用目录 | finance.expenses / finance.budgets / finance.pettyCash / finance.fees |
+| Behaviour 管理记录 | behaviour.write |
 
 令牌锁定角色后，即使用户网页能切换其它角色，API 也只用锁定的那一个。

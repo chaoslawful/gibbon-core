@@ -93,8 +93,17 @@ class PermissionMapper
             'attendance.class' => $this->canTakeClassAttendance(),
             'attendance.formGroup' => $this->canTakeFormGroupAttendance(),
             'attendance.person' => $this->canTakePersonAttendance(),
+            'attendance.codes' => $this->canManageAttendanceCodes(),
             'markbook.write' => $this->canEditMarkbook(),
             'markbook.editAllClasses' => $this->canEditAllMarkbookClasses(),
+            'finance.expenses' => $this->canManageExpenses() || $this->canRequestExpenses(),
+            'finance.expensesAll' => $this->canManageAllExpenses(),
+            'finance.fees' => $this->canManageFees() || $this->canManageFeeCategories(),
+            'finance.budgets' => $this->canManageBudgets(),
+            'finance.pettyCash' => $this->canManagePettyCash(),
+            'behaviour.write' => $this->canManageBehaviour(),
+            'behaviour.writeAll' => $this->canManageAllBehaviour(),
+            'attendance.reports' => $this->canViewAttendanceReports(),
         ];
     }
 
@@ -178,10 +187,22 @@ class PermissionMapper
             || $this->canTakePersonAttendance();
     }
 
+    public function canManageAttendanceCodes(): bool
+    {
+        return $this->access->allows('School Admin', 'attendanceSettings');
+    }
+
     public function assertCanTakeAnyAttendance(): void
     {
-        if (!$this->canTakeAnyAttendance()) {
+        if (!$this->canTakeAnyAttendance() && !$this->canManageAttendanceCodes()) {
             throw new ApiException('You do not have permission to view or take attendance.', 403);
+        }
+    }
+
+    public function assertCanManageAttendanceCodes(): void
+    {
+        if (!$this->canManageAttendanceCodes()) {
+            throw new ApiException('You do not have permission to manage attendance codes.', 403);
         }
     }
 
@@ -362,5 +383,145 @@ class PermissionMapper
             )",
             'params' => ['apiPersonID' => $this->session->get('gibbonPersonID')],
         ];
+    }
+
+    public function canRequestExpenses(): bool
+    {
+        return $this->access->allows('Finance', 'expenseRequest_manage');
+    }
+
+    public function canManageExpenses(): bool
+    {
+        return $this->access->allows('Finance', 'expenses_manage');
+    }
+
+    public function canManageAllExpenses(): bool
+    {
+        return $this->access->get('Finance', 'expenses_manage')->allows('Manage Expenses_all');
+    }
+
+    public function canManageBudgets(): bool
+    {
+        return $this->access->allows('Finance', 'budgets_manage');
+    }
+
+    public function canManageBudgetCycles(): bool
+    {
+        return $this->access->allows('Finance', 'budgetCycles_manage');
+    }
+
+    public function canManageExpenseApprovers(): bool
+    {
+        return $this->access->allows('Finance', 'expenseApprovers_manage');
+    }
+
+    public function canManagePettyCash(): bool
+    {
+        return $this->access->allows('Finance', 'pettyCash');
+    }
+
+    public function canManageFeeCategories(): bool
+    {
+        return $this->access->allows('Finance', 'feeCategories_manage');
+    }
+
+    public function canManageFees(): bool
+    {
+        return $this->access->allows('Finance', 'fees_manage');
+    }
+
+    public function canManageBehaviour(): bool
+    {
+        return $this->access->allows('Behaviour', 'behaviour_manage');
+    }
+
+    public function canManageAllBehaviour(): bool
+    {
+        return $this->access->get('Behaviour', 'behaviour_manage')->allows('Manage Behaviour Records_all');
+    }
+
+    public function canViewAttendanceReports(): bool
+    {
+        return $this->access->allows('Attendance', 'report_studentHistory')
+            || $this->access->allows('Attendance', 'report_consecutiveAbsences')
+            || $this->access->allows('Attendance', 'report_studentsNotPresent_byDate')
+            || $this->access->allows('Attendance', 'report_studentsNotOnsite_byDate')
+            || $this->access->allows('Attendance', 'report_studentsNotInClass_byDate')
+            || $this->access->allows('Attendance', 'report_formGroupsNotRegistered_byDate')
+            || $this->access->allows('Attendance', 'report_courseClassesNotRegistered_byDate')
+            || $this->access->allows('Attendance', 'report_graph_byType');
+    }
+
+    public function studentHistoryAction(): ?string
+    {
+        $action = $this->access->get('Attendance', 'report_studentHistory');
+        foreach (['Student History_all', 'Student History_my', 'Student History_myChildren'] as $name) {
+            if ($action->allows($name)) {
+                return $name;
+            }
+        }
+
+        return $this->access->allows('Attendance', 'report_studentHistory') ? 'Student History_my' : null;
+    }
+
+    public function assertCanRequestOrManageExpenses(): void
+    {
+        if (!$this->canRequestExpenses() && !$this->canManageExpenses()) {
+            throw new ApiException('You do not have permission to work with expenses.', 403);
+        }
+    }
+
+    public function assertCanManageBudgets(): void
+    {
+        if (!$this->canManageBudgets()) {
+            throw new ApiException('You do not have permission to manage budgets.', 403);
+        }
+    }
+
+    public function assertCanManageBudgetCycles(): void
+    {
+        if (!$this->canManageBudgetCycles()) {
+            throw new ApiException('You do not have permission to manage budget cycles.', 403);
+        }
+    }
+
+    public function assertCanManageExpenseApprovers(): void
+    {
+        if (!$this->canManageExpenseApprovers()) {
+            throw new ApiException('You do not have permission to manage expense approvers.', 403);
+        }
+    }
+
+    public function assertCanManagePettyCash(): void
+    {
+        if (!$this->canManagePettyCash()) {
+            throw new ApiException('You do not have permission to manage petty cash.', 403);
+        }
+    }
+
+    public function assertCanManageFeeCategories(): void
+    {
+        if (!$this->canManageFeeCategories()) {
+            throw new ApiException('You do not have permission to manage fee categories.', 403);
+        }
+    }
+
+    public function assertCanManageFees(): void
+    {
+        if (!$this->canManageFees()) {
+            throw new ApiException('You do not have permission to manage fees.', 403);
+        }
+    }
+
+    public function assertCanManageBehaviour(): void
+    {
+        if (!$this->canManageBehaviour()) {
+            throw new ApiException('You do not have permission to manage behaviour records.', 403);
+        }
+    }
+
+    public function assertAllowsReport(string $route, string $message): void
+    {
+        $this->assertAllows('Attendance', $route, $message);
     }
 }

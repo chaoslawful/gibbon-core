@@ -40,9 +40,91 @@ class AttendanceService
     public function listCodes(): array
     {
         $this->permissions->assertCanTakeAnyAttendance();
-        $criteria = $this->codes->newQueryCriteria()->sortBy('sequenceNumber')->pageSize(0);
 
-        return $this->codes->queryAttendanceCodes($criteria)->toArray();
+        return $this->db->select(
+            "SELECT * FROM gibbonAttendanceCode ORDER BY sequenceNumber, name"
+        )->fetchAll();
+    }
+
+    public function getCode(string $id): array
+    {
+        $this->permissions->assertCanTakeAnyAttendance();
+
+        return RestTable::requireRow($this->codes, $id, 'Attendance code not found.');
+    }
+
+    public function createCode(array $body): array
+    {
+        $this->permissions->assertCanManageAttendanceCodes();
+        $data = RestTable::pick($body, [
+            'name', 'nameShort', 'direction', 'scope', 'sequenceNumber',
+            'active', 'reportable', 'prefill', 'future', 'gibbonRoleIDAll',
+        ]);
+        RestTable::requireFields($data, ['name', 'nameShort', 'direction', 'scope', 'sequenceNumber']);
+        $this->assertCodeValues($data);
+        $data = RestTable::defaults($data, [
+            'type' => 'Additional',
+            'active' => 'Y',
+            'reportable' => 'Y',
+            'prefill' => 'Y',
+            'future' => 'N',
+            'gibbonRoleIDAll' => '',
+        ]);
+        $data['type'] = 'Additional';
+        if (!$this->codes->unique($data, ['name']) || !$this->codes->unique($data, ['nameShort'])) {
+            throw new ApiException('name and nameShort must be unique.', 422);
+        }
+
+        return RestTable::create($this->codes, $data);
+    }
+
+    public function updateCode(string $id, array $body): array
+    {
+        $this->permissions->assertCanManageAttendanceCodes();
+        $existing = RestTable::requireRow($this->codes, $id, 'Attendance code not found.');
+        $data = RestTable::pick($body, [
+            'name', 'nameShort', 'direction', 'scope', 'sequenceNumber',
+            'active', 'reportable', 'prefill', 'future', 'gibbonRoleIDAll',
+        ]);
+        $this->assertCodeValues($data);
+        $merged = array_merge($existing, $data);
+        if (isset($data['name']) && !$this->codes->unique($merged, ['name'], $id)) {
+            throw new ApiException('name must be unique.', 422);
+        }
+        if (isset($data['nameShort']) && !$this->codes->unique($merged, ['nameShort'], $id)) {
+            throw new ApiException('nameShort must be unique.', 422);
+        }
+        RestTable::update($this->codes, $id, $data, 'Attendance code not found.');
+
+        return $this->codes->getByID($id);
+    }
+
+    public function deleteCode(string $id): void
+    {
+        $this->permissions->assertCanManageAttendanceCodes();
+        $row = RestTable::requireRow($this->codes, $id, 'Attendance code not found.');
+        if (($row['type'] ?? '') === 'Core') {
+            throw new ApiException('Core attendance codes cannot be deleted.', 422);
+        }
+        RestTable::delete($this->codes, $id, 'Attendance code not found.');
+    }
+
+    protected function assertCodeValues(array $data): void
+    {
+        if (isset($data['direction']) && !in_array($data['direction'], ['In', 'Out'], true)) {
+            throw new ApiException('direction must be In or Out.', 422);
+        }
+        if (isset($data['scope']) && !in_array($data['scope'], ['Onsite', 'Onsite - Late', 'Offsite', 'Offsite - Left', 'Offsite - Late'], true)) {
+            throw new ApiException('scope must be Onsite, Onsite - Late, Offsite, Offsite - Left or Offsite - Late.', 422);
+        }
+        if (isset($data['sequenceNumber']) && !is_numeric($data['sequenceNumber'])) {
+            throw new ApiException('sequenceNumber must be numeric.', 422);
+        }
+        foreach (['active', 'reportable', 'prefill', 'future'] as $flag) {
+            if (isset($data[$flag]) && !in_array($data[$flag], ['Y', 'N'], true)) {
+                throw new ApiException($flag.' must be Y or N.', 422);
+            }
+        }
     }
 
     public function getClassSheet(string $gibbonCourseClassID, array $query): array

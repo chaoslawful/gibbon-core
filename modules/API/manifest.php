@@ -11,7 +11,7 @@ $description = 'Personal access tokens and a REST API so authorised agents can r
 $entryURL    = 'tokens_manage.php';
 $type        = 'Additional';
 $category    = 'Admin';
-$version     = '1.2.00';
+$version     = '1.3.03';
 $author      = 'Gibbon Foundation';
 $url         = 'https://gibbonedu.org';
 
