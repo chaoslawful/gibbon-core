@@ -283,7 +283,20 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 
 **没有**收费计划、缴费人、学生账单、在线支付、Excel/PDF。打印接口返回 JSON 明细，不是文件。网页也不提供删除费用条目，所以 API 没有 DELETE `/v1/finance/fees/{id}`。内置类别 ID `0001`（Other）不能改、不能删；删除其它类别时，其下费用条目与发票费用行会被迁移到 `0001`。删除预算会连带删其 staff 授权。
 
-报销审批按资源创建，**不直接改 `status`**：`POST /v1/finance/expenses/{id}/approvals`，`decision`=`approve`/`reject`/`comment`。服务端按网页同一套审批链写日志、推进状态并发通知。令牌用户必须是审批链上**这一轮**该批的人（`reject`/`comment` 除外），否则 403，状态不会变。只有 `Requested` 状态的报销能 approve/reject，否则 422；学校未配置审批设置（`expenseApprovalType` 或审批人为空）也 422。成功 **201**，body 是新日志行，并带上更新后的 `expense`。
+报销审批按资源创建，**不直接改 `status`**：`POST /v1/finance/expenses/{id}/approvals`，`decision`=`approve`/`reject`/`comment`。服务端按网页同一套审批链写日志、推进状态并发通知，规则来自学校财务设定 `expenseApprovalType` 和 `budgetLevelExpenseApproval`（API **没有**读取这两项的接口，以返回的 `expense` 为准）。令牌用户必须是审批链上**这一轮**该批的人（`reject`/`comment` 除外），否则 403，状态不会变。只有 `Requested` 状态的报销能 approve/reject，否则 422；学校未配置审批设置（`expenseApprovalType` / `budgetLevelExpenseApproval` 为空，或审批人为空）也 422。成功 **201**，body 是新日志行，并带上更新后的 `expense`。**201 不等于已经批准**：看 `expense.status`，仍是 `Requested` 就是只过了一关。
+
+审批分两层，都批完 `status` 才变 `Approved`：
+
+1. **预算关**（`budgetLevelExpenseApproval`）：为 `Y` 且 `statusApprovalBudgetCleared=N` 时，先要该预算 `access=Full` 的人 `approve`；通过后该字段变 `Y`，`status` 仍是 `Requested`。提交人自己是该预算 Full，或学校关掉了预算级审批（`N`），创建时就会写成 `Y`，跳过这一关。
+2. **学校关**（`expenseApprovalType`，预算关过后才算）：
+
+| 设定 | 谁能 `approve` | 何时变 `Approved` |
+|---|---|---|
+| **One Of** | 任一尚未批过的学校审批人 | 1 条学校级通过日志 |
+| **Two Of** | 同上 | **两名**不同审批人各批一次 |
+| **Chain Of All** | 只允许 `sequenceNumber` 上**下一个**人，不能跳号 | 链上所有人都批完 |
+
+部分通过时 log 的 `action` 是 `Approval - Partial - Budget` 或 `Approval - Partial - School`；整条链走完会再写 `Approval - Final` 并把 `status` 改成 `Approved`。`reject` 立即变 `Rejected`，与类型无关。`comment` 不推进状态。
 
 | 方法 | 路径 | 权限 |
 |---|---|---|

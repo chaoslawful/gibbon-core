@@ -139,7 +139,7 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 1. `GET /v1/finance/budget-cycles` 拿周期 ID。列出该周期费用：`GET /v1/finance/expenses?gibbonFinanceBudgetCycleID=`，可选 `status`、`gibbonFinanceBudgetID`。需要收费目录时：`GET /v1/finance/fee-categories`、`GET /v1/finance/fees?gibbonSchoolYearID=`。
 2. 给该周期各预算科目额度：`PUT /v1/finance/budget-cycles/{id}/allocations`，或先 `GET .../allocations` 看现有科目。
 3. 提交：`POST /v1/finance/expenses`（`gibbonFinanceBudgetCycleID`、预算、标题、金额、`purchaseBy`=`School`/`Self`、`countAgainstBudget`）。
-4. 审批：`POST /v1/finance/expenses/{id}/approvals`，`decision`=`approve`/`reject`/`comment`。不要自己改 `status`。成功是 **201**。
+4. 审批：`POST /v1/finance/expenses/{id}/approvals`，`decision`=`approve`/`reject`/`comment`。不要自己改 `status`。成功是 **201**，但要以返回的 `expense.status` 为准——仍是 `Requested` 表示只过了预算关或学校关的一部分。学校财务的 `expenseApprovalType`（One Of / Two Of / Chain Of All）和是否先要预算负责人批，决定要几个人、按什么顺序；不是这一轮的人 `approve` 会 403。详见 [reference.md](reference.md)「财务」节。
 5. 打印用 `GET /v1/finance/expenses/{id}/print`（JSON）。标已付：`POST .../reimburse`。
 6. 零用金：`POST /v1/finance/petty-cash`，需要还款/退款时再 `POST .../action`。
 
