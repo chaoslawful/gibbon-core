@@ -268,9 +268,9 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 
 ## 财务（学校支出）
 
-**没有**收费计划、缴费人、学生账单、在线支付、Excel/PDF。打印接口返回 JSON 明细，不是文件。网页也不提供删除费用条目，所以 API 没有 DELETE `/v1/finance/fees/{id}`。内置类别 ID `0001`（Other）不能改、不能删。
+**没有**收费计划、缴费人、学生账单、在线支付、Excel/PDF。打印接口返回 JSON 明细，不是文件。网页也不提供删除费用条目，所以 API 没有 DELETE `/v1/finance/fees/{id}`。内置类别 ID `0001`（Other）不能改、不能删；删除其它类别时，其下费用条目与发票费用行会被迁移到 `0001`。删除预算会连带删其 staff 授权。
 
-报销审批 **不在 API 里另写规则**：`POST /v1/finance/expenses/{id}/approve` 会带着当前令牌用户的会话去跑网页的 `expenses_manage_approveProcess.php`（批准链、通知都走网页）。`approval` 与网页下拉框相同：`Approval`（或 `Approval - Partial`）、`Rejection`、`Comment`。
+报销审批 **不在 API 里另写规则**：`POST /v1/finance/expenses/{id}/approve` 会带着当前令牌用户的会话去跑网页的 `expenses_manage_approveProcess.php`（批准链、通知都走网页）。`approval` 与网页下拉框相同：`Approval`（或 `Approval - Partial`）、`Rejection`、`Comment`；别名 `Approve` / `Reject` 也接受。
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
@@ -295,7 +295,7 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 | PATCH/DELETE | `/v1/finance/petty-cash/{id}` | 同上 |
 | POST | `/v1/finance/petty-cash/{id}/action` | 同上；按 `actionRequired` 标 `Repaid`/`Refunded` |
 
-`GET /v1/finance/expenses` **必填** `gibbonFinanceBudgetCycleID`。`mine=Y` 只看自己的申请。
+`GET /v1/finance/expenses` **必填** `gibbonFinanceBudgetCycleID`。`mine=Y` 只看自己的申请。非 `expensesAll` 的管理员只能看到并操作自己有权预算科目下的报销；`reimburse` 仅限本人申请或 `expensesAll`，且状态须为 `Approved` / `Paid`。
 
 报销申请 POST：
 
@@ -314,7 +314,7 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 
 批准 POST：`{ "approval": "Approval", "comment": "" }`（由网页审批流程处理，不是 API 自己改状态）。标已报销：`{ "paymentDate": "2026-08-21", "paymentAmount": "120.00", "paymentMethod": "Bank Transfer" }`。
 
-费用类别创建必填：`name`、`nameShort`、`active`。费用条目创建必填：`name`、`nameShort`、`active`、`gibbonFinanceFeeCategoryID`、`fee`；`gibbonSchoolYearID` 默认当前学年。
+费用类别创建必填：`name`、`nameShort`、`active`。费用条目创建必填：`name`、`nameShort`、`active`、`gibbonFinanceFeeCategoryID`、`fee`；`gibbonSchoolYearID` 默认当前学年。审批人创建必填 `gibbonPersonID`；学校审批链为 Chain Of All 时还必须 `sequenceNumber`。零用金创建必填 `gibbonPersonID`、`amount`；`gibbonSchoolYearID` 默认当前学年。
 
 预算周期创建必填：`name`、`status`（`Past`/`Current`/`Upcoming`）、`sequenceNumber`、`dateStart`、`dateEnd`。可选 `allocations`，与单独 PUT 额度相同。预算创建必填：`name`、`nameShort`、`active`、`category`；可选 `staff` 数组和统一 `access`。
 
@@ -332,7 +332,7 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 
 ## 行为记录
 
-无行为信、无模式分析。`type` 只能是 `Positive` / `Negative` / `Observation`。学校开了描述词（`enableDescriptors=Y`）时 `descriptor` 必填。`Manage Behaviour Records_my` 只能改自己写的记录。
+无行为信、无模式分析。`type` 只能是 `Positive` / `Negative` / `Observation`。学校开了描述词（`enableDescriptors=Y`）时 `descriptor` 必填。`Manage Behaviour Records_my` 只能改自己写的记录。删除行为记录会连带删其全部 followUps。
 
 | 方法 | 路径 | 权限 |
 |---|---|---|

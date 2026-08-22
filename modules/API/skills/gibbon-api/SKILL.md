@@ -50,7 +50,11 @@ curl -sS \
    - `school.structure`：年级组、学部、学院、行政班、场地、学年、学期、特殊日
    - `user.admin`：人员、角色、家庭
    - `attendance.class` / `attendance.formGroup` / `attendance.person`：按教学班 / 行政班 / 个人点名
+   - `attendance.codes`：出勤代码管理；`attendance.reports`：出勤报表（只读）
    - `markbook.write` / `markbook.editAllClasses`：记分册栏目与给分
+   - `finance.expenses` / `finance.expensesAll`：报销；`finance.fees`：费用目录；`finance.budgets`：预算；`finance.pettyCash`：零用金
+   - `behaviour.write` / `behaviour.writeAll`：行为记录
+   - 预算周期（`budgetCycles_manage`）与报销审批人（`expenseApprovers_manage`）没有对应 capability，403 即缺权
 
 ## 请求约定
 
@@ -60,7 +64,7 @@ curl -sS \
 - 列表班级用 `GET /v1/classes`，返回 `{ "data": [ { "id", "name" } ] }`。这里的 `id` 就是 `gibbonCourseClassID`。
 - 日期 `YYYY-MM-DD`。时间 `HH:MM:SS`（`HH:MM` 服务端会补 `:00`）。
 - ID 按响应里的字符串原样回传（Gibbon 常带前导零）。
-- 创建成功 **201**，删除成功 **204** 无 body。动作类接口（deploy、copy-back、smart-blockify、重置密码等）不是创建，返回 **200**。
+- 创建成功 **201**，删除成功 **204** 无 body。deploy、copy-forward、行为 follow-up 也创建资源，返回 **201**；不创建资源的动作（copy-back、smart-blockify、重置密码、报销审批/标记已付、零用金 action）返回 **200**。
 - 未提供密码时，创建/重置人员会生成随机密码，只在该次响应出现 `generatedPassword`。
 - **Windows Git Bash 坑**：`curl -d` 内联 JSON 里带中文会被弄坏，服务端当成空 body 报 422。把 JSON 写进临时文件，用 `-d @文件` 发送。
 
@@ -79,7 +83,7 @@ GET 直接执行。任何 **POST/PATCH/PUT/DELETE 之前必须停下出确认报
 
 ## 错误
 
-失败时 JSON 含 `error`、`status`。404 可能带 `path`、`method`、`hint`。按 `hint` 改路径，不要猜测。405 带 `allowed`（该路径允许的方法）；部分错误带 `details`。
+失败时 JSON 含 `error`、`status`。路由不存在的 404 总带 `type`、`path`、`method`、`hint`，按 `hint` 改路径，不要猜测。405 带 `allowed`（该路径允许的方法）；部分错误带 `details`。
 
 常见状态：`401` 令牌无效/过期/被吊销/锁定角色已移除、`403` 角色/班级范围不够、`404` 路径或资源不存在、`405` 方法不允许、`422` 字段校验失败、`429` 超限（按令牌每分钟，额度由学校设置）、`503` API 关闭。
 
