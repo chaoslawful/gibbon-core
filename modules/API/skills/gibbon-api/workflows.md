@@ -136,10 +136,10 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 需对应 `finance.*`。**不要**调费用类别、账单、在线支付。
 
-1. `GET /v1/finance/budget-cycles` 拿周期 ID。需要收费目录时：`GET /v1/finance/fee-categories`、`GET /v1/finance/fees?gibbonSchoolYearID=`。
+1. `GET /v1/finance/budget-cycles` 拿周期 ID。列出该周期费用：`GET /v1/finance/expenses?gibbonFinanceBudgetCycleID=`，可选 `status`、`gibbonFinanceBudgetID`。需要收费目录时：`GET /v1/finance/fee-categories`、`GET /v1/finance/fees?gibbonSchoolYearID=`。
 2. 给该周期各预算科目额度：`PUT /v1/finance/budget-cycles/{id}/allocations`，或先 `GET .../allocations` 看现有科目。
 3. 提交：`POST /v1/finance/expenses`（`gibbonFinanceBudgetCycleID`、预算、标题、金额、`purchaseBy`=`School`/`Self`、`countAgainstBudget`）。
-4. 审批：`POST /v1/finance/expenses/{id}/approve`，`approval`=`Approval`/`Rejection`/`Comment`。这会调用网页审批，不要自己改 `status`。
+4. 审批：`POST /v1/finance/expenses/{id}/approvals`，`decision`=`approve`/`reject`/`comment`。不要自己改 `status`。成功是 **201**。
 5. 打印用 `GET /v1/finance/expenses/{id}/print`（JSON）。标已付：`POST .../reimburse`。
 6. 零用金：`POST /v1/finance/petty-cash`，需要还款/退款时再 `POST .../action`。
 

@@ -283,7 +283,7 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 
 **没有**收费计划、缴费人、学生账单、在线支付、Excel/PDF。打印接口返回 JSON 明细，不是文件。网页也不提供删除费用条目，所以 API 没有 DELETE `/v1/finance/fees/{id}`。内置类别 ID `0001`（Other）不能改、不能删；删除其它类别时，其下费用条目与发票费用行会被迁移到 `0001`。删除预算会连带删其 staff 授权。
 
-报销审批 **不在 API 里另写规则**：`POST /v1/finance/expenses/{id}/approve` 会带着当前令牌用户的会话去跑网页的 `expenses_manage_approveProcess.php`（批准链、通知都走网页）。`approval` 与网页下拉框相同：`Approval`（或 `Approval - Partial`）、`Rejection`、`Comment`；别名 `Approve` / `Reject` 也接受。
+报销审批按资源创建，**不直接改 `status`**：`POST /v1/finance/expenses/{id}/approvals`，`decision`=`approve`/`reject`/`comment`。服务端按网页同一套审批链写日志、推进状态并发通知。令牌用户必须是审批链上**这一轮**该批的人（`reject`/`comment` 除外），否则 403，状态不会变。成功 **201**，body 是新日志行，并带上更新后的 `expense`。
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
@@ -302,13 +302,13 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 | PATCH/DELETE | `/v1/finance/expense-approvers/{id}` | 同上 |
 | GET/POST | `/v1/finance/expenses` | GET：`expenses_manage` 或 `expenseRequest_manage`；POST 默认走「我的申请」（需 `expenseRequest_manage`）；仅 `expensesAll` 且学校开启直接添加（`allowExpenseAdd`）时，传非 `Requested` 的 `status` 才生效，否则 `status` 被静默改回 `Requested`，不报错 |
 | GET | `/v1/finance/expenses/{id}`、`.../print` | 同上；含 `log` |
-| POST | `/v1/finance/expenses/{id}/approve` | `expenses_manage` |
+| POST | `/v1/finance/expenses/{id}/approvals` | `expenses_manage`；`{ "decision": "approve"|"reject"|"comment", "comment": "" }`，**201** |
 | POST | `/v1/finance/expenses/{id}/reimburse` | `expenseRequest_manage` |
 | GET/POST | `/v1/finance/petty-cash` | `pettyCash`；GET 可选 `gibbonSchoolYearID` |
 | PATCH/DELETE | `/v1/finance/petty-cash/{id}` | 同上 |
 | POST | `/v1/finance/petty-cash/{id}/action` | 同上；按 `actionRequired` 标 `Repaid`/`Refunded` |
 
-`GET /v1/finance/expenses` **必填** `gibbonFinanceBudgetCycleID`。`mine=Y` 只看自己的申请。非 `expensesAll` 的管理员只能看到并操作自己有权预算科目下的报销；`reimburse` 仅限本人申请或 `expensesAll`，且状态须为 `Approved` / `Paid`。
+`GET /v1/finance/expenses` **必填** `gibbonFinanceBudgetCycleID`。可选 `status`（`Requested` / `Approved` / `Rejected` / `Cancelled` / `Ordered` / `Paid`，非法值 422）、`gibbonFinanceBudgetID`（预算不存在 404）。两个筛选都是精确匹配；不传则不限制。`mine=Y` 只看自己的申请。非 `expensesAll` 的管理员只能看到并操作自己有权预算科目下的报销；`reimburse` 仅限本人申请或 `expensesAll`，且状态须为 `Approved` / `Paid`。一次返回该周期下全部匹配记录，没有分页。
 
 报销申请 POST：
 
@@ -325,7 +325,7 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 }
 ```
 
-批准 POST：`{ "approval": "Approval", "comment": "" }`（由网页审批流程处理，不是 API 自己改状态）。标已报销：`{ "paymentDate": "2026-08-21", "paymentAmount": "120.00", "paymentMethod": "Bank Transfer" }`。
+批准 POST：`{ "decision": "approve", "comment": "" }`。标已报销：`{ "paymentDate": "2026-08-21", "paymentAmount": "120.00", "paymentMethod": "Bank Transfer" }`。
 
 费用类别创建必填：`name`、`nameShort`、`active`。费用条目创建必填：`name`、`nameShort`、`active`、`gibbonFinanceFeeCategoryID`、`fee`；`gibbonSchoolYearID` 默认当前学年。审批人创建必填 `gibbonPersonID`；学校审批链为 Chain Of All 时还必须 `sequenceNumber`。零用金创建必填 `gibbonPersonID`、`amount`；`gibbonSchoolYearID` 默认当前学年。
 
