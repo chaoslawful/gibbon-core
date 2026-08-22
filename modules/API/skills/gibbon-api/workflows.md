@@ -85,6 +85,8 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 已有人员再编入行政班：`POST /v1/people/{id}/enrolment`。只把人放进课班：`POST /v1/classes/{id}/enrolment`。
 
+查教师/教职工（`staff.read`）：`GET /v1/staff`，`type=Teaching` 只看教学人员。按人查：`GET /v1/staff?gibbonPersonID=`。已有人员补建档案（`staff.write`）：`POST /v1/staff`，必填 `gibbonPersonID`、`type`（`Teaching`/`Support`），该人必须已有 Staff 角色且还没有 staff 记录。
+
 ---
 
 ## F. 学期与特殊日

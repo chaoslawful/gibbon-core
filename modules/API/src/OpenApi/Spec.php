@@ -83,7 +83,7 @@ class Spec
             'info' => [
                 'title' => 'Gibbon Agent API',
                 'version' => '1.3.03',
-                'description' => 'REST API for authorised agents. Requests run as the token owner with the role locked at token creation. Covers school structure, terms, special days, timetables, courses, people, units, lesson planner, attendance, attendance reports, markbook, behaviour, and finance expenses.',
+                'description' => 'REST API for authorised agents. Requests run as the token owner with the role locked at token creation. Covers school structure, terms, special days, timetables, courses, people, staff, units, lesson planner, attendance, attendance reports, markbook, behaviour, and finance expenses.',
             ],
             'servers' => [
                 ['url' => $baseUrl.'/api.php', 'description' => 'API front controller'],
@@ -342,6 +342,24 @@ class Spec
                 'post' => ['summary' => 'Add class enrolment', 'parameters' => [$idParam('id', 'gibbonCourseClassID')], 'responses' => ['201' => $created]],
             ],
             '/v1/enrolment/{id}' => $item('enrolment record'),
+            '/v1/staff' => [
+                'get' => [
+                    'summary' => 'List staff',
+                    'parameters' => [
+                        $query('q', 'Search preferred name, surname, username, job title'),
+                        $query('type', 'Teaching or Support'),
+                        $query('all', 'Y to include Expected/Left (full directory or manage only)'),
+                        $query('gibbonPersonID', 'Look up the staff record for a person'),
+                        $query('limit', 'Page size, default 50'),
+                    ],
+                    'responses' => ['200' => $ok, '403' => $err],
+                ],
+                'post' => ['summary' => 'Create a staff record for an existing person', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
+            '/v1/staff/{id}' => array_merge(
+                ['get' => ['summary' => 'Get staff record with person identity', 'parameters' => [$idParam('id', 'gibbonStaffID')], 'responses' => ['200' => $ok, '404' => $err]]],
+                $item('staff record')
+            ),
             '/v1/people' => $crud('people'),
             '/v1/people/{id}' => array_merge(['get' => ['summary' => 'Get person', 'parameters' => [$idParam('id', 'gibbonPersonID')], 'responses' => ['200' => $ok]]], $item('person')),
             '/v1/people/{id}/password' => ['post' => ['summary' => 'Reset person password', 'parameters' => [$idParam('id', 'gibbonPersonID')], 'responses' => ['200' => $ok]]],

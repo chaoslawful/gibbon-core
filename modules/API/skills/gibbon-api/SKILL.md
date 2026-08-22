@@ -1,7 +1,7 @@
 ---
 name: gibbon-api
 description: >-
-  通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、出勤、记分册、行为记录与财务支出。
+  通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、教职工、出勤、记分册、行为记录与财务支出。
   仅在用户明确要求使用 gibbon-api skill、按该 REST API 操作 Gibbon、或安装本 skill 后点名操作课表/课程规划时使用。
 disable-model-invocation: true
 ---
@@ -49,6 +49,7 @@ curl -sS \
    - `timetable.courses` / `timetable.enrolment`：课程、班级、选课
    - `school.structure`：年级组、学部、学院、行政班、场地、学年、学期、特殊日
    - `user.admin`：人员、角色、家庭
+   - `staff.read` / `staff.write`：教职工名册与档案（Staff Directory / Manage Staff）
    - `attendance.class` / `attendance.formGroup` / `attendance.person`：按教学班 / 行政班 / 个人点名
    - `attendance.codes`：出勤代码管理；`attendance.reports`：出勤报表（只读）
    - `markbook.write` / `markbook.editAllClasses`：记分册栏目与给分

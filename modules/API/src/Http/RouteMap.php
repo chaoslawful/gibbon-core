@@ -14,6 +14,7 @@ use Gibbon\Module\API\Controllers\ExpansionController;
 use Gibbon\Module\API\Controllers\FinanceController;
 use Gibbon\Module\API\Controllers\MarkbookController;
 use Gibbon\Module\API\Controllers\SchoolStructureController;
+use Gibbon\Module\API\Controllers\StaffController;
 use Psr\Container\ContainerInterface;
 use Slim\App;
 
@@ -99,6 +100,13 @@ class RouteMap
         $app->post('/v1/classes/{id}/enrolment', fn ($req, $res, $args) => $x()->storeEnrolment($req, $res, $args));
         $app->patch('/v1/enrolment/{id}', fn ($req, $res, $args) => $x()->updateEnrolment($req, $res, $args));
         $app->delete('/v1/enrolment/{id}', fn ($req, $res, $args) => $x()->destroyEnrolment($req, $res, $args));
+
+        $staff = fn () => $c->get(StaffController::class);
+        $app->get('/v1/staff', fn ($req, $res) => $staff()->index($req, $res));
+        $app->post('/v1/staff', fn ($req, $res) => $staff()->store($req, $res));
+        $app->get('/v1/staff/{id}', fn ($req, $res, $args) => $staff()->show($req, $res, $args));
+        $app->patch('/v1/staff/{id}', fn ($req, $res, $args) => $staff()->update($req, $res, $args));
+        $app->delete('/v1/staff/{id}', fn ($req, $res, $args) => $staff()->destroy($req, $res, $args));
 
         $app->get('/v1/people', fn ($req, $res) => $x()->people($req, $res));
         $app->post('/v1/people', fn ($req, $res) => $x()->storePerson($req, $res));

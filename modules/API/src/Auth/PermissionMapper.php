@@ -90,6 +90,8 @@ class PermissionMapper
             'timetable.enrolment' => $this->canManageEnrolment(),
             'school.structure' => $this->canManageSchoolStructure(),
             'user.admin' => $this->canManageUsers(),
+            'staff.read' => $this->canViewStaff(),
+            'staff.write' => $this->canManageStaff(),
             'attendance.class' => $this->canTakeClassAttendance(),
             'attendance.formGroup' => $this->canTakeFormGroupAttendance(),
             'attendance.person' => $this->canTakePersonAttendance(),
@@ -250,6 +252,23 @@ class PermissionMapper
         return $this->access->allows('User Admin', 'user_manage');
     }
 
+    public function canViewStaff(): bool
+    {
+        return $this->access->allows('Staff', 'staff_view')
+            || $this->canManageStaff();
+    }
+
+    public function canViewFullStaffDirectory(): bool
+    {
+        return $this->access->get('Staff', 'staff_view')->allows('Staff Directory_full')
+            || $this->canManageStaff();
+    }
+
+    public function canManageStaff(): bool
+    {
+        return $this->access->allows('Staff', 'staff_manage');
+    }
+
     public function assertAllows(string $module, string $route, string $message): void
     {
         if (!$this->access->allows($module, $route)) {
@@ -282,6 +301,20 @@ class PermissionMapper
     {
         if (!$this->canManageUsers()) {
             throw new ApiException('You do not have permission to manage users.', 403);
+        }
+    }
+
+    public function assertCanViewStaff(): void
+    {
+        if (!$this->canViewStaff()) {
+            throw new ApiException('You do not have permission to view staff.', 403);
+        }
+    }
+
+    public function assertCanManageStaff(): void
+    {
+        if (!$this->canManageStaff()) {
+            throw new ApiException('You do not have permission to manage staff.', 403);
         }
     }
 

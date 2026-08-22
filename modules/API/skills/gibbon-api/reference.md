@@ -125,7 +125,7 @@ Timing Change 可带 `schoolOpen` / `schoolStart` / `schoolEnd` / `schoolClose`�
 | POST | `/v1/people/{id}/medical-conditions` | 同上 |
 | DELETE | `/v1/person-medical-conditions/{id}` | 同上 |
 
-创建人员必填：`surname`、`firstName`、`preferredName`、`officialName`、`gender`、`username`、`gibbonRoleIDPrimary`。可选 `password`；没有则响应带 `generatedPassword`（只此一次）。密码必须过学校密码策略，否则 422；`username` 已占用也 422。`staffRecord=Y` 同时建教职工（`staffType` 默认 `Teaching`）；`studentRecord=Y` 需同时给 `gibbonYearGroupID`、`gibbonFormGroupID`。
+创建人员必填：`surname`、`firstName`、`preferredName`、`officialName`、`gender`、`username`、`gibbonRoleIDPrimary`。可选 `password`；没有则响应带 `generatedPassword`（只此一次）。密码必须过学校密码策略，否则 422；`username` 已占用也 422。`staffRecord=Y` 同时建教职工（`staffType` 默认 `Teaching`）；`studentRecord=Y` 需同时给 `gibbonYearGroupID`、`gibbonFormGroupID`。已有人员补建教职工档案请用 `POST /v1/staff`。
 
 入学名册必填 `gibbonYearGroupID`、`gibbonFormGroupID`；`gibbonSchoolYearID` 默认当前学年，同一同学年重复入学会 422。可选 `autoEnrolStudent=Y` 按行政班自动选课。
 
@@ -134,6 +134,19 @@ Timing Change 可带 `schoolOpen` / `schoolStart` / `schoolEnd` / `schoolClose`�
 角色创建必填 `category`、`name`、`nameShort`；`type` 默认 `Additional`，`canLoginRole` 默认 `Y`。
 
 个人医疗：必须先 `PUT /v1/people/{id}/medical` 建医疗表（字段 `longTermMedication`/`longTermMedicationDetails`/`comment`），才能 `POST medical-conditions` 加状况（必填 `name`，可选 `gibbonAlertLevelID`、`triggers`、`reaction`、`response`、`medication`、`lastEpisode` 等），否则 422。医疗状况字典（`/v1/medical-conditions`）创建必填 `name`。
+
+## 教职工
+
+教师在 Gibbon 里是「人员 + `gibbonStaff` 档案」。查名册、按人查、按教学/教辅筛选用这组接口，不要用 `/v1/people` 硬筛。合同、代课覆盖排班不在范围内。
+
+| 方法 | 路径 | 权限 |
+|---|---|---|
+| GET | `/v1/staff` | `staff.read`（Staff Directory）；可 `q`、`type`=`Teaching`/`Support`、`gibbonPersonID`、`limit`；`all=Y` 含 Expected/Left，需完整目录或 Manage Staff |
+| GET | `/v1/staff/{id}` | 同上；`id` 是 `gibbonStaffID`；含姓名、邮箱、电话、入离职日等人员字段 |
+| POST | `/v1/staff` | `staff.write`（Manage Staff） |
+| PATCH/DELETE | `/v1/staff/{id}` | 同上 |
+
+创建必填：`gibbonPersonID`、`type`（`Teaching`/`Support`，也接受 `staffType`）。该人必须已有 **Staff** 角色，且还没有 staff 记录，否则 422。可选 `initials`（全校唯一）、`jobTitle`、`firstAidQualified`（`Y`/`N`/空）、`firstAidQualification`、`firstAidExpiry`、`countryOfOrigin`、`qualifications`、`biographicalGrouping`、`biographicalGroupingPriority`、`biography`、`coverageExclude`、`coveragePriority`；`dateStart`/`dateEnd` 会写到人员记录。`firstAidQualified` 不是 `Y` 时急救资格与到期日会被清空。删除只删 staff 档案，不删人员账号。
 
 ## 教案与单元
 
