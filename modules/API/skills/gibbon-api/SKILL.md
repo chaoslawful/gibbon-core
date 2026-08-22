@@ -23,7 +23,7 @@ disable-model-invocation: true
 3. 在 Gibbon 网页 **API → Manage API Tokens** 创建令牌（明文只显示一次，前缀 `gib_pat_`）
 4. 教师写教案、点名、记分册，排课管理员改课表，学校管理员改结构/学期，用户管理员改人员，财务管报销/预算，通常需要**不同角色的令牌**，不要混用
 
-`.env` 只放本机，不要写入 skill 正文或 git。
+`.env` 与所有 `.env.*` 变体（`.env.local`、`.env.production` 等）只放本机，不要写入 skill 正文或 git。使用时**不得暴露内容**：不要把文件原文或其中的 `GIBBON_API_TOKEN` 等值打印到对话、报告或任何生成的文件里；在 shell 里用 `$变量名` 引用即可。模板 `.env.example` 不含真实凭据，不受此限。
 
 ## 每次会话开始
 
