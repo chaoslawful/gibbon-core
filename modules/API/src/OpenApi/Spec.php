@@ -465,12 +465,21 @@ class Spec
             ],
             '/v1/finance/expense-approvers/{id}' => $item('expense approver'),
             '/v1/finance/expenses' => [
-                'get' => ['summary' => 'List expenses', 'parameters' => [['name' => 'gibbonFinanceBudgetCycleID', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string']], $query('mine', 'Y for own requests')], 'responses' => ['200' => $ok, '403' => $err]],
+                'get' => [
+                    'summary' => 'List expenses',
+                    'parameters' => [
+                        ['name' => 'gibbonFinanceBudgetCycleID', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string']],
+                        $query('status', 'Requested, Approved, Rejected, Cancelled, Ordered, or Paid'),
+                        $query('gibbonFinanceBudgetID', 'Filter by budget'),
+                        $query('mine', 'Y for own requests'),
+                    ],
+                    'responses' => ['200' => $ok, '403' => $err, '422' => $err],
+                ],
                 'post' => ['summary' => 'Create expense request (or admin expense if allowed)', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
             ],
             '/v1/finance/expenses/{id}' => ['get' => ['summary' => 'Get expense with log', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok, '404' => $err]]],
             '/v1/finance/expenses/{id}/print' => ['get' => ['summary' => 'Print payload for an expense (JSON, not PDF)', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok]]],
-            '/v1/finance/expenses/{id}/approve' => ['post' => ['summary' => 'Call the web expense approval process (Approve / Reject / Comment)', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
+            '/v1/finance/expenses/{id}/approvals' => ['post' => ['summary' => 'Create an approval, rejection or comment on an expense', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['201' => $created, '403' => $err, '422' => $err]]],
             '/v1/finance/expenses/{id}/reimburse' => ['post' => ['summary' => 'Mark an approved expense as reimbursed', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
             '/v1/finance/petty-cash' => [
                 'get' => ['summary' => 'List petty cash', 'parameters' => [$query('gibbonSchoolYearID', 'Year id')], 'responses' => ['200' => $ok, '403' => $err]],

@@ -65,7 +65,7 @@ curl -sS \
 - 列表班级用 `GET /v1/classes`，返回 `{ "data": [ { "id", "name" } ] }`。这里的 `id` 就是 `gibbonCourseClassID`。
 - 日期 `YYYY-MM-DD`。时间 `HH:MM:SS`（`HH:MM` 服务端会补 `:00`）。
 - ID 按响应里的字符串原样回传（Gibbon 常带前导零）。
-- 创建成功 **201**，删除成功 **204** 无 body。deploy、copy-forward、行为 follow-up 也创建资源，返回 **201**；不创建资源的动作（copy-back、smart-blockify、重置密码、报销审批/标记已付、零用金 action）返回 **200**。
+- 创建成功 **201**，删除成功 **204** 无 body。deploy、copy-forward、行为 follow-up、报销审批记录也创建资源，返回 **201**；不创建资源的动作（copy-back、smart-blockify、重置密码、标记已付、零用金 action）返回 **200**。
 - 未提供密码时，创建/重置人员会生成随机密码，只在该次响应出现 `generatedPassword`。
 - **Windows Git Bash 坑**：`curl -d` 内联 JSON 里带中文会被弄坏，服务端当成空 body 报 422。把 JSON 写进临时文件，用 `-d @文件` 发送。
 

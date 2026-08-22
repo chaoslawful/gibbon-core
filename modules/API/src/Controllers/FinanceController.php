@@ -146,9 +146,9 @@ class FinanceController
         return Json::write($response, $this->expenses->create($this->body($request)), 201);
     }
 
-    public function approveExpense(Request $request, Response $response, array $args): Response
+    public function storeApproval(Request $request, Response $response, array $args): Response
     {
-        return Json::write($response, $this->expenses->approve($args['id'], $this->body($request)));
+        return Json::write($response, $this->expenses->createApproval($args['id'], $this->body($request)), 201);
     }
 
     public function reimburseExpense(Request $request, Response $response, array $args): Response
