@@ -21,6 +21,11 @@ Options:
     -s, --source DIR     Specify source repository directory (Gibbon Core source code directory)
     -o, --output DIR     Specify output directory for packaged files
     -n, --no-vendor-lib  Exclude vendor and lib directories from the package
+    -k, --skills-zip     Also package each skill under modules/API/skills/ into versioned
+                         zip + tar.gz plus a generated manifest.json, installable and
+                         update-checkable by other agent tools (output to <output>/skills/).
+                         Skill version comes from each SKILL.md frontmatter "version:",
+                         NOT from the core version.php.
     -h, --help           Show this help message
 
 Examples:
@@ -28,11 +33,18 @@ Examples:
     $0 -s /path/to/gibbon-core -o /tmp/releases
     $0 --source /home/user/gibbon-core --output /home/user/releases
     $0 -n                    # Package without vendor and lib directories
+    $0 -k                    # Also create skill packages (zip/tar.gz/manifest.json)
 
 If options are not specified, default values will be used:
     - Source directory: Parent directory of script location (if script is in packaging/ subdirectory)
                         or current working directory
     - Output directory: Parent directory of source directory
+
+Skill upload (optional, OFF by default, only used with -k, set via environment variables):
+    GIBBON_SKILLS_BASE_URL        Public base URL written into manifest.json
+                                  (default: https://SKILL_HOST/skills)
+    GIBBON_SKILLS_UPLOAD_TARGET   e.g. user@host:/srv/dl/gibbon/skills — set to enable upload
+    GIBBON_SKILLS_UPLOAD_CMD      rsync (default) or scp
 
 EOF
 }
@@ -41,6 +53,7 @@ EOF
 SOURCE_DIR=""
 OUTPUT_DIR=""
 SKIP_VENDOR_LIB=false
+PACKAGE_SKILLS=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -55,6 +68,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -n|--no-vendor-lib)
             SKIP_VENDOR_LIB=true
+            shift
+            ;;
+        -k|--skills-zip)
+            PACKAGE_SKILLS=true
             shift
             ;;
         -h|--help)
@@ -89,8 +106,16 @@ if [ -z "$OUTPUT_DIR" ]; then
     OUTPUT_DIR="$(dirname "$SOURCE_DIR")"
 fi
 
-# Convert to absolute paths
+# Convert to absolute paths (create output directory first if missing,
+# so the cd below can resolve it)
 SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
+if [ ! -d "$OUTPUT_DIR" ]; then
+    echo -e "${YELLOW}Warning: Output directory does not exist, creating: $OUTPUT_DIR${NC}"
+    mkdir -p "$OUTPUT_DIR" || {
+        echo -e "${RED}Error: Cannot create output directory: $OUTPUT_DIR${NC}"
+        exit 1
+    }
+fi
 OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
 
 # Validate source directory
@@ -102,16 +127,6 @@ fi
 if [ ! -f "$SOURCE_DIR/version.php" ]; then
     echo -e "${RED}Error: version.php not found in source directory: $SOURCE_DIR${NC}"
     exit 1
-fi
-
-# Validate output directory
-if [ ! -d "$OUTPUT_DIR" ]; then
-    echo -e "${YELLOW}Warning: Output directory does not exist, creating: $OUTPUT_DIR${NC}"
-    mkdir -p "$OUTPUT_DIR"
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Error: Cannot create output directory: $OUTPUT_DIR${NC}"
-        exit 1
-    fi
 fi
 
 # Extract version number
@@ -145,11 +160,30 @@ PACKAGE_NAME="gibbon-core-${VERSION}"
 TEMP_DIR=$(mktemp -d)
 PACKAGE_DIR="$TEMP_DIR/$PACKAGE_NAME"
 
+# API module version ($moduleVersion in modules/API/version.php) — the module
+# version the skill documents; goes into the generated manifest.json as
+# "moduleVersion" so agents can compare it with /v1/openapi.json info.version.
+module_version() {
+    sed -n "s/.*\$moduleVersion[[:space:]]*=[[:space:]]*'\([^']*\)'.*/\1/p" \
+        "$SOURCE_DIR/modules/API/version.php" | head -1
+}
+
+# Skill version from a SKILL.md frontmatter (between the first pair of ---
+# lines). Single source of truth for skill packaging — never fall back to the
+# core version.
+skill_version() {
+    awk 'NR==1 { if ($0 != "---") exit }
+         NR>1 { if ($0 == "---") exit
+                if ($1 == "version:") { sub(/^version:[[:space:]]*/, ""); gsub(/[" ]/, ""); print; exit } }' \
+        "$1/SKILL.md"
+}
+
 echo -e "${GREEN}Starting packaging of Gibbon Core ${VERSION}${NC}"
 echo -e "${BLUE}Configuration:${NC}"
 echo "  Source directory: $SOURCE_DIR"
 echo "  Output directory: $OUTPUT_DIR"
 echo "  Exclude vendor/lib: $SKIP_VENDOR_LIB"
+echo "  Package skill zips: $PACKAGE_SKILLS"
 echo "  Version: $VERSION"
 echo "  Temporary directory: $TEMP_DIR"
 echo ""
@@ -286,9 +320,11 @@ if [ -f "$SOURCE_DIR/composer.lock" ]; then
     copy_item "composer.lock"
 fi
 
-# 7. Remove all .git directories recursively
-echo -e "${GREEN}[7/9] Removing .git directories...${NC}"
-find "$PACKAGE_DIR" -type d -name ".git" -exec rm -rf {} + 2>/dev/null || true
+# 7. Remove all .git directories and local secret files recursively
+echo -e "${GREEN}[7/9] Removing .git directories and local secret files...${NC}"
+find "$PACKAGE_DIR" -type d \( -name ".git" -o -name ".workbuddy" \) -exec rm -rf {} + 2>/dev/null || true
+# Remove .env / .env.* variants (keep .env.example templates) so local tokens never ship
+find "$PACKAGE_DIR" -type f \( -name ".env" -o -name ".env.*" \) ! -name ".env.example" -exec rm -f {} + 2>/dev/null || true
 
 # 8. Validate critical files exist
 echo -e "${GREEN}[8/9] Validating critical files...${NC}"
@@ -331,6 +367,169 @@ echo "  Package name: ${PACKAGE_NAME}.tar.gz"
 echo "  Location: $OUTPUT_DIR/${PACKAGE_NAME}.tar.gz"
 echo "  Size: $SIZE"
 echo ""
+
+# 10. Package agent-installable skills (optional, -k/--skills-zip)
+if [ "$PACKAGE_SKILLS" = "true" ]; then
+    echo -e "${GREEN}[skills] Packaging agent-installable skills...${NC}"
+    SKILLS_SRC="$SOURCE_DIR/modules/API/skills"
+
+    if [ ! -d "$SKILLS_SRC" ]; then
+        echo -e "${RED}Error: Skills directory not found: $SKILLS_SRC${NC}"
+        rm -rf "$TEMP_DIR"
+        exit 1
+    fi
+
+    if ! command -v zip >/dev/null 2>&1; then
+        echo -e "${RED}Error: 'zip' command is required for skill packaging but not installed${NC}"
+        rm -rf "$TEMP_DIR"
+        exit 1
+    fi
+
+    MOD_VER="$(module_version)"
+    if [ -z "$MOD_VER" ]; then
+        echo -e "${RED}Error: Cannot extract \$moduleVersion from $SOURCE_DIR/modules/API/version.php${NC}"
+        rm -rf "$TEMP_DIR"
+        exit 1
+    fi
+
+    SKILLS_BASE_URL="${GIBBON_SKILLS_BASE_URL:-https://SKILL_HOST/skills}"
+    SKILLS_OUTPUT_DIR="$OUTPUT_DIR/skills"
+    SKILLS_STAGE="$TEMP_DIR/skills-stage"
+    mkdir -p "$SKILLS_OUTPUT_DIR"
+
+    # sha256 helper: sha256sum → shasum → openssl fallback chain (the skill-side
+    # update script in SKILL.md mirrors this chain)
+    sha256_of() {
+        if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+        elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
+        else openssl dgst -sha256 "$1" | awk '{print $NF}'; fi
+    }
+
+    # Collect installable skills first (the count decides manifest file naming)
+    SKILL_DIRS=()
+    for skill_dir in "$SKILLS_SRC"/*/; do
+        [ -d "$skill_dir" ] || continue
+        if [ ! -f "$skill_dir/SKILL.md" ]; then
+            echo -e "${YELLOW}Warning: $skill_dir has no SKILL.md, skipping${NC}"
+            continue
+        fi
+        SKILL_DIRS+=("$skill_dir")
+    done
+
+    if [ "${#SKILL_DIRS[@]}" -eq 0 ]; then
+        echo -e "${YELLOW}Warning: No skills found under $SKILLS_SRC${NC}"
+    else
+        MANIFEST_NAMES=()
+        for skill_dir in "${SKILL_DIRS[@]}"; do
+            skill_name="$(basename "$skill_dir")"
+
+            SKILL_VER="$(skill_version "$skill_dir")"
+            if ! echo "$SKILL_VER" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                echo -e "${RED}Error: $skill_name/SKILL.md frontmatter has no valid semver 'version:' (found: '${SKILL_VER:-<none>}'). Fix it — the skill version never falls back to the core version.${NC}"
+                rm -rf "$TEMP_DIR"
+                exit 1
+            fi
+
+            # Stage the skill directory, strip local-only files (same rules as the
+            # main package cleanup), then build both archive formats from the
+            # staging copy so their contents match exactly and no find | zip -@
+            # pipe is needed (it breaks on filenames with spaces).
+            mkdir -p "$SKILLS_STAGE"
+            rm -rf "$SKILLS_STAGE/$skill_name"
+            cp -r "$skill_dir" "$SKILLS_STAGE/$skill_name"
+            find "$SKILLS_STAGE/$skill_name" -type d \( -name ".git" -o -name ".workbuddy" \) -exec rm -rf {} + 2>/dev/null || true
+            find "$SKILLS_STAGE/$skill_name" -type f \( -name ".env" -o -name ".env.*" \) ! -name ".env.example" -exec rm -f {} + 2>/dev/null || true
+
+            zip_file="$SKILLS_OUTPUT_DIR/${skill_name}-${SKILL_VER}.zip"
+            tar_file="$SKILLS_OUTPUT_DIR/${skill_name}-${SKILL_VER}.tar.gz"
+            rm -f "$zip_file" "$tar_file"
+            (cd "$SKILLS_STAGE" && zip -q -r -X "$zip_file" "$skill_name")
+            (cd "$SKILLS_STAGE" && tar -czf "$tar_file" "$skill_name")
+
+            if [ ! -s "$zip_file" ] || [ ! -s "$tar_file" ]; then
+                echo -e "${RED}Error: Failed to create archives for skill: $skill_name${NC}"
+                rm -rf "$TEMP_DIR"
+                exit 1
+            fi
+
+            # Release notes: the "## <version>" section of CHANGELOG.md, sanitized
+            # (no quotes/backslashes/newlines) and capped at 500 chars so the
+            # consumer-side line-based extraction cannot break.
+            notes="$(awk -v ver="$SKILL_VER" '
+                !insec && $0 ~ ("^##[[:space:]]+" ver "([[:space:]]|$)") { insec = 1; next }
+                insec && /^##[[:space:]]/ { insec = 0 }
+                insec && NF { print }' "$skill_dir/CHANGELOG.md" 2>/dev/null \
+                | tr '\n' ' ' | tr -d '"\\' | tr -s ' ' | cut -c1-500)"
+            if [ -z "$notes" ]; then
+                echo -e "${YELLOW}Warning: no '## ${SKILL_VER}' section found in $skill_name/CHANGELOG.md — manifest 'notes' will be empty${NC}"
+            fi
+
+            zip_sha="$(sha256_of "$zip_file")"
+            tar_sha="$(sha256_of "$tar_file")"
+            zip_size="$(wc -c < "$zip_file" | tr -d '[:space:]')"
+            released_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            base_url="${SKILLS_BASE_URL%/}"
+
+            if [ "${#SKILL_DIRS[@]}" -eq 1 ]; then
+                manifest_file="$SKILLS_OUTPUT_DIR/manifest.json"
+            else
+                manifest_file="$SKILLS_OUTPUT_DIR/manifest-${skill_name}.json"
+            fi
+            MANIFEST_NAMES+=("$(basename "$manifest_file")")
+
+            # One field per line; values carry no quotes/newlines — the skill-side
+            # update script (SKILL.md) relies on both guarantees.
+            cat > "$manifest_file" << EOF
+{
+  "name": "$skill_name",
+  "version": "$SKILL_VER",
+  "moduleVersion": "$MOD_VER",
+  "zipUrl": "$base_url/${skill_name}-${SKILL_VER}.zip",
+  "tarUrl": "$base_url/${skill_name}-${SKILL_VER}.tar.gz",
+  "sha256": "$zip_sha",
+  "tarSha256": "$tar_sha",
+  "size": $zip_size,
+  "releasedAt": "$released_at",
+  "notes": "$notes"
+}
+EOF
+
+            echo "  Created: skills/${skill_name}-${SKILL_VER}.zip ($(du -h "$zip_file" | cut -f1)) + .tar.gz + $(basename "$manifest_file")"
+        done
+
+        if [ "${#SKILL_DIRS[@]}" -gt 1 ]; then
+            echo -e "${YELLOW}Note: multiple skills found — wrote per-skill manifests (manifest-<name>.json)${NC}"
+        fi
+        echo ""
+        echo -e "${GREEN}✓ ${#SKILL_DIRS[@]} skill package(s) created in $SKILLS_OUTPUT_DIR${NC}"
+        echo "  Install: unzip into the target agent's skills directory"
+
+        # Optional upload (OFF unless GIBBON_SKILLS_UPLOAD_TARGET is set).
+        # Archives first, manifest LAST — never leave a manifest pointing at an
+        # archive that is not fully uploaded. Never use rsync --delete: old
+        # versioned archives must stay on the server for rollback.
+        if [ -n "$GIBBON_SKILLS_UPLOAD_TARGET" ]; then
+            echo -e "${BLUE}[skills] Uploading to $GIBBON_SKILLS_UPLOAD_TARGET ...${NC}"
+            UPLOAD_ARCHIVES=("$SKILLS_OUTPUT_DIR"/*.zip "$SKILLS_OUTPUT_DIR"/*.tar.gz)
+            UPLOAD_MANIFESTS=()
+            for m in "${MANIFEST_NAMES[@]}"; do UPLOAD_MANIFESTS+=("$SKILLS_OUTPUT_DIR/$m"); done
+            upload_fail() {
+                echo -e "${RED}Error: skill upload failed${NC}"
+                rm -rf "$TEMP_DIR"
+                exit 1
+            }
+            if [ "$GIBBON_SKILLS_UPLOAD_CMD" = "scp" ] || ! command -v rsync >/dev/null 2>&1; then
+                scp "${UPLOAD_ARCHIVES[@]}" "${UPLOAD_MANIFESTS[@]}" "$GIBBON_SKILLS_UPLOAD_TARGET"/ || upload_fail
+            else
+                rsync -av "${UPLOAD_ARCHIVES[@]}" "${UPLOAD_MANIFESTS[@]}" "$GIBBON_SKILLS_UPLOAD_TARGET"/ || upload_fail
+            fi
+            for m in "${MANIFEST_NAMES[@]}"; do
+                echo "  Verify: curl ${base_url%/}/$m"
+            done
+        fi
+    fi
+    echo ""
+fi
 
 # Clean up temporary directory
 rm -rf "$TEMP_DIR"

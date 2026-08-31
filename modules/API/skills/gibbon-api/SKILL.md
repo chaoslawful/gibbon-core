@@ -4,6 +4,7 @@ description: >-
   通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、教职工、出勤、记分册、行为记录与财务支出。
   仅在用户明确要求使用 gibbon-api skill、按该 REST API 操作 Gibbon、或安装本 skill 后点名操作课表/课程规划时使用。
 disable-model-invocation: true
+version: 1.0.0
 ---
 
 # Gibbon Agent REST API
@@ -14,7 +15,7 @@ disable-model-invocation: true
 
 ## 安装（给其它 agent）
 
-把**本目录**（含 `SKILL.md`）完整拷到目标产品的 skills 目录，文件夹名保持 `gibbon-api`。**不要拷 `.env`**——里面是本机的真实令牌，到目标机后从 `.env.example` 重新建。
+把**本目录**（含 `SKILL.md`）完整拷到目标产品的 skills 目录，文件夹名保持 `gibbon-api`——下方更新机制也按这个名字做备份与替换。**不要拷 `.env`**——里面是本机的真实令牌，到目标机后从 `.env.example` 重新建。
 
 然后：
 
@@ -22,6 +23,7 @@ disable-model-invocation: true
 2. 填写 `GIBBON_API_BASE` 和 `GIBBON_API_TOKEN`
 3. 在 Gibbon 网页 **API → Manage API Tokens** 创建令牌（明文只显示一次，前缀 `gib_pat_`）
 4. 教师写教案、点名、记分册，排课管理员改课表，学校管理员改结构/学期，用户管理员改人员，财务管报销/预算，通常需要**不同角色的令牌**，不要混用
+5. 装好后可看一眼实例版本：`curl -sS "$GIBBON_API_BASE/v1/openapi.json"` 里的 `info.version` 是学校 API 模块版本，接口以 [reference.md](reference.md) 为准。之后每次会话会自动查更新（见「版本与更新」），更新会保留本机 `.env`，无需重新配置令牌
 
 `.env` 与所有 `.env.*` 变体（`.env.local`、`.env.production` 等）只放本机，不要写入 skill 正文或 git。使用时**不得暴露内容**：不要把文件原文或其中的 `GIBBON_API_TOKEN` 等值打印到对话、报告或任何生成的文件里；在 shell 里用 `$变量名` 引用即可。模板 `.env.example` 不含真实凭据，不受此限。
 
@@ -56,6 +58,98 @@ curl -sS \
    - `finance.expenses` / `finance.expensesAll`：报销；`finance.fees`：费用目录；`finance.budgets`：预算；`finance.pettyCash`：零用金
    - `behaviour.write` / `behaviour.writeAll`：行为记录
    - 预算周期（`budgetCycles_manage`）与报销审批人（`expenseApprovers_manage`）没有对应 capability，403 即缺权
+
+5. 顺手做一次版本检查（见下方「版本与更新」）。拉不到 manifest 就跳过：**不重试、不影响后续任何操作**。
+
+## 版本与更新
+
+版本号在本文件开头 frontmatter 的 `version:`，是本 skill 自己的 semver（从 1.0.0 起），与 Gibbon 核心版本、API 模块版本无关。更新源是一份固定地址的 manifest，声明最新版本、对应的 API 模块版本 `moduleVersion` 和下载包；manifest 由发布脚本生成，保证**一个字段占一行**。
+
+- manifest 地址默认 `https://SKILL_HOST/skills/manifest.json`。可在 `.env` 设 `GIBBON_SKILL_MANIFEST_URL` 覆盖（换服务器、本地测试时用）。
+
+比较版本用（对 `1.3.03` 这类前导零补丁号同样正确）：
+
+```bash
+ver_cmp() { awk -v a="$1" -v b="$2" 'BEGIN{na=split(a,A,".");nb=split(b,B,".");
+for(i=1;i<=na||i<=nb;i++){x=(i<=na)?A[i]+0:0;y=(i<=nb)?B[i]+0:0;
+if(x>y){print 1;exit}if(x<y){print -1;exit}}print 0}'; }
+```
+
+### 检查更新
+
+```bash
+curl -fsS --max-time 15 "${GIBBON_SKILL_MANIFEST_URL:-https://SKILL_HOST/skills/manifest.json}"
+```
+
+拉到后比较 manifest 的 `version` 与本地 frontmatter 版本（用 `ver_cmp`）：
+
+- 相同：无事，继续。
+- 线上更新：向用户报告本地版本、新版 `version`、`moduleVersion`、`notes` 摘要，先做兼容性核对，**等用户确认**后再按下方步骤更新。
+- 线上更旧：**不要自动降级**（可能是换了服务器或正在回滚）。告知用户；要回退用更新留下的备份目录，或用户明确要求才按 manifest 重装。
+
+### 兼容性核对（发现新版后、下载前做一次）
+
+```bash
+curl -fsS --max-time 15 "$GIBBON_API_BASE/v1/openapi.json"
+```
+
+响应是单行 JSON，看 `info.version`（学校实例的 API 模块版本），与 manifest 的 `moduleVersion` 比较：
+
+- 相等：兼容，正常更新。
+- 实例 < `moduleVersion`：实例模块落后，新版 skill 写的接口可能 404。在确认报告里单列这条风险，建议用户先升级学校 API 模块；用户仍确认要更新的可以继续。
+- 实例 > `moduleVersion`：实例比 skill 覆盖的版本新，可能有未收录接口，提一句即可，不阻塞。
+
+### 更新步骤（用户确认后）
+
+在**包含 `gibbon-api/` 的 skills 目录**里执行：
+
+```bash
+die() { echo "$1" >&2; exit 1; }
+MURL="${GIBBON_SKILL_MANIFEST_URL:-https://SKILL_HOST/skills/manifest.json}"
+[ -d gibbon-api ] || die "当前目录没有 gibbon-api/，请在 skills 目录执行"
+TMP="$(mktemp -d)" && trap 'rm -rf "$TMP"' EXIT
+
+# 1. 拉 manifest 取字段（生成器保证一个字段一行，值内无引号换行）
+curl -fsS --max-time 15 "$MURL" > "$TMP/manifest.json" || die "manifest 拉取失败，放弃更新"
+get() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$TMP/manifest.json" | head -1; }
+NEW_VER="$(get version)"; MOD_VER="$(get moduleVersion)"
+[ -n "$NEW_VER" ] && [ -n "$MOD_VER" ] || die "manifest 缺 version/moduleVersion，放弃"
+
+# 2. 选包下载：有 unzip 用 zip，否则用 tar.gz
+if command -v unzip >/dev/null 2>&1; then URL="$(get zipUrl)"; SHA="$(get sha256)"; EXT=zip
+else URL="$(get tarUrl)"; SHA="$(get tarSha256)"; EXT=tgz; fi
+[ -n "$URL" ] && [ -n "$SHA" ] || die "manifest 缺下载地址或 sha256，放弃"
+curl -fsS --max-time 120 -o "$TMP/skill.$EXT" "$URL" || die "下载失败，放弃"
+
+# 3. sha256 校验（sha256sum → shasum → openssl 依次回退），不符立即放弃，不动现有目录
+sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+  elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
+  else openssl dgst -sha256 "$1" | awk '{print $NF}'; fi; }
+GOT="$(sha256 "$TMP/skill.$EXT")"
+[ "$GOT" = "$SHA" ] || die "sha256 不符（期望 $SHA，实得 $GOT），已丢弃"
+
+# 4. 解压并确认顶层目录
+if [ "$EXT" = zip ]; then (cd "$TMP" && unzip -q skill.zip)
+else (cd "$TMP" && tar -xzf skill.tgz); fi
+[ -f "$TMP/gibbon-api/SKILL.md" ] || die "包里没有 gibbon-api/SKILL.md，放弃"
+
+# 5. 备份旧目录 → 换新目录 → 从备份恢复本机 .env（失败自动还原）
+BAK="gibbon-api.bak.$(date +%Y%m%d%H%M%S).$$"
+mv gibbon-api "$BAK" || die "备份失败，原目录未动"
+if mv "$TMP/gibbon-api" gibbon-api; then
+  find "$BAK" -maxdepth 1 -type f \( -name '.env' -o -name '.env.*' \) ! -name '.env.example' -exec cp -p {} gibbon-api/ \;
+  echo "已更新到 $NEW_VER（对应 API 模块 $MOD_VER）。旧目录备份在 $BAK，验证无误后可删。"
+else
+  mv "$BAK" gibbon-api && die "替换失败，已还原原目录"
+fi
+```
+
+注意：
+
+- **整目录替换，不做逐文件覆盖**——解压不会删除旧版已删掉的文件，逐文件覆盖会混出"半新半旧"的目录。
+- `.env` 与所有 `.env.*`（不含 `.env.example`）从备份拷回。本地改过 `.env.example` 的会被新版覆盖，去备份找。
+- 本地对 SKILL.md、reference.md 等的修改会被覆盖，**需要时从 `$BAK` 备份目录找回**。
+- 更新完成后**重新读一遍本文件与 reference.md / workflows.md**（新版内容可能变化），再继续用户任务。
 
 ## 请求约定
 
