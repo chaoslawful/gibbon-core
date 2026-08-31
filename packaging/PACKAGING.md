@@ -123,17 +123,17 @@ tar -tzf /home/wxz/src/gibbon-core-{VERSION}.tar.gz | head -20
 3. 在 `CHANGELOG.md` 顶部加 `## <版本> - <日期>` 小节（它就是未来 manifest 的 `notes`）
 4. `./package_release.sh -k -o ~/releases`
 5. 自检：`unzip -l` 确认包内无 `.env`；manifest 的 sha256 与本地 `sha256sum` 一致；有条件时本地 `python3 -m http.server` 跑一遍更新流程
-6. 上传（见下），或手动 scp——**manifest 最后传**
+6. 手动上传（见下，脚本不做上传）——**manifest 最后传**
 7. 线上 `curl <manifest 地址>` 核对 version 与 sha256
 8. git 提交 skill 源文件与脚本（manifest 产物不进仓库）
 
-### 上传（可选，默认关闭）
+### 上传（手动）
+
+脚本只负责本地打包，**不执行上传**；发布时手动 scp/rsync `<output>/skills/` 下的产物到下载服务器。
 
 环境变量：
 
 - `GIBBON_SKILLS_BASE_URL`：写进 manifest 的公开地址前缀（默认 `https://SKILL_HOST/skills`，**占位符，服务器地址定了要全局替换**）
-- `GIBBON_SKILLS_UPLOAD_TARGET`：如 `user@host:/srv/dl/gibbon/skills`；设置了才启用上传
-- `GIBBON_SKILLS_UPLOAD_CMD`：`rsync`（默认）或 `scp`
 
 上传顺序固定**先传包、最后传 manifest**，避免 manifest 指向未传完的包；**绝不用 `--delete`**——旧版本包必须常驻服务器供回滚。
 

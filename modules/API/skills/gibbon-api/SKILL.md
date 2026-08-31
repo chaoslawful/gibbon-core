@@ -4,7 +4,7 @@ description: >-
   通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、教职工、出勤、记分册、行为记录与财务支出。
   仅在用户明确要求使用 gibbon-api skill、按该 REST API 操作 Gibbon、或安装本 skill 后点名操作课表/课程规划时使用。
 disable-model-invocation: true
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Gibbon Agent REST API
@@ -15,21 +15,15 @@ version: 1.0.0
 
 ## 安装（给其它 agent）
 
-把**本目录**（含 `SKILL.md`）完整拷到目标产品的 skills 目录，文件夹名保持 `gibbon-api`——下方更新机制也按这个名字做备份与替换。**不要拷 `.env`**——里面是本机的真实令牌，到目标机后从 `.env.example` 重新建。
+把**本目录**（含 `SKILL.md`）完整拷到目标产品的 skills 目录，文件夹名保持 `gibbon-api`——下方更新机制也按这个名字做备份与替换。**不要拷 `.env`**——里面是本机的真实令牌，到目标机后由引导重新生成。
 
-然后：
-
-1. 复制 `.env.example` 为 `.env`
-2. 填写 `GIBBON_API_BASE` 和 `GIBBON_API_TOKEN`
-3. 在 Gibbon 网页 **API → Manage API Tokens** 创建令牌（明文只显示一次，前缀 `gib_pat_`）
-4. 教师写教案、点名、记分册，排课管理员改课表，学校管理员改结构/学期，用户管理员改人员，财务管报销/预算，通常需要**不同角色的令牌**，不要混用
-5. 装好后可看一眼实例版本：`curl -sS "$GIBBON_API_BASE/v1/openapi.json"` 里的 `info.version` 是学校 API 模块版本，接口以 [reference.md](reference.md) 为准。之后每次会话会自动查更新（见「版本与更新」），更新会保留本机 `.env`，无需重新配置令牌
+拷完后**立即按 [setup.md](setup.md) 执行首次配置引导**：它会检测缺失项（`.env`、令牌、更新主机占位符），一次一项地询问用户、逐项验证并生成 `.env`（其中第 1 步的 openapi.json 探测会顺带报出学校 API 模块版本，接口以 [reference.md](reference.md) 为准）。之后每次会话会自动查更新（见「版本与更新」），更新会保留本机 `.env`，无需重新配置令牌
 
 `.env` 与所有 `.env.*` 变体（`.env.local`、`.env.production` 等）只放本机，不要写入 skill 正文或 git。使用时**不得暴露内容**：不要把文件原文或其中的 `GIBBON_API_TOKEN` 等值打印到对话、报告或任何生成的文件里；在 shell 里用 `$变量名` 引用即可。模板 `.env.example` 不含真实凭据，不受此限。
 
 ## 每次会话开始
 
-1. 确认 **本 skill 目录** 的 `.env` 已填好。没有就复制 `.env.example`，停下来问用户要 base 和 token。加载用 shell `source`（见下方命令）；**不要用读文件工具打开或打印 `.env`**（部分运行环境会直接拒绝读取）。
+1. 确认 **本 skill 目录** 的 `.env` 已填好、更新主机已配置（检测命令见 [setup.md](setup.md) 开篇）。检测到缺失——无 `.env`、令牌仍是占位值、或 SKILL.md 仍是 `SKILL_HOST` 占位且 `.env` 未设 `GIBBON_SKILL_MANIFEST_URL`——就先走 setup.md 引导补齐再继续。加载用 shell `source`（见下方命令）；**不要用读文件工具打开或打印 `.env`**（部分运行环境会直接拒绝读取）。
 2. `GIBBON_API_BASE` 推荐 `http://主机/api.php`（不依赖 `/api` rewrite）。不要末尾斜杠。
 3. 先探测身份，失败则停止，把响应里的 `error` 原样告诉用户：
 
@@ -65,7 +59,7 @@ curl -sS \
 
 版本号在本文件开头 frontmatter 的 `version:`，是本 skill 自己的 semver（从 1.0.0 起），与 Gibbon 核心版本、API 模块版本无关。更新源是一份固定地址的 manifest，声明最新版本、对应的 API 模块版本 `moduleVersion` 和下载包；manifest 由发布脚本生成，保证**一个字段占一行**。
 
-- manifest 地址默认 `https://SKILL_HOST/skills/manifest.json`。可在 `.env` 设 `GIBBON_SKILL_MANIFEST_URL` 覆盖（换服务器、本地测试时用）。
+- manifest 地址默认 `https://SKILL_HOST/skills/manifest.json`（占位符）。实际地址在安装时由 [setup.md](setup.md) 引导写入 `.env` 的 `GIBBON_SKILL_MANIFEST_URL`；换服务器、本地测试时也改这个键。
 
 比较版本用（对 `1.3.03` 这类前导零补丁号同样正确）：
 

@@ -40,11 +40,12 @@ If options are not specified, default values will be used:
                         or current working directory
     - Output directory: Parent directory of source directory
 
-Skill upload (optional, OFF by default, only used with -k, set via environment variables):
+Skill packaging (optional, only used with -k, set via environment variables):
     GIBBON_SKILLS_BASE_URL        Public base URL written into manifest.json
                                   (default: https://SKILL_HOST/skills)
-    GIBBON_SKILLS_UPLOAD_TARGET   e.g. user@host:/srv/dl/gibbon/skills — set to enable upload
-    GIBBON_SKILLS_UPLOAD_CMD      rsync (default) or scp
+
+Uploading the skill packages to a server is NOT done by this script —
+copy <output>/skills/ manually (upload the manifests LAST).
 
 EOF
 }
@@ -419,7 +420,6 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
     if [ "${#SKILL_DIRS[@]}" -eq 0 ]; then
         echo -e "${YELLOW}Warning: No skills found under $SKILLS_SRC${NC}"
     else
-        MANIFEST_NAMES=()
         for skill_dir in "${SKILL_DIRS[@]}"; do
             skill_name="$(basename "$skill_dir")"
 
@@ -475,7 +475,6 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
             else
                 manifest_file="$SKILLS_OUTPUT_DIR/manifest-${skill_name}.json"
             fi
-            MANIFEST_NAMES+=("$(basename "$manifest_file")")
 
             # One field per line; values carry no quotes/newlines — the skill-side
             # update script (SKILL.md) relies on both guarantees.
@@ -503,30 +502,7 @@ EOF
         echo ""
         echo -e "${GREEN}✓ ${#SKILL_DIRS[@]} skill package(s) created in $SKILLS_OUTPUT_DIR${NC}"
         echo "  Install: unzip into the target agent's skills directory"
-
-        # Optional upload (OFF unless GIBBON_SKILLS_UPLOAD_TARGET is set).
-        # Archives first, manifest LAST — never leave a manifest pointing at an
-        # archive that is not fully uploaded. Never use rsync --delete: old
-        # versioned archives must stay on the server for rollback.
-        if [ -n "$GIBBON_SKILLS_UPLOAD_TARGET" ]; then
-            echo -e "${BLUE}[skills] Uploading to $GIBBON_SKILLS_UPLOAD_TARGET ...${NC}"
-            UPLOAD_ARCHIVES=("$SKILLS_OUTPUT_DIR"/*.zip "$SKILLS_OUTPUT_DIR"/*.tar.gz)
-            UPLOAD_MANIFESTS=()
-            for m in "${MANIFEST_NAMES[@]}"; do UPLOAD_MANIFESTS+=("$SKILLS_OUTPUT_DIR/$m"); done
-            upload_fail() {
-                echo -e "${RED}Error: skill upload failed${NC}"
-                rm -rf "$TEMP_DIR"
-                exit 1
-            }
-            if [ "$GIBBON_SKILLS_UPLOAD_CMD" = "scp" ] || ! command -v rsync >/dev/null 2>&1; then
-                scp "${UPLOAD_ARCHIVES[@]}" "${UPLOAD_MANIFESTS[@]}" "$GIBBON_SKILLS_UPLOAD_TARGET"/ || upload_fail
-            else
-                rsync -av "${UPLOAD_ARCHIVES[@]}" "${UPLOAD_MANIFESTS[@]}" "$GIBBON_SKILLS_UPLOAD_TARGET"/ || upload_fail
-            fi
-            for m in "${MANIFEST_NAMES[@]}"; do
-                echo "  Verify: curl ${base_url%/}/$m"
-            done
-        fi
+        echo "  Upload is manual: copy the archives first, the manifest(s) LAST"
     fi
     echo ""
 fi
