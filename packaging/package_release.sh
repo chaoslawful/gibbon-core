@@ -23,7 +23,8 @@ Options:
     -n, --no-vendor-lib  Exclude vendor and lib directories from the package
     -k, --skills-zip     Also package each skill under modules/API/skills/ into versioned
                          zip + tar.gz plus a generated manifest.json, installable and
-                         update-checkable by other agent tools (output to <output>/skills/).
+                         update-checkable by other agent tools (each skill's artifacts go
+                         to <output>/skills/<skill-name>/).
                          Skill version comes from each SKILL.md frontmatter "version:",
                          NOT from the core version.php.
     -h, --help           Show this help message
@@ -45,7 +46,7 @@ Skill packaging (optional, only used with -k, set via environment variables):
                                   (default: https://SKILL_HOST/skills)
 
 Uploading the skill packages to a server is NOT done by this script —
-copy <output>/skills/ manually (upload the manifests LAST).
+copy <output>/skills/ manually (upload each skill's manifest.json LAST).
 
 EOF
 }
@@ -406,7 +407,7 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
         else openssl dgst -sha256 "$1" | awk '{print $NF}'; fi
     }
 
-    # Collect installable skills first (the count decides manifest file naming)
+    # Collect installable skills first so an empty set is reported once, not silently
     SKILL_DIRS=()
     for skill_dir in "$SKILLS_SRC"/*/; do
         [ -d "$skill_dir" ] || continue
@@ -440,8 +441,12 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
             find "$SKILLS_STAGE/$skill_name" -type d \( -name ".git" -o -name ".workbuddy" \) -exec rm -rf {} + 2>/dev/null || true
             find "$SKILLS_STAGE/$skill_name" -type f \( -name ".env" -o -name ".env.*" \) ! -name ".env.example" -exec rm -f {} + 2>/dev/null || true
 
-            zip_file="$SKILLS_OUTPUT_DIR/${skill_name}-${SKILL_VER}.zip"
-            tar_file="$SKILLS_OUTPUT_DIR/${skill_name}-${SKILL_VER}.tar.gz"
+            # Each skill gets its own output subdir: skills/<name>/{zip,tar.gz,manifest.json}
+            skill_out="$SKILLS_OUTPUT_DIR/$skill_name"
+            mkdir -p "$skill_out"
+
+            zip_file="$skill_out/${skill_name}-${SKILL_VER}.zip"
+            tar_file="$skill_out/${skill_name}-${SKILL_VER}.tar.gz"
             rm -f "$zip_file" "$tar_file"
             (cd "$SKILLS_STAGE" && zip -q -r -X "$zip_file" "$skill_name")
             (cd "$SKILLS_STAGE" && tar -czf "$tar_file" "$skill_name")
@@ -470,11 +475,8 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
             released_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             base_url="${SKILLS_BASE_URL%/}"
 
-            if [ "${#SKILL_DIRS[@]}" -eq 1 ]; then
-                manifest_file="$SKILLS_OUTPUT_DIR/manifest.json"
-            else
-                manifest_file="$SKILLS_OUTPUT_DIR/manifest-${skill_name}.json"
-            fi
+            # Own subdir per skill, so the manifest is always plain manifest.json
+            manifest_file="$skill_out/manifest.json"
 
             # One field per line; values carry no quotes/newlines — the skill-side
             # update script (SKILL.md) relies on both guarantees.
@@ -483,8 +485,8 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
   "name": "$skill_name",
   "version": "$SKILL_VER",
   "moduleVersion": "$MOD_VER",
-  "zipUrl": "$base_url/${skill_name}-${SKILL_VER}.zip",
-  "tarUrl": "$base_url/${skill_name}-${SKILL_VER}.tar.gz",
+  "zipUrl": "$base_url/$skill_name/${skill_name}-${SKILL_VER}.zip",
+  "tarUrl": "$base_url/$skill_name/${skill_name}-${SKILL_VER}.tar.gz",
   "sha256": "$zip_sha",
   "tarSha256": "$tar_sha",
   "size": $zip_size,
@@ -493,12 +495,9 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
 }
 EOF
 
-            echo "  Created: skills/${skill_name}-${SKILL_VER}.zip ($(du -h "$zip_file" | cut -f1)) + .tar.gz + $(basename "$manifest_file")"
+            echo "  Created: skills/${skill_name}/${skill_name}-${SKILL_VER}.zip ($(du -h "$zip_file" | cut -f1)) + .tar.gz + manifest.json"
         done
 
-        if [ "${#SKILL_DIRS[@]}" -gt 1 ]; then
-            echo -e "${YELLOW}Note: multiple skills found — wrote per-skill manifests (manifest-<name>.json)${NC}"
-        fi
         echo ""
         echo -e "${GREEN}✓ ${#SKILL_DIRS[@]} skill package(s) created in $SKILLS_OUTPUT_DIR${NC}"
         echo "  Install: unzip into the target agent's skills directory"

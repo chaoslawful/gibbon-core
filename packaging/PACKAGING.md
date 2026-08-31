@@ -89,10 +89,10 @@ tar -tzf /home/wxz/src/gibbon-core-{VERSION}.tar.gz | head -20
 
 ## Agent Skill 打包（-k / --skills-zip）
 
-加 `-k` 后，脚本额外把 `modules/API/skills/` 下每个含 `SKILL.md` 的 skill 打成可安装、可检查更新的产物，输出到 `<output>/skills/`：
+加 `-k` 后，脚本额外把 `modules/API/skills/` 下每个含 `SKILL.md` 的 skill 打成可安装、可检查更新的产物，各自输出到 `<output>/skills/<skill>/`：
 
 - `<skill>-<skill版本>.zip` 与 `<skill>-<skill版本>.tar.gz`：同一份 staging 内容的双格式包（tar.gz 给没有 `unzip` 的环境回退）
-- `manifest.json`：只有一个 skill 时；将来有多个 skill 时各写 `manifest-<name>.json`
+- `manifest.json`：本 skill 的清单，固定在自己子目录下，多 skill 也不会重名（无需 `manifest-<name>.json` 之类的后缀）
 
 包内排除 `.git`、`.workbuddy`、`.env` 与 `.env.*`（保留 `.env.example` 模板），保留 `.gitignore`、`CHANGELOG.md` 等其余文件。
 
@@ -108,7 +108,7 @@ tar -tzf /home/wxz/src/gibbon-core-{VERSION}.tar.gz | head -20
 | `name` | skill 目录名 |
 | `version` | 最新 skill semver |
 | `moduleVersion` | 本版 skill 对应的 API 模块版本 |
-| `zipUrl` / `tarUrl` | 绝对下载地址；文件名带版本号、内容不可变 |
+| `zipUrl` / `tarUrl` | 绝对下载地址（`<base>/<skill>/<文件名>`）；文件名带版本号、内容不可变 |
 | `sha256` / `tarSha256` | zip / tar.gz 的 sha256（两种格式字节不同，分开算） |
 | `size` | zip 字节数 |
 | `releasedAt` | UTC ISO 8601 |
@@ -137,9 +137,11 @@ tar -tzf /home/wxz/src/gibbon-core-{VERSION}.tar.gz | head -20
 
 上传顺序固定**先传包、最后传 manifest**，避免 manifest 指向未传完的包；**绝不用 `--delete`**——旧版本包必须常驻服务器供回滚。
 
+> 布局是按 skill 分目录（`skills/<skill>/…`）。从旧平铺布局（包和 manifest 直接在 `skills/` 根下）迁移过来的服务器，记得手动清掉根下的旧 `manifest.json` 与旧包，避免残留的旧清单被旧地址的 agent 继续拉到。
+
 ### 回滚
 
-- 全局：把线上 `manifest.json` 换回旧版内容即可。注意 agent 端默认不自动降级——会提示用户"线上是旧版"，用户明确同意才按 manifest 重装（防误传/测试服务器导致静默回退）。
+- 全局：把线上 `skills/<skill>/manifest.json` 换回旧版内容即可。注意 agent 端默认不自动降级——会提示用户"线上是旧版"，用户明确同意才按 manifest 重装（防误传/测试服务器导致静默回退）。
 - 单机：`mv gibbon-api gibbon-api.broken && mv gibbon-api.bak.<时间戳> gibbon-api`（`.env` 在备份目录里）。
 
 ### 服务器缓存建议

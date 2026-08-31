@@ -4,7 +4,7 @@ description: >-
   通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、教职工、出勤、记分册、行为记录与财务支出。
   仅在用户明确要求使用 gibbon-api skill、按该 REST API 操作 Gibbon、或安装本 skill 后点名操作课表/课程规划时使用。
 disable-model-invocation: true
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Gibbon Agent REST API
@@ -59,7 +59,7 @@ curl -sS \
 
 版本号在本文件开头 frontmatter 的 `version:`，是本 skill 自己的 semver（从 1.0.0 起），与 Gibbon 核心版本、API 模块版本无关。更新源是一份固定地址的 manifest，声明最新版本、对应的 API 模块版本 `moduleVersion` 和下载包；manifest 由发布脚本生成，保证**一个字段占一行**。
 
-- manifest 地址默认 `https://SKILL_HOST/skills/manifest.json`（占位符）。实际地址在安装时由 [setup.md](setup.md) 引导写入 `.env` 的 `GIBBON_SKILL_MANIFEST_URL`；换服务器、本地测试时也改这个键。
+- manifest 地址默认 `https://SKILL_HOST/skills/gibbon-api/manifest.json`（占位符）。实际地址在安装时由 [setup.md](setup.md) 引导写入 `.env` 的 `GIBBON_SKILL_MANIFEST_URL`；换服务器、本地测试时也改这个键。
 
 比较版本用（对 `1.3.03` 这类前导零补丁号同样正确）：
 
@@ -72,7 +72,7 @@ if(x>y){print 1;exit}if(x<y){print -1;exit}}print 0}'; }
 ### 检查更新
 
 ```bash
-curl -fsS --max-time 15 "${GIBBON_SKILL_MANIFEST_URL:-https://SKILL_HOST/skills/manifest.json}"
+curl -fsS --max-time 15 "${GIBBON_SKILL_MANIFEST_URL:-https://SKILL_HOST/skills/gibbon-api/manifest.json}"
 ```
 
 拉到后比较 manifest 的 `version` 与本地 frontmatter 版本（用 `ver_cmp`）：
@@ -99,7 +99,7 @@ curl -fsS --max-time 15 "$GIBBON_API_BASE/v1/openapi.json"
 
 ```bash
 die() { echo "$1" >&2; exit 1; }
-MURL="${GIBBON_SKILL_MANIFEST_URL:-https://SKILL_HOST/skills/manifest.json}"
+MURL="${GIBBON_SKILL_MANIFEST_URL:-https://SKILL_HOST/skills/gibbon-api/manifest.json}"
 [ -d gibbon-api ] || die "当前目录没有 gibbon-api/，请在 skills 目录执行"
 TMP="$(mktemp -d)" && trap 'rm -rf "$TMP"' EXIT
 

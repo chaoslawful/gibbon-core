@@ -36,7 +36,7 @@ cd /home/wxz/src/gibbon-core/packaging
 # 只指定输出目录（源目录使用默认值）
 ./package_release.sh -o /tmp/releases
 
-# 额外打包 agent skill（zip/tar.gz/manifest.json，输出到 <output>/skills/）
+# 额外打包 agent skill（zip/tar.gz/manifest.json，输出到 <output>/skills/<skill>/）
 ./package_release.sh -k
 ```
 

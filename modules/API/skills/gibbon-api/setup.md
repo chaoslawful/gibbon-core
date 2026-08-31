@@ -14,7 +14,7 @@ if [ -f .env ]; then
 fi
 # 更新主机：SKILL.md 仍是占位符 且 .env 未覆盖（占位值视同未设）→ 需要询问
 MURL="${GIBBON_SKILL_MANIFEST_URL:-}"
-[ "$MURL" = "https://SKILL_HOST/skills/manifest.json" ] && MURL=""
+[ "$MURL" = "https://SKILL_HOST/skills/gibbon-api/manifest.json" ] && MURL=""
 { [ -z "$MURL" ] && grep -q 'SKILL_HOST' SKILL.md; } && MISS_HOST=1
 echo "MISS_ENV=$MISS_ENV MISS_HOST=$MISS_HOST"
 ```
@@ -72,9 +72,9 @@ curl -sS \
 
 ## 5. 更新主机（MISS_HOST=1 时）
 
-说明现状：本 skill 的更新检查默认指向占位地址 `https://SKILL_HOST/skills/manifest.json`（SKILL.md 内置），需要用户提供 skill 下载服务器地址才能检查更新。
+说明现状：本 skill 的更新检查默认指向占位地址 `https://SKILL_HOST/skills/gibbon-api/manifest.json`（SKILL.md 内置），需要用户提供 skill 下载服务器地址才能检查更新。
 
-问用户服务器地址。给了裸主机名就自动补成 `$地址/skills/manifest.json`，用户直接给了 manifest 完整地址就用原样。验证：
+问用户服务器地址。给了裸主机名就自动补成 `$地址/skills/gibbon-api/manifest.json`（服务器上每个 skill 一个同名子目录），用户直接给了 manifest 完整地址就用原样。验证：
 
 ```bash
 curl -fsS --max-time 15 "$MURL"
