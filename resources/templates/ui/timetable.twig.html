@@ -9,8 +9,9 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
 -->#}
 
 {% set now = structure.getToday.format('H:i:s') %}
+{% set nowClock = nowClock ?? structure.getNowClock() %}
 
-<div id="timetable" name='tt' x-data='{ ttDate: "", ttID: "{{ gibbonTTID }}", ttRefresh: false, ttPopup: false, ttActiveDay: "{{ structure.getActiveDay.nameShort }}", showCurrentTime: {{ options.showCurrentTime is same as ('0') ? 'false' : 'true' }}, onlyMyEvents: {{ gibbonPersonID and options.onlyMyEvents ? 'true' : 'false' }} }' @ttpopup.window="ttPopup = false">
+<div id="timetable" name='tt' x-data='{ ttDate: "", ttID: "{{ gibbonTTID }}", ttRefresh: false, ttPopup: false, ttActiveDay: "{{ structure.getActiveDay.nameShort }}", showCurrentTime: {{ options.showCurrentTime is same as ('0') ? 'false' : 'true' }}, onlyMyEvents: {{ gibbonPersonID and options.onlyMyEvents ? 'true' : 'false' }}, nowTime: "{{ now }}", todayDate: "{{ structure.getToday.format('Y-m-d') }}", nowLabel: "{{ structure.getToday.format('G:i') }}", nowLineTop: {{ nowClock.lineTop }}, nowLineInRange: {{ nowClock.inRange ? 'true' : 'false' }} }'{% if format != 'print' %} data-now-clock="{{ nowClock|json_encode|e('html_attr') }}" x-init="window.gibbonTimetableNowClock && window.gibbonTimetableNowClock($data, $el)"{% endif %} @ttpopup.window="ttPopup = false">
 
     <div x-data="{{ layersToggle }}" class="relative" >
 
@@ -68,16 +69,11 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
         
     <div class="relative flex flex-row gap-2 xl:gap-3 w-full">
     
-        {% if structure.isCurrentWeek and structure.getStartTime <= now and structure.getEndTime >= now and format != 'print' %}
-
-        {% if structure.getStartTime < structure.getActiveDay.schoolStart %}
-            {% set dayOffset = structure.timeToPixels(structure.getStartTime) - structure.timeToPixels(structure.getActiveDay.schoolStart) %}
-        {% endif %}
-
-        <div x-show="showCurrentTime" class="print:hidden absolute ml-1 w-full left-0" style="top: {{ structure.timeToPixels(now) + dayOffset }}px">
+        {% if structure.isCurrentWeek and format != 'print' %}
+        <div x-cloak x-show="showCurrentTime && nowLineInRange" class="print:hidden absolute ml-1 w-full left-0 z-10 pointer-events-none" :style="'top: ' + nowLineTop + 'px'">
             <div class="border-b-2 border-blue-500 w-full"></div>
             <div class="absolute origin-center text-center left-0 -mt-3 rounded-full border border-blue-500 bg-blue-500 w-10 shadow">
-                <span class="inline-block text-xxs text-white uppercase leading-loose">{{ structure.getToday.format('G:i') }}</span>
+                <span class="inline-block text-xxs text-white uppercase leading-loose" x-text="nowLabel">{{ structure.getToday.format('G:i') }}</span>
             </div>
             <div class="absolute origin-center w-1.5 h-1.5 right-0 -mr-1 -mt-1 rounded-full bg-blue-500 shadow"></div>
         </div>
@@ -109,5 +105,113 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
             cursor: 'move',
         });
     });
+
+    window.gibbonTimetableNowClock = function (data, el) {
+        var config = {};
+        try {
+            config = JSON.parse(el.getAttribute('data-now-clock') || '{}');
+        } catch (e) {
+            return;
+        }
+        if (!config.timezone) return;
+
+        if (window.Alpine && typeof Alpine.store === 'function' && typeof Alpine.store('timetableNow') === 'undefined') {
+            Alpine.store('timetableNow', { time: data.nowTime || '', date: data.todayDate || '' });
+        }
+
+        var clientLoad = Date.now();
+        var serverNow = Number(config.serverNow);
+        var timer = null;
+
+        function padTime(value) {
+            return String(value).length === 5 ? value + ':00' : String(value);
+        }
+
+        function schoolNow() {
+            var date = new Date(serverNow + (Date.now() - clientLoad));
+            var parts = {};
+            new Intl.DateTimeFormat('en-GB', {
+                timeZone: config.timezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+                hourCycle: 'h23',
+            }).formatToParts(date).forEach(function (part) {
+                if (part.type !== 'literal') parts[part.type] = part.value;
+            });
+
+            var hour = Number(parts.hour);
+            var minute = Number(parts.minute);
+            return {
+                time: parts.hour + ':' + parts.minute + ':' + parts.second,
+                date: parts.year + '-' + parts.month + '-' + parts.day,
+                label: hour + ':' + parts.minute,
+                minutes: hour * 60 + minute,
+                seconds: Number(parts.second),
+            };
+        }
+
+        function apply() {
+            if (!document.body.contains(el)) {
+                stop();
+                return;
+            }
+
+            var now = schoolNow();
+            var start = padTime(config.startTime);
+            var end = padTime(config.endTime);
+            var startParts = start.split(':');
+            var startMinutes = Number(startParts[0]) * 60 + Number(startParts[1]);
+            var inWeek = config.weekStart && config.weekEnd && now.date >= config.weekStart && now.date <= config.weekEnd;
+            var inRange = inWeek && start && end && now.time >= start && now.time <= end;
+            var top = Math.round((now.minutes - startMinutes) * Number(config.pixelRatio)) + Number(config.dayOffset || 0);
+
+            data.nowTime = now.time;
+            data.todayDate = now.date;
+            data.nowLabel = now.label;
+            data.nowLineTop = top;
+            data.nowLineInRange = inRange;
+
+            if (window.Alpine && typeof Alpine.store === 'function') {
+                if (typeof Alpine.store('timetableNow') === 'undefined') {
+                    Alpine.store('timetableNow', { time: now.time, date: now.date });
+                } else {
+                    Alpine.store('timetableNow').time = now.time;
+                    Alpine.store('timetableNow').date = now.date;
+                }
+            }
+        }
+
+        function schedule() {
+            clearTimeout(timer);
+            var now = schoolNow();
+            var wait = (60 - now.seconds) * 1000 - (Date.now() % 1000);
+            if (wait < 200) wait += 60000;
+            timer = setTimeout(function () {
+                apply();
+                schedule();
+            }, wait);
+        }
+
+        function stop() {
+            clearTimeout(timer);
+            document.removeEventListener('visibilitychange', onVisible);
+        }
+
+        function onVisible() {
+            if (!document.hidden) {
+                apply();
+                schedule();
+            }
+        }
+
+        apply();
+        schedule();
+        document.addEventListener('visibilitychange', onVisible);
+    };
     {% endif %}
 </script>

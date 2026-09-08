@@ -90,6 +90,62 @@ class Structure
         return $this->today->format('G:i');
     }
 
+    public function getPixelRatio()
+    {
+        return $this->pixelRatio;
+    }
+
+    /**
+     * Client-side now-indicator config, using the school timezone.
+     *
+     * @return array
+     */
+    public function getNowClock() : array
+    {
+        $empty = [
+            'timezone'   => date_default_timezone_get(),
+            'serverNow'  => (int) round(microtime(true) * 1000),
+            'startTime'  => $this->timeStart ?? '',
+            'endTime'    => $this->timeEnd ?? '',
+            'pixelRatio' => $this->pixelRatio,
+            'dayOffset'  => 0,
+            'weekStart'  => '',
+            'weekEnd'    => '',
+            'lineTop'    => 0,
+            'inRange'    => false,
+        ];
+
+        if (empty($this->today) || empty($this->currentDate) || empty($this->timeStart) || empty($this->timeEnd)) {
+            return $empty;
+        }
+
+        $this->getTimeRange();
+
+        $activeDay = $this->activeDay;
+        $dayOffset = 0;
+        $schoolStart = is_array($activeDay) ? ($activeDay['schoolStart'] ?? '') : '';
+        if (!empty($this->timeStart) && !empty($schoolStart) && $this->timeStart < $schoolStart) {
+            $dayOffset = $this->timeToPixels($this->timeStart) - $this->timeToPixels($schoolStart);
+        }
+
+        $nowHms = $this->today->format('H:i:s');
+
+        return [
+            'timezone'   => date_default_timezone_get(),
+            'serverNow'  => (int) round(microtime(true) * 1000),
+            'startTime'  => $this->timeStart ?? '',
+            'endTime'    => $this->timeEnd ?? '',
+            'pixelRatio' => $this->pixelRatio,
+            'dayOffset'  => $dayOffset,
+            'weekStart'  => $this->getStartDate(),
+            'weekEnd'    => $this->getEndDate(),
+            'lineTop'    => $this->timeToPixels($nowHms) + $dayOffset,
+            'inRange'    => $this->isCurrentWeek()
+                && !empty($this->timeStart) && !empty($this->timeEnd)
+                && $this->timeStart <= $nowHms && $this->timeEnd >= $nowHms,
+        ];
+    }
+
     public function getCurrentDate()
     {
         return $this->currentDate;
