@@ -98,16 +98,16 @@ tar -tzf /home/wxz/src/gibbon-core-{VERSION}.tar.gz | head -20
 
 ### 版本号来源
 
-- **skill 版本**：`SKILL.md` frontmatter 的 `version:`（semver，唯一来源）。缺失或不是 `X.Y.Z` 时脚本直接报错退出，**不会回落到核心版本**。
-- **moduleVersion**：`modules/API/version.php` 的 `$moduleVersion`（本版 skill 所对应的 API 模块版本）。agent 端拿它与 `GET /v1/openapi.json` 的 `info.version` 比对所连实例的兼容性。
+- **skill 版本**：`SKILL.md` frontmatter 的 `version:`（唯一来源）。缺失或不是 `X.Y.Z`（允许 `1.3.04` 这类补丁前导零）时脚本直接报错退出，**不会回落到核心版本**。
+- **moduleVersion**：`modules/API/version.php` 的 `$moduleVersion`。与 skill `version` **必须相同**——接口或技能有功能变化时两边一起升号。脚本在打包时校验，不一致则失败。agent 端拿 `moduleVersion` 与 `GET /v1/openapi.json` 的 `info.version` 比对所连实例的兼容性。
 
 ### manifest.json 字段
 
 | 字段 | 说明 |
 |---|---|
 | `name` | skill 目录名 |
-| `version` | 最新 skill semver |
-| `moduleVersion` | 本版 skill 对应的 API 模块版本 |
+| `version` | 最新 skill 版本（与 `moduleVersion` 相同） |
+| `moduleVersion` | 同号的 API 模块版本；agent 用来和实例 `openapi.json` 比对 |
 | `zipUrl` / `tarUrl` | 绝对下载地址（`<base>/<skill>/<文件名>`）；文件名带版本号、内容不可变 |
 | `sha256` / `tarSha256` | zip / tar.gz 的 sha256（两种格式字节不同，分开算） |
 | `size` | zip 字节数 |

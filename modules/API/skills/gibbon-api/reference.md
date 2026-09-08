@@ -232,7 +232,7 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 
 ## 记分册
 
-只做栏目与按班给分。量表只读。无 `markbook.editAllClasses` 时只能改自己任教的班。
+只做栏目、按班给分、以及栏目开启后的每生回复文件。量表只读。无 `markbook.editAllClasses` 时只能改自己任教的班。回复文件接口需要学校 API 模块 **1.3.04+**（`GET /v1/openapi.json` 的 `info.version`）；更旧的实例会 404。
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
@@ -240,10 +240,11 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 | GET/POST | `/v1/markbook/classes/{classId}/columns` | 同上；GET 还返回可用 `types` |
 | GET/PATCH/DELETE | `/v1/markbook/columns/{id}` | 同上 |
 | GET/PUT | `/v1/markbook/columns/{id}/entries` | 同上 |
+| POST/GET/DELETE | `/v1/markbook/columns/{id}/entries/{studentId}/response` | 同上；该生回复文件 |
 
 栏目创建必填：`name`、`description`、`type`、`date`。`attainment` 默认 `Y`，此时还要 `gibbonScaleIDAttainment`。`effort` 默认跟随学校 `enableEffort` 设置（关了就是 `N`，给了 `gibbonScaleIDEffort` 也会被清掉）。`comment` 默认 `Y`。`viewableStudents` / `viewableParents` 默认 `N`。没给 `gibbonSchoolYearTermID` 时会按 `date` 自动归入对应学期。不做量规。**删除栏目会连带删掉该栏全部给分，不可恢复。**
 
-`entries` GET 返回 `{ "column": ..., "data": [...] }`，`data` 覆盖全班学生（没给分的字段为 `null`）。
+`entries` GET 返回 `{ "column": ..., "data": [...] }`，`data` 覆盖全班学生（没给分的字段为 `null`）。每条含 `response`：无文件为 `{ "present": false }`；有文件为 `{ "present": true, "size", "contentType", "download" }`，`download` 是 API 路径，不是 `/uploads/` 磁盘路径。没有客户端原文件名。
 
 给分 PUT：
 
@@ -260,7 +261,37 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 }
 ```
 
-`attainmentValue` / `effortValue` 必须是该栏目量表里的 `value`，否则 422；传空字符串表示清除该生分数。只对栏目开启的维度给分（栏目 `comment=N` 时评语会被丢弃）。
+`attainmentValue` / `effortValue` 必须是该栏目量表里的 `value`，否则 422；传空字符串表示清除该生分数。只对栏目开启的维度给分（栏目 `comment=N` 时评语会被丢弃）。PUT 给分**不会**改 `response`；请求里带了 `response` / 文件字段也会被忽略。
+
+回复文件（栏目须 `uploadedResponse=Y`，该生须已有 entry）：
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $GIBBON_API_TOKEN" \
+  -F "file=@./feedback.pdf" \
+  "$GIBBON_API_BASE/v1/markbook/columns/{id}/entries/{studentId}/response"
+```
+
+成功 **200**（不是 201），body 含 `gibbonMarkbookColumnID`、`gibbonPersonIDStudent`、`gibbonMarkbookEntryID` 和 `response` 元数据。已有文件则替换并删除旧磁盘文件。
+
+下载（字节，不是 JSON）：
+
+```bash
+curl -sS -L \
+  -H "Authorization: Bearer $GIBBON_API_TOKEN" \
+  -o ./feedback.pdf \
+  "$GIBBON_API_BASE/v1/markbook/columns/{id}/entries/{studentId}/response"
+```
+
+删除：**204**，磁盘文件一并删除：
+
+```bash
+curl -sS -X DELETE \
+  -H "Authorization: Bearer $GIBBON_API_TOKEN" \
+  "$GIBBON_API_BASE/v1/markbook/columns/{id}/entries/{studentId}/response"
+```
+
+尚无 entry 时 POST **422** `Markbook entry not found. Create it with PUT /entries first.`；栏目未开回复时 **422** `This column does not include uploaded responses. Set uploadedResponse to Y.`；学生不在该班 **422** `gibbonPersonIDStudent is not a student in this class.`；没有回复文件时 GET/DELETE **404** `Uploaded response not found.`；文件类型不允许 **422** `File type is not allowed.`；超过 PHP 上传限制 **413** `The uploaded file exceeds the server size limit.`。文件扩展名须在学校「允许的文件类型」里，且不能是 `js/html/php` 等禁止类型。
 
 ## 出勤报表
 

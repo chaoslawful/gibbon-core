@@ -239,5 +239,8 @@ class RouteMap
         $app->delete('/v1/markbook/columns/{id}', fn ($req, $res, $args) => $mb()->destroyColumn($req, $res, $args));
         $app->get('/v1/markbook/columns/{id}/entries', fn ($req, $res, $args) => $mb()->entries($req, $res, $args));
         $app->put('/v1/markbook/columns/{id}/entries', fn ($req, $res, $args) => $mb()->saveEntries($req, $res, $args));
+        $app->post('/v1/markbook/columns/{id}/entries/{studentId}/response', fn ($req, $res, $args) => $mb()->uploadResponse($req, $res, $args));
+        $app->get('/v1/markbook/columns/{id}/entries/{studentId}/response', fn ($req, $res, $args) => $mb()->downloadResponse($req, $res, $args));
+        $app->delete('/v1/markbook/columns/{id}/entries/{studentId}/response', fn ($req, $res, $args) => $mb()->destroyResponse($req, $res, $args));
     }
 }

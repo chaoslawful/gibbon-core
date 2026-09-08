@@ -65,6 +65,26 @@ class MarkbookController
         return Json::write($response, $this->service->saveEntries($args['id'], $this->body($request)));
     }
 
+    public function uploadResponse(Request $request, Response $response, array $args): Response
+    {
+        $files = $request->getUploadedFiles();
+
+        return Json::write($response, $this->service->uploadResponse($args['id'], $args['studentId'], $files['file'] ?? null));
+    }
+
+    public function downloadResponse(Request $request, Response $response, array $args): Response
+    {
+        $file = $this->service->downloadResponse($args['id'], $args['studentId']);
+
+        return Json::file($response, $file['absolutePath'], $file['downloadName'], $file['contentType'], (int) $file['size']);
+    }
+
+    public function destroyResponse(Request $request, Response $response, array $args): Response
+    {
+        $this->service->deleteResponse($args['id'], $args['studentId']);
+        return Json::empty($response);
+    }
+
     protected function body(Request $request): array
     {
         $body = $request->getParsedBody();

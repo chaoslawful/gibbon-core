@@ -82,7 +82,7 @@ class Spec
             'openapi' => '3.0.3',
             'info' => [
                 'title' => 'Gibbon Agent API',
-                'version' => '1.3.03',
+                'version' => '1.3.04',
                 'description' => 'REST API for authorised agents. Requests run as the token owner with the role locked at token creation. Covers school structure, terms, special days, timetables, courses, people, staff, units, lesson planner, attendance, attendance reports, markbook, behaviour, and finance expenses.',
             ],
             'servers' => [
@@ -434,6 +434,32 @@ class Spec
             '/v1/markbook/columns/{id}/entries' => [
                 'get' => ['summary' => 'List markbook entries for a column', 'parameters' => [$idParam('id', 'gibbonMarkbookColumnID')], 'responses' => ['200' => $ok]],
                 'put' => ['summary' => 'Upsert markbook entries for a class', 'parameters' => [$idParam('id', 'gibbonMarkbookColumnID')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]],
+            ],
+            '/v1/markbook/columns/{id}/entries/{studentId}/response' => [
+                'post' => [
+                    'summary' => 'Upload or replace a student uploaded-response file',
+                    'parameters' => [$idParam('id', 'gibbonMarkbookColumnID'), $idParam('studentId', 'gibbonPersonIDStudent')],
+                    'requestBody' => ['required' => true, 'content' => ['multipart/form-data' => ['schema' => [
+                        'type' => 'object',
+                        'required' => ['file'],
+                        'properties' => ['file' => ['type' => 'string', 'format' => 'binary']],
+                    ]]]],
+                    'responses' => ['200' => $ok, '403' => $err, '404' => $err, '413' => $err, '422' => $err],
+                ],
+                'get' => [
+                    'summary' => 'Download a student uploaded-response file',
+                    'parameters' => [$idParam('id', 'gibbonMarkbookColumnID'), $idParam('studentId', 'gibbonPersonIDStudent')],
+                    'responses' => [
+                        '200' => ['description' => 'File bytes', 'content' => ['application/octet-stream' => ['schema' => ['type' => 'string', 'format' => 'binary']]]],
+                        '403' => $err,
+                        '404' => $err,
+                    ],
+                ],
+                'delete' => [
+                    'summary' => 'Delete a student uploaded-response file',
+                    'parameters' => [$idParam('id', 'gibbonMarkbookColumnID'), $idParam('studentId', 'gibbonPersonIDStudent')],
+                    'responses' => ['204' => $noContent, '403' => $err, '404' => $err],
+                ],
             ],
             '/v1/attendance/reports/student-history' => ['get' => ['summary' => 'Student attendance history for the current year', 'parameters' => [$query('gibbonPersonID', 'Student id')], 'responses' => ['200' => $ok, '403' => $err]]],
             '/v1/attendance/reports/consecutive-absences' => ['get' => ['summary' => 'Students with consecutive absences', 'parameters' => [$query('numberOfSchoolDays', 'School days, 1-99')], 'responses' => ['200' => $ok, '403' => $err]]],

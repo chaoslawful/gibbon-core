@@ -25,8 +25,8 @@ Options:
                          zip + tar.gz plus a generated manifest.json, installable and
                          update-checkable by other agent tools (each skill's artifacts go
                          to <output>/skills/<skill-name>/).
-                         Skill version comes from each SKILL.md frontmatter "version:",
-                         NOT from the core version.php.
+                         Skill version comes from each SKILL.md frontmatter "version:"
+                         and must match modules/API/version.php \$moduleVersion (not the core version).
     -h, --help           Show this help message
 
 Examples:
@@ -162,9 +162,8 @@ PACKAGE_NAME="gibbon-core-${VERSION}"
 TEMP_DIR=$(mktemp -d)
 PACKAGE_DIR="$TEMP_DIR/$PACKAGE_NAME"
 
-# API module version ($moduleVersion in modules/API/version.php) — the module
-# version the skill documents; goes into the generated manifest.json as
-# "moduleVersion" so agents can compare it with /v1/openapi.json info.version.
+# API module version ($moduleVersion in modules/API/version.php). Must match
+# each skill's SKILL.md version:; agents also compare it with /v1/openapi.json.
 module_version() {
     sed -n "s/.*\$moduleVersion[[:space:]]*=[[:space:]]*'\([^']*\)'.*/\1/p" \
         "$SOURCE_DIR/modules/API/version.php" | head -1
@@ -427,6 +426,11 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
             SKILL_VER="$(skill_version "$skill_dir")"
             if ! echo "$SKILL_VER" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
                 echo -e "${RED}Error: $skill_name/SKILL.md frontmatter has no valid semver 'version:' (found: '${SKILL_VER:-<none>}'). Fix it — the skill version never falls back to the core version.${NC}"
+                rm -rf "$TEMP_DIR"
+                exit 1
+            fi
+            if [ "$SKILL_VER" != "$MOD_VER" ]; then
+                echo -e "${RED}Error: $skill_name version '$SKILL_VER' must match API module version '$MOD_VER'. Bump both together on any functional change.${NC}"
                 rm -rf "$TEMP_DIR"
                 exit 1
             fi

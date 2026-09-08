@@ -21,6 +21,19 @@ class Json
             ->withStatus($status);
     }
 
+    public static function file(ResponseInterface $response, string $absolutePath, string $downloadName, string $contentType, int $size): ResponseInterface
+    {
+        $stream = \GuzzleHttp\Psr7\Utils::streamFor(\GuzzleHttp\Psr7\Utils::tryFopen($absolutePath, 'rb'));
+        $filename = str_replace(['"', "\r", "\n"], '', $downloadName);
+
+        return $response
+            ->withBody($stream)
+            ->withHeader('Content-Type', $contentType !== '' ? $contentType : 'application/octet-stream')
+            ->withHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
+            ->withHeader('Content-Length', (string) $size)
+            ->withStatus(200);
+    }
+
     public static function error(ResponseInterface $response, string $message, int $status = 400, array $extra = []): ResponseInterface
     {
         if ($status < 400 || $status > 599) {

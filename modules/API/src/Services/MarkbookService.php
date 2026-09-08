@@ -15,10 +15,12 @@ use Gibbon\Domain\Markbook\MarkbookEntryGateway;
 use Gibbon\Domain\School\GradeScaleGateway;
 use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Domain\Timetable\CourseClassGateway;
+use Gibbon\FileUploader;
 use Gibbon\Module\API\Auth\PermissionMapper;
 use Gibbon\Module\API\Http\ApiException;
 use Gibbon\Module\API\Support\RestTable;
 use Gibbon\UI\Components\Alert;
+use Psr\Http\Message\UploadedFileInterface;
 
 class MarkbookService
 {
@@ -31,7 +33,8 @@ class MarkbookService
         protected MarkbookEntryGateway $entries,
         protected GradeScaleGateway $scales,
         protected CourseClassGateway $classes,
-        protected Alert $alerts
+        protected Alert $alerts,
+        protected FileUploader $fileUploader
     ) {
     }
 
@@ -159,6 +162,7 @@ class MarkbookService
                 'effortDescriptor' => $entry['effortDescriptor'] ?? null,
                 'effortConcern' => $entry['effortConcern'] ?? null,
                 'comment' => $entry['comment'] ?? null,
+                'response' => $this->responseMetadata($column['gibbonMarkbookColumnID'], $student['gibbonPersonID'], $entry),
             ];
         }
 
@@ -204,6 +208,85 @@ class MarkbookService
         }
 
         return $this->listEntries($id);
+    }
+
+    public function uploadResponse(string $columnId, string $studentId, $uploadedFile): array
+    {
+        $column = $this->getColumn($columnId);
+        if (($column['uploadedResponse'] ?? 'N') !== 'Y') {
+            throw new ApiException('This column does not include uploaded responses. Set uploadedResponse to Y.', 422);
+        }
+        $this->assertStudentInClass($column['gibbonCourseClassID'], $studentId);
+        $entry = $this->requireExistingEntry($columnId, $studentId);
+        $file = $this->uploadedFileToPostArray($uploadedFile);
+
+        $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
+            throw new ApiException('The uploaded file exceeds the server size limit.', 413);
+        }
+        if ($error === UPLOAD_ERR_PARTIAL) {
+            throw new ApiException('The uploaded file was only partially received.', 422);
+        }
+        if ($error !== UPLOAD_ERR_OK || ($file['name'] ?? '') === '') {
+            throw new ApiException('file is required.', 422);
+        }
+        if ((int) ($file['size'] ?? 0) === 0) {
+            throw new ApiException('The uploaded file was only partially received.', 422);
+        }
+        if (!$this->fileUploader->isFileTypeValid($file['name'])) {
+            throw new ApiException('File type is not allowed.', 422);
+        }
+
+        $stored = $this->fileUploader->uploadFromPost($file, $column['name'].'_Uploaded Response');
+        if (empty($stored)) {
+            throw new ApiException('Unable to store uploaded file.', 500);
+        }
+
+        $previous = trim((string) ($entry['response'] ?? ''));
+        $this->entries->update($entry['gibbonMarkbookEntryID'], [
+            'response' => $stored,
+            'gibbonPersonIDLastEdit' => $this->session->get('gibbonPersonID'),
+        ]);
+        if ($previous !== '' && $previous !== $stored) {
+            $this->unlinkStored($previous);
+        }
+
+        $updated = $this->entries->getByID($entry['gibbonMarkbookEntryID']);
+
+        return [
+            'gibbonMarkbookColumnID' => $column['gibbonMarkbookColumnID'],
+            'gibbonPersonIDStudent' => $studentId,
+            'gibbonMarkbookEntryID' => $entry['gibbonMarkbookEntryID'],
+            'response' => $this->responseMetadata($column['gibbonMarkbookColumnID'], $studentId, $updated ?: $entry),
+        ];
+    }
+
+    public function downloadResponse(string $columnId, string $studentId): array
+    {
+        $this->getColumn($columnId);
+        $entry = $this->requireStoredResponse($columnId, $studentId);
+        $absolute = $this->resolveUploadPath((string) $entry['response']);
+
+        return [
+            'absolutePath' => $absolute,
+            'downloadName' => basename($absolute),
+            'contentType' => $this->contentTypeForPath($absolute),
+            'size' => filesize($absolute) ?: 0,
+        ];
+    }
+
+    public function deleteResponse(string $columnId, string $studentId): void
+    {
+        $this->getColumn($columnId);
+        $entry = $this->requireStoredResponse($columnId, $studentId);
+        $previous = trim((string) ($entry['response'] ?? ''));
+        $this->entries->update($entry['gibbonMarkbookEntryID'], [
+            'response' => null,
+            'gibbonPersonIDLastEdit' => $this->session->get('gibbonPersonID'),
+        ]);
+        if ($previous !== '') {
+            $this->unlinkStored($previous);
+        }
     }
 
     protected function columnPayload(array $body, bool $creating): array
@@ -263,7 +346,6 @@ class MarkbookService
         $payload = [
             'modifiedAssessment' => null,
             'attainmentValueRaw' => null,
-            'response' => $row['response'] ?? null,
         ];
         if (($column['attainment'] ?? 'Y') !== 'Y') {
             $payload['attainmentValue'] = null;
@@ -342,5 +424,160 @@ class MarkbookService
              ORDER BY surname, preferredName",
             ['id' => $gibbonCourseClassID]
         )->fetchAll();
+    }
+
+    protected function assertStudentInClass(string $gibbonCourseClassID, string $studentId): void
+    {
+        $allowed = array_column($this->classStudents($gibbonCourseClassID), 'gibbonPersonID');
+        if ($studentId === '' || !in_array($studentId, $allowed, true)) {
+            throw new ApiException('gibbonPersonIDStudent is not a student in this class.', 422);
+        }
+    }
+
+    protected function requireExistingEntry(string $columnId, string $studentId): array
+    {
+        $existing = $this->entries->selectBy([
+            'gibbonMarkbookColumnID' => $columnId,
+            'gibbonPersonIDStudent' => $studentId,
+        ])->fetch();
+        if (empty($existing)) {
+            throw new ApiException('Markbook entry not found. Create it with PUT /entries first.', 422);
+        }
+
+        return $existing;
+    }
+
+    protected function requireStoredResponse(string $columnId, string $studentId): array
+    {
+        $entry = $this->entries->selectBy([
+            'gibbonMarkbookColumnID' => $columnId,
+            'gibbonPersonIDStudent' => $studentId,
+        ])->fetch();
+        if (empty($entry) || trim((string) ($entry['response'] ?? '')) === '') {
+            throw new ApiException('Uploaded response not found.', 404);
+        }
+
+        return $entry;
+    }
+
+    protected function responseMetadata(string $columnId, string $studentId, array $entry): array
+    {
+        $path = trim((string) ($entry['response'] ?? ''));
+        if ($path === '') {
+            return ['present' => false];
+        }
+
+        $meta = [
+            'present' => true,
+            'download' => '/v1/markbook/columns/'.$columnId.'/entries/'.$studentId.'/response',
+        ];
+        try {
+            $absolute = $this->resolveUploadPath($path);
+            $meta['size'] = filesize($absolute) ?: null;
+            $meta['contentType'] = $this->contentTypeForPath($absolute);
+        } catch (ApiException $e) {
+            $meta['size'] = null;
+            $meta['contentType'] = null;
+        }
+
+        return $meta;
+    }
+
+    protected function uploadedFileToPostArray($uploaded): array
+    {
+        if (is_array($uploaded)) {
+            $uploaded = $uploaded[0] ?? null;
+        }
+        if (!$uploaded instanceof UploadedFileInterface) {
+            throw new ApiException('file is required.', 422);
+        }
+
+        $error = $uploaded->getError();
+        $name = (string) ($uploaded->getClientFilename() ?? '');
+        $type = (string) ($uploaded->getClientMediaType() ?? '');
+        $size = $uploaded->getSize() ?? 0;
+        if ($error !== UPLOAD_ERR_OK) {
+            return [
+                'name' => $name,
+                'type' => $type,
+                'tmp_name' => '',
+                'error' => $error,
+                'size' => $size,
+            ];
+        }
+
+        try {
+            $uri = $uploaded->getStream()->getMetadata('uri');
+        } catch (\RuntimeException $e) {
+            throw new ApiException('Unable to store uploaded file.', 500);
+        }
+        if (!is_string($uri) || $uri === '' || !is_file($uri)) {
+            throw new ApiException('Unable to store uploaded file.', 500);
+        }
+
+        return [
+            'name' => $name,
+            'type' => $type,
+            'tmp_name' => $uri,
+            'error' => $error,
+            'size' => $size,
+        ];
+    }
+
+    protected function resolveUploadPath(string $relative): string
+    {
+        $relative = ltrim(str_replace('\\', '/', $relative), '/');
+        if ($relative === '' || strpos($relative, 'uploads/') !== 0 || strpos($relative, '..') !== false) {
+            throw new ApiException('Uploaded response not found.', 404);
+        }
+        $root = $this->session->get('absolutePath');
+        $absolute = $root.'/'.$relative;
+        $uploadsRoot = realpath($root.'/uploads');
+        $real = realpath($absolute);
+        $prefix = $uploadsRoot !== false ? $uploadsRoot.DIRECTORY_SEPARATOR : '';
+        if ($uploadsRoot === false || $real === false || $prefix === '' || strpos($real, $prefix) !== 0 || !is_file($real)) {
+            throw new ApiException('Uploaded response not found.', 404);
+        }
+
+        return $real;
+    }
+
+    protected function unlinkStored(string $relative): void
+    {
+        try {
+            $absolute = $this->resolveUploadPath($relative);
+            @unlink($absolute);
+        } catch (ApiException $e) {
+            // Already missing; ignore.
+        }
+    }
+
+    protected function contentTypeForPath(string $absolutePath): string
+    {
+        if (function_exists('mime_content_type')) {
+            $mime = @mime_content_type($absolutePath);
+            if (is_string($mime) && $mime !== '') {
+                return $mime;
+            }
+        }
+        $ext = strtolower((string) pathinfo($absolutePath, PATHINFO_EXTENSION));
+        $map = [
+            'pdf' => 'application/pdf',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls' => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt' => 'application/vnd.ms-powerpoint',
+            'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt' => 'text/plain',
+            'zip' => 'application/zip',
+        ];
+
+        return $map[$ext] ?? 'application/octet-stream';
     }
 }

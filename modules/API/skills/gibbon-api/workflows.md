@@ -119,16 +119,26 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 ---
 
-## H. 记分册给分
+## H. 记分册给分与回复文件
 
-需 `markbook.write`。
+需 `markbook.write`。回复文件还要学校 API 模块 ≥ 1.3.04。
 
 1. `GET /v1/grade-scales` 再 `GET /v1/grade-scales/{id}` 拿 `value`。
-2. `POST /v1/markbook/classes/{classId}/columns` 建栏目（`type` 用 GET columns 返回的 `types`；学校没开 effort 就别传 `effort`，传了也会被清成 `N`）。
-3. `GET /v1/markbook/columns/{id}/entries` 看学生（全班都在 `data` 里，没给分的字段为 `null`）。
-4. `PUT /v1/markbook/columns/{id}/entries` 按学生 upsert 分数/努力/评语；`attainmentValue` 传空字符串即清除该生分数。
+2. `POST /v1/markbook/classes/{classId}/columns` 建栏目（`type` 用 GET columns 返回的 `types`；学校没开 effort 就别传 `effort`，传了也会被清成 `N`）。要上传回复文件时设 `uploadedResponse=Y`（默认 `N`）。已有栏目用 `PATCH /v1/markbook/columns/{id}` 把 `uploadedResponse` 改成 `Y`。
+3. `GET /v1/markbook/columns/{id}/entries` 看学生（全班都在 `data` 里，没给分的字段为 `null`；`response.present` 表示是否已有回复文件）。
+4. `PUT /v1/markbook/columns/{id}/entries` 按学生 upsert 分数/努力/评语；`attainmentValue` 传空字符串即清除该生分数。给分不会动回复文件。该生必须先有 entry，才能传文件。
+5. 上传回复（multipart，不要带 JSON Content-Type）：
 
-不要做权重、目标分、量规、正式评估。删栏目会连带删全部给分，先确认。
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $GIBBON_API_TOKEN" \
+  -F "file=@./feedback.pdf" \
+  "$GIBBON_API_BASE/v1/markbook/columns/{id}/entries/{studentId}/response"
+```
+
+核对：再 GET entries，看该生 `response.present`。下载用同路径 GET 加 `-o`（响应是文件不是 JSON）。删除用 DELETE（会删磁盘文件，属破坏性操作，须二次确认）。
+
+不要做权重、目标分、量规、正式评估、栏目「更多资料」附件。删栏目会连带删全部给分，先确认。
 
 ---
 
@@ -171,7 +181,7 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 | Attendance 按班/行政班/个人点名 | attendance.* |
 | School Admin 出勤设置 | attendance.codes |
 | Attendance 报表 | attendance.reports |
-| Markbook 编辑 | 记分册栏目与给分 |
+| Markbook 编辑 | 记分册栏目、给分、学生回复文件 |
 | Finance 报销/预算/零用金/费用目录 | finance.expenses / finance.budgets / finance.pettyCash / finance.fees |
 | Behaviour 管理记录 | behaviour.write |
 
