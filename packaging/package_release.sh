@@ -406,6 +406,14 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
         else openssl dgst -sha256 "$1" | awk '{print $NF}'; fi
     }
 
+    # Cap stdin at N Unicode characters without splitting a UTF-8 sequence.
+    # `cut -c` is byte-oriented (even under UTF-8 locales on GNU coreutils 8.32)
+    # and would emit invalid UTF-8 when the cap lands inside a Chinese character.
+    utf8_trunc_chars() {
+        local n="${1:-500}"
+        iconv -f UTF-8 -t UTF-32BE | head -c $((n * 4)) | iconv -f UTF-32BE -t UTF-8
+    }
+
     # Collect installable skills first so an empty set is reported once, not silently
     SKILL_DIRS=()
     for skill_dir in "$SKILLS_SRC"/*/; do
@@ -462,13 +470,13 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
             fi
 
             # Release notes: the "## <version>" section of CHANGELOG.md, sanitized
-            # (no quotes/backslashes/newlines) and capped at 500 chars so the
-            # consumer-side line-based extraction cannot break.
+            # (no quotes/backslashes/newlines) and capped at 500 Unicode characters
+            # so the consumer-side line-based extraction cannot break.
             notes="$(awk -v ver="$SKILL_VER" '
                 !insec && $0 ~ ("^##[[:space:]]+" ver "([[:space:]]|$)") { insec = 1; next }
                 insec && /^##[[:space:]]/ { insec = 0 }
                 insec && NF { print }' "$skill_dir/CHANGELOG.md" 2>/dev/null \
-                | tr '\n' ' ' | tr -d '"\\' | tr -s ' ' | cut -c1-500)"
+                | tr '\n' ' ' | tr -d '"\\' | tr -s ' ' | utf8_trunc_chars 500)"
             if [ -z "$notes" ]; then
                 echo -e "${YELLOW}Warning: no '## ${SKILL_VER}' section found in $skill_name/CHANGELOG.md — manifest 'notes' will be empty${NC}"
             fi
