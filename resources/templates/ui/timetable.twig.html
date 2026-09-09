@@ -70,7 +70,7 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
     <div class="relative flex flex-row gap-2 xl:gap-3 w-full">
     
         {% if structure.isCurrentWeek and format != 'print' %}
-        <div x-cloak x-show="showCurrentTime && nowLineInRange" class="print:hidden absolute ml-1 w-full left-0 z-10 pointer-events-none" :style="'top: ' + nowLineTop + 'px'">
+        <div x-cloak x-show="showCurrentTime && nowLineInRange" class="print:hidden absolute ml-1 w-full left-0 pointer-events-none" :style="'top: ' + nowLineTop + 'px'">
             <div class="border-b-2 border-blue-500 w-full"></div>
             <div class="absolute origin-center text-center left-0 -mt-3 rounded-full border border-blue-500 bg-blue-500 w-10 shadow">
                 <span class="inline-block text-xxs text-white uppercase leading-loose" x-text="nowLabel">{{ structure.getToday.format('G:i') }}</span>
