@@ -202,6 +202,16 @@ th.columnLabel {
 .largeColumn {
 	min-width:40px;
 	width: 80px;
+	max-width: 80px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.largeColumn > span {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 

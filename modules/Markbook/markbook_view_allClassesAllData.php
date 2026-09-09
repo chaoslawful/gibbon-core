@@ -1014,13 +1014,8 @@ require_once __DIR__ . '/src/MarkbookColumn.php';
                         if ($column->displayComment()) {
 
                             echo "<td class='largeColumn'>";
-                            $style = '';
                             if ($rowEntry['comment'] != '') {
-                                if (mb_strlen($rowEntry['comment']) < 11) {
-                                    echo htmlPrep($rowEntry['comment']);
-                                } else {
-                                    echo "<span $style title='".htmlPrep($rowEntry['comment'])."'>".mb_substr($rowEntry['comment'], 0, 10).'...</span>';
-                                }
+                                echo "<span x-tooltip.bottom='".htmlPrep($rowEntry['comment'])."'>".htmlPrep($rowEntry['comment'])."</span>";
                             }
                             echo '</td>';
                         }
