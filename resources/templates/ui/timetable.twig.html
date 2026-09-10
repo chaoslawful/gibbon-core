@@ -67,10 +67,10 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
         {% endfor %}
     </div>
         
-    <div class="relative flex flex-row gap-2 xl:gap-3 w-full">
+    <div class="relative flex flex-row gap-2 xl:gap-3 w-full" data-now-line-container>
     
         {% if structure.isCurrentWeek and format != 'print' %}
-        <div x-cloak x-show="showCurrentTime && $store.timetableNow && $store.timetableNow.inRange" class="print:hidden absolute ml-1 w-full left-0 pointer-events-none" :style="'top: ' + nowLineTop + 'px'">
+        <div data-now-line x-cloak class="print:hidden absolute ml-1 w-full left-0 pointer-events-none" :style="'top: ' + nowLineTop + 'px; display: ' + (showCurrentTime && nowLineInRange ? 'block' : 'none')">
             <div class="border-b-2 border-blue-500 w-full"></div>
             <div class="absolute origin-center text-center left-0 -mt-3 rounded-full border border-blue-500 bg-blue-500 w-10 shadow">
                 <span class="inline-block text-xxs text-white uppercase leading-loose" x-text="nowLabel">{{ structure.getToday.format('G:i') }}</span>
@@ -174,12 +174,21 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
             var inWeek = config.weekStart && config.weekEnd && now.date >= config.weekStart && now.date <= config.weekEnd;
             var inRange = inWeek && endSeconds > 0 && nowSeconds >= startSeconds && nowSeconds <= endSeconds;
             var top = Math.round((now.minutes - startMinutes) * Number(config.pixelRatio)) + Number(config.dayOffset || 0);
+            var grid = el.querySelector('[data-now-line-container]');
+            if (grid && grid.clientHeight > 0 && top > grid.clientHeight) {
+                inRange = false;
+            }
 
             data.nowTime = now.time;
             data.todayDate = now.date;
             data.nowLabel = now.label;
             data.nowLineTop = top;
             data.nowLineInRange = inRange;
+
+            var line = el.querySelector('[data-now-line]');
+            if (line) {
+                line.style.display = (inRange && data.showCurrentTime) ? 'block' : 'none';
+            }
 
             if (window.Alpine && typeof Alpine.store === 'function') {
                 if (typeof Alpine.store('timetableNow') === 'undefined') {
