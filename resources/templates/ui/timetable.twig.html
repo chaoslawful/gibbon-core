@@ -70,7 +70,7 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
     <div class="relative flex flex-row gap-2 xl:gap-3 w-full">
     
         {% if structure.isCurrentWeek and format != 'print' %}
-        <div x-cloak x-show="showCurrentTime && nowLineInRange" class="print:hidden absolute ml-1 w-full left-0 pointer-events-none" :style="'top: ' + nowLineTop + 'px'">
+        <div x-cloak x-show="showCurrentTime && $store.timetableNow && $store.timetableNow.inRange" class="print:hidden absolute ml-1 w-full left-0 pointer-events-none" :style="'top: ' + nowLineTop + 'px'">
             <div class="border-b-2 border-blue-500 w-full"></div>
             <div class="absolute origin-center text-center left-0 -mt-3 rounded-full border border-blue-500 bg-blue-500 w-10 shadow">
                 <span class="inline-block text-xxs text-white uppercase leading-loose" x-text="nowLabel">{{ structure.getToday.format('G:i') }}</span>
@@ -116,7 +116,7 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
         if (!config.timezone) return;
 
         if (window.Alpine && typeof Alpine.store === 'function' && typeof Alpine.store('timetableNow') === 'undefined') {
-            Alpine.store('timetableNow', { time: data.nowTime || '', date: data.todayDate || '' });
+            Alpine.store('timetableNow', { time: data.nowTime || '', date: data.todayDate || '', inRange: !!data.nowLineInRange });
         }
 
         var clientLoad = Date.now();
@@ -125,6 +125,11 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
 
         function padTime(value) {
             return String(value).length === 5 ? value + ':00' : String(value);
+        }
+
+        function timeToSeconds(value) {
+            var parts = padTime(value).split(':');
+            return (Number(parts[0]) || 0) * 3600 + (Number(parts[1]) || 0) * 60 + (Number(parts[2]) || 0);
         }
 
         function schoolNow() {
@@ -162,12 +167,12 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
             }
 
             var now = schoolNow();
-            var start = padTime(config.startTime);
-            var end = padTime(config.endTime);
-            var startParts = start.split(':');
-            var startMinutes = Number(startParts[0]) * 60 + Number(startParts[1]);
+            var startSeconds = Number.isFinite(Number(config.startSeconds)) ? Number(config.startSeconds) : timeToSeconds(config.startTime);
+            var endSeconds = Number.isFinite(Number(config.endSeconds)) ? Number(config.endSeconds) : timeToSeconds(config.endTime);
+            var nowSeconds = now.minutes * 60 + now.seconds;
+            var startMinutes = Math.floor(startSeconds / 60);
             var inWeek = config.weekStart && config.weekEnd && now.date >= config.weekStart && now.date <= config.weekEnd;
-            var inRange = inWeek && start && end && now.time >= start && now.time <= end;
+            var inRange = inWeek && endSeconds > 0 && nowSeconds >= startSeconds && nowSeconds <= endSeconds;
             var top = Math.round((now.minutes - startMinutes) * Number(config.pixelRatio)) + Number(config.dayOffset || 0);
 
             data.nowTime = now.time;
@@ -178,10 +183,11 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
 
             if (window.Alpine && typeof Alpine.store === 'function') {
                 if (typeof Alpine.store('timetableNow') === 'undefined') {
-                    Alpine.store('timetableNow', { time: now.time, date: now.date });
+                    Alpine.store('timetableNow', { time: now.time, date: now.date, inRange: inRange });
                 } else {
                     Alpine.store('timetableNow').time = now.time;
                     Alpine.store('timetableNow').date = now.date;
+                    Alpine.store('timetableNow').inRange = inRange;
                 }
             }
         }

@@ -103,16 +103,18 @@ class Structure
     public function getNowClock() : array
     {
         $empty = [
-            'timezone'   => date_default_timezone_get(),
-            'serverNow'  => (int) round(microtime(true) * 1000),
-            'startTime'  => $this->timeStart ?? '',
-            'endTime'    => $this->timeEnd ?? '',
-            'pixelRatio' => $this->pixelRatio,
-            'dayOffset'  => 0,
-            'weekStart'  => '',
-            'weekEnd'    => '',
-            'lineTop'    => 0,
-            'inRange'    => false,
+            'timezone'     => date_default_timezone_get(),
+            'serverNow'    => (int) round(microtime(true) * 1000),
+            'startTime'    => $this->timeStart ?? '',
+            'endTime'      => $this->timeEnd ?? '',
+            'startSeconds' => 0,
+            'endSeconds'   => 0,
+            'pixelRatio'   => $this->pixelRatio,
+            'dayOffset'    => 0,
+            'weekStart'    => '',
+            'weekEnd'      => '',
+            'lineTop'      => 0,
+            'inRange'      => false,
         ];
 
         if (empty($this->today) || empty($this->currentDate) || empty($this->timeStart) || empty($this->timeEnd)) {
@@ -131,16 +133,18 @@ class Structure
         $nowHms = $this->today->format('H:i:s');
 
         return [
-            'timezone'   => date_default_timezone_get(),
-            'serverNow'  => (int) round(microtime(true) * 1000),
-            'startTime'  => $this->timeStart ?? '',
-            'endTime'    => $this->timeEnd ?? '',
-            'pixelRatio' => $this->pixelRatio,
-            'dayOffset'  => $dayOffset,
-            'weekStart'  => $this->getStartDate(),
-            'weekEnd'    => $this->getEndDate(),
-            'lineTop'    => $this->timeToPixels($nowHms) + $dayOffset,
-            'inRange'    => $this->isCurrentWeek()
+            'timezone'     => date_default_timezone_get(),
+            'serverNow'    => (int) round(microtime(true) * 1000),
+            'startTime'    => $this->timeStart ?? '',
+            'endTime'      => $this->timeEnd ?? '',
+            'startSeconds' => $this->timeToSeconds($this->timeStart),
+            'endSeconds'   => $this->timeToSeconds($this->timeEnd),
+            'pixelRatio'   => $this->pixelRatio,
+            'dayOffset'    => $dayOffset,
+            'weekStart'    => $this->getStartDate(),
+            'weekEnd'      => $this->getEndDate(),
+            'lineTop'      => $this->timeToPixels($nowHms) + $dayOffset,
+            'inRange'      => $this->isCurrentWeek()
                 && !empty($this->timeStart) && !empty($this->timeEnd)
                 && $this->timeStart <= $nowHms && $this->timeEnd >= $nowHms,
         ];
@@ -296,6 +300,17 @@ class Structure
     public function minutesToPixels($minutes)
     {
         return round((float)$minutes * $this->pixelRatio);
+    }
+
+    public function timeToSeconds($time) : int
+    {
+        if (empty($time)) {
+            return 0;
+        }
+
+        $parts = array_map('intval', explode(':', $time));
+
+        return ($parts[0] ?? 0) * 3600 + ($parts[1] ?? 0) * 60 + ($parts[2] ?? 0);
     }
 
     public function timeToPixels($time)
