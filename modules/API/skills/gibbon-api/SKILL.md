@@ -4,7 +4,7 @@ description: >-
   通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、教职工、出勤、记分册（含成绩回复文件）、行为记录与财务支出。
   仅在用户明确要求使用 gibbon-api skill、按该 REST API 操作 Gibbon、或安装本 skill 后点名操作课表/课程规划时使用。
 disable-model-invocation: true
-version: 1.3.04
+version: 1.3.05
 ---
 
 # Gibbon Agent REST API
@@ -38,20 +38,20 @@ curl -sS \
   "$GIBBON_API_BASE/v1/me"
 ```
 
-4. 看 `capabilities` 再决定能做什么：
+4. 看 `capabilities` 再决定能做什么。它是**完整 26 项对象**，值为 `true`/`false`，只把 `true` 的当已授权（与账号网页上的其它角色无关，由令牌**创建时锁定的角色**决定）：
    - `planner.read` / `planner.write` / `planner.editAllClasses`：教案
    - `planner.units`：单元与智能块
    - `timetable.read` / `timetable.write`：课表结构与课格
    - `timetable.courses` / `timetable.enrolment`：课程、班级、选课
-   - `school.structure`：年级组、学部、学院、行政班、场地、学年、学期、特殊日
-   - `user.admin`：人员、角色、家庭
+   - `school.structure`：下列网页权限的 **OR**，有它只说明至少能管其中一类，每个端点仍按网页权限 403——`yearGroup_manage`、`department_manage`、`house_manage`、`formGroup_manage`、`space_manage`、`schoolYearTerm_manage`、`schoolYearSpecialDay_manage`。**不含**学年 CRUD（`网页: schoolYear_manage`）
+   - `user.admin`：只覆盖人员（`user_manage`）。角色是 `网页: role_manage`，家庭是 `网页: family_manage`，都不能用 `/v1/me` 自检
    - `staff.read` / `staff.write`：教职工名册与档案（Staff Directory / Manage Staff）
    - `attendance.class` / `attendance.formGroup` / `attendance.person`：按教学班 / 行政班 / 个人点名
-   - `attendance.codes`：出勤代码管理；`attendance.reports`：出勤报表（只读）
+   - `attendance.codes`：出勤代码管理；`attendance.reports`：出勤报表（只读；具体报表还要对应网页权限，缺则 403）
    - `markbook.write` / `markbook.editAllClasses`：记分册栏目、给分、学生回复文件
-   - `finance.expenses` / `finance.expensesAll`：报销；`finance.fees`：费用目录；`finance.budgets`：预算；`finance.pettyCash`：零用金
+   - `finance.expenses` / `finance.expensesAll`：报销；`finance.fees`：费用目录；`finance.budgets`：预算科目；`finance.pettyCash`：零用金
    - `behaviour.write` / `behaviour.writeAll`：行为记录
-   - 预算周期（`budgetCycles_manage`）与报销审批人（`expenseApprovers_manage`）没有对应 capability，403 即缺权
+   - 预算周期（`网页: budgetCycles_manage`）与报销审批人（`网页: expenseApprovers_manage`）没有对应 capability，403 即缺权。reference.md 权限列：能自检的写 capability 名；不能自检的写成 `网页: …`
 
 5. 顺手做一次版本检查（见下方「版本与更新」）。拉不到 manifest 就跳过：**不重试、不影响后续任何操作**。
 
@@ -150,32 +150,39 @@ fi
 - 除 `GET /v1/openapi.json` 外，所有接口都要 Bearer。
 - JSON 请求带 `Content-Type: application/json`。记分册回复文件上传用 `multipart/form-data`（`curl -F file=@路径`），**不要**同时加 JSON 的 Content-Type。
 - 路径按**模块**，不要发明短路径：覆盖率是 `/v1/planner/classes/{id}/coverage`。
-- 列表班级用 `GET /v1/classes`，返回 `{ "data": [ { "id", "name" } ] }`。这里的 `id` 就是 `gibbonCourseClassID`。
+- 列表班级用 `GET /v1/classes`，返回 `{ "data": [ { "id", "name", "gibbonCourseID" } ] }`。这里的 `id` 就是 `gibbonCourseClassID`。`gibbonCourseID` 需学校 API 模块 **1.3.05+**；更旧的实例没有该字段时，枚举 `GET /v1/courses` 再 `GET /v1/courses/{id}/classes` 反查。没有 `GET /v1/classes/{id}`。
 - 日期 `YYYY-MM-DD`。时间 `HH:MM:SS`（`HH:MM` 服务端会补 `:00`）。
 - ID 按响应里的字符串原样回传（Gibbon 常带前导零）。
 - 创建成功 **201**，删除成功 **204** 无 body。deploy、copy-forward、行为 follow-up、报销审批记录也创建资源，返回 **201**；不创建资源的动作（copy-back、smart-blockify、重置密码、标记已付、零用金 action）以及**记分册回复文件 POST**（上传/替换）返回 **200**。
 - 下载回复文件：同路径 GET，响应是**文件字节**不是 JSON。用 `curl -o 文件` 保存；不要按 JSON 解析，也不要加 `Content-Type: application/json`。
 - 未提供密码时，创建/重置人员会生成随机密码，只在该次响应出现 `generatedPassword`。
-- **Windows Git Bash 坑**：`curl -d` 内联 JSON 里带中文会被弄坏，服务端当成空 body 报 422。把 JSON 写进临时文件，用 `-d @文件` 发送。
+- **Windows Git Bash 坑**：`curl -d` 内联 JSON 里带中文会被弄坏，服务端当成空 body 报 422。把 JSON 写进临时文件，用 `-d @文件` 发送。更新脚本里的 `mktemp -d`、`sed -i`、`find -exec cp` 在 Git Bash 下一般可用；没有 `unzip` 会改下 tar 包。`mktemp` 可能返回 `/tmp/...` 的 MSYS 路径，不要把它交给原生 Windows 程序。
+- **`GET /v1/openapi.json` 是路由清单，不是字段手册**：绝大多数写操作没有 requestBody，多数 GET 也未声明查询参数。判断「有哪些路由」用它；判断「字段怎么填」以 [reference.md](reference.md) 为准。两者都没有时：先 GET 同资源的现有记录看字段形状，再小步试写并核对回读，不要臆造字段名。
+- **PATCH 语义分两种**：教案是先与现有记录 merge、再整份校验后写入，未出现的字段保持原值。多数其它资源（`RestTable`）只更新请求里出现的键。确认报告**只列拟变更的字段**。清空字符串传 `""`；教案的 `gibbonUnitID` 传 `""` 或 `null` 均可置空。
+- **教案可见性**：`viewableStudents` / `viewableParents` 控制 `name` / `summary` / `description` / `homeworkDetails` 等对谁可见。`teachersNotes` 在网页上恒为教师专属。涉及学生姓名、错题、行为观察的内容一律写 `teachersNotes`，面向学生的教学内容写 `description`。API GET 详情仍会把 `teachersNotes` 返回给能看该班的令牌，写入时仍按网页可见性选字段。
+- 参数必填性以服务端 422 为准；spec 未标 `required` 不等于可选。
 
 ## 写操作：先报告，确认后才执行
 
 GET 直接执行。任何 **POST/PATCH/PUT/DELETE 之前必须停下出确认报告**，用户明确说"确认/可以/继续"后才动手：
 
 1. 一句话概括要达成什么。
-2. 每个写操作一行：**动作 + 对象 + 关键字段值**。例：
+2. 每个写操作一行：**动作 + 对象 + 关键字段值**。PATCH 只列出拟变更的字段（未出现的字段保持原值）。例：
    `- 创建课格：课表 2627ALL / 秋季学期 D1 / P1 08:10-08:25 / 班级 PE Y01-Y06 / 教室 体育馆`
+   `- 更新教案 00000000002494：teachersNotes = （教师备注，学生/家长不可见）`
 3. **整批一次确认**：多步工作流（如建整张课表）列成一份完整清单，用户确认一次后连续执行完，中途不再打扰。
 4. **破坏性操作二次确认**：删除任何资源、单元 copy-back（清空单元原有块）、删记分册栏目（连带全部给分）、删除记分册回复文件（磁盘文件一并删除）、重置密码等不可逆操作，即使已包含在确认过的清单里，执行到那一步也要**再单独确认一次**。报告中把这类操作单列在 `⚠️ 破坏性操作` 区块，写清后果。
 5. 用户没确认前，一个写请求都不发。
 
 执行中任何一步失败：**立即停止**，报告失败步骤与响应里的 `error` 原文、已完成的改动清单、未执行的剩余清单，等用户指示。不要擅自改参数重试。
 
+**429 例外**：限流在鉴权阶段拒绝，这次请求没落库。等 **60 秒**后用**同一请求**重试，最多 **2 次**，无需再向用户确认。仍 429 则停止并报告。不要缩短间隔，也不要拆改参数来绕过。
+
 ## 错误
 
-失败时 JSON 含 `error`、`status`。路由不存在的 404 总带 `type`、`path`、`method`、`hint`，按 `hint` 改路径，不要猜测。405 带 `allowed`（该路径允许的方法）；部分错误带 `details`。
+失败时 JSON 含 `error`、`status`。路由不存在的 404 总带 `type`、`path`、`method`、`hint`，按 `hint` 改路径，不要猜测。405 表示**路由存在**但方法不对，看 `allowed`；**不要因为 `openapi.json` 未收录就认定路由不存在**。部分错误带 `details`。
 
-常见状态：`401` 令牌无效/过期/被吊销/锁定角色已移除、`403` 角色/班级范围不够、`404` 路径或资源不存在、`405` 方法不允许、`413` 上传文件超过服务器限制、`422` 字段校验失败、`429` 超限（按令牌每分钟，额度由学校设置）、`503` API 关闭。
+常见状态：`401` 令牌无效/过期/被吊销/锁定角色已移除、`403` 角色/班级范围不够、`404` 路径或资源不存在、`405` 方法不允许、`413` 上传文件超过服务器限制、`422` 字段校验失败、`429` 超限（按令牌每分钟，额度由学校设置，默认 120，`0` 关闭；无 `Retry-After`）、`503` API 关闭。
 
 ## 仍然没有的接口
 

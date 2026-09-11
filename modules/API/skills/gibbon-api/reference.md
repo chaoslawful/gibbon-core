@@ -1,16 +1,20 @@
-# 接口一览（与当前代码一致）
+# 接口一览（适用于 API 模块 1.3.05，与 skill `version` 同号）
 
 Base：`$GIBBON_API_BASE`（例 `http://localhost/api.php`）。路径均以 `/v1` 开头。未特别说明时需要 Bearer。
 
-权限列的是 `GET /v1/me` 里的 `capabilities` 或对应网页模块。列表多返回 `{ "data": [ ... ] }`。
+权限列：能在 `GET /v1/me` 的 `capabilities` 里自检的写 capability 名（值为 `true` 才算有权）；没有对应 capability 的写成 `网页: …`，**不可自检**，只能以 403 判定。`school.structure` 是多项网页权限的 OR，有它仍可能因缺少该项网页权限而 403——这类行会写成 `school.structure`；实际 `网页: …`。
+
+列表多返回 `{ "data": [ ... ] }`。参数必填性以服务端 422 为准。
+
+**幂等性**：默认 POST 会新建资源，重复调用会重复创建。例外：挂班（`units/{id}/classes`）幂等；点名 POST 是覆盖更新；记分册 `PUT /entries` 与人员医疗 `PUT` 是 upsert；重置密码可重复。deploy / copy-forward / 直建教案 / 建人员 / 行为记录均非幂等。
 
 ## 元数据
 
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|
-| GET | `/v1/openapi.json` | 无 | OpenAPI 3.0.3 |
-| GET | `/v1/me` | 令牌有效 | 身份、锁定角色、`capabilities`、学年 |
-| GET | `/v1/school-year` | 令牌有效 | 当前学年 `gibbonSchoolYearID`、`gibbonSchoolYearName`、`firstDay`、`lastDay` |
+| GET | `/v1/openapi.json` | 无 | OpenAPI 3.0.3。**路由清单**，绝大多数写操作无 requestBody |
+| GET | `/v1/me` | 令牌有效 | 身份、锁定角色、`capabilities`（26 项 true/false）、学年 |
+| GET | `/v1/school-year` | 令牌有效 | **当前学年**（单数）：`gibbonSchoolYearID`、`gibbonSchoolYearName`、`firstDay`、`lastDay`。不要与下方复数学年管理混淆 |
 
 `/v1/me` 响应：`gibbonPersonID`、`username`、`preferredName`、`surname`、`gibbonRoleID`（锁定角色）、`roleName`、`roleCategory`、`gibbonSchoolYearID`、`token`（令牌 ID/名称/类型/过期时间）、`capabilities`。
 
@@ -18,19 +22,21 @@ Base：`$GIBBON_API_BASE`（例 `http://localhost/api.php`）。路径均以 `/v
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
-| GET/POST | `/v1/year-groups` | School Admin `yearGroup_manage` |
+| GET/POST | `/v1/year-groups` | `school.structure`；实际 `网页: yearGroup_manage` |
 | PATCH/DELETE | `/v1/year-groups/{id}` | 同上 |
-| GET/POST | `/v1/departments` | `department_manage` |
+| GET/POST | `/v1/departments` | `school.structure`；实际 `网页: department_manage` |
 | PATCH/DELETE | `/v1/departments/{id}` | 同上 |
-| GET/POST | `/v1/houses` | `house_manage` |
+| GET/POST | `/v1/houses` | `school.structure`；实际 `网页: house_manage` |
 | PATCH/DELETE | `/v1/houses/{id}` | 同上 |
-| GET/POST | `/v1/form-groups` | `formGroup_manage`；GET **必填** `gibbonSchoolYearID` |
+| GET/POST | `/v1/form-groups` | `school.structure`；实际 `网页: formGroup_manage`；GET **必填** `gibbonSchoolYearID` |
 | PATCH/DELETE | `/v1/form-groups/{id}` | 同上 |
 | GET | `/v1/spaces` | `timetable.write`（排课用的场地列表） |
-| POST | `/v1/spaces` | `space_manage` |
-| PATCH/DELETE | `/v1/spaces/{id}` | `space_manage` |
-| GET/POST | `/v1/school-years` | `schoolYear_manage` |
+| POST | `/v1/spaces` | `school.structure`；实际 `网页: space_manage` |
+| PATCH/DELETE | `/v1/spaces/{id}` | 同上 |
+| GET/POST | `/v1/school-years` | `网页: schoolYear_manage`（**不在** `school.structure` 的 OR 里） |
 | PATCH/DELETE | `/v1/school-years/{id}` | 同上 |
+
+对照：单数 `GET /v1/school-year` = 读当前学年（无需管理权限）；复数 `/v1/school-years` = 学年 CRUD。
 
 学年创建必填：`name`、`status`、`sequenceNumber`、`firstDay`、`lastDay`。`status` 取 `Past`/`Current`/`Upcoming`（服务端**不校验**，写错会原样入库）。
 
@@ -42,9 +48,9 @@ Base：`$GIBBON_API_BASE`（例 `http://localhost/api.php`）。路径均以 `/v
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
-| GET/POST | `/v1/terms` | `schoolYearTerm_manage`；GET **必填** `gibbonSchoolYearID` |
+| GET/POST | `/v1/terms` | `school.structure`；实际 `网页: schoolYearTerm_manage`；GET **必填** `gibbonSchoolYearID` |
 | PATCH/DELETE | `/v1/terms/{id}` | 同上 |
-| GET/POST | `/v1/special-days` | `schoolYearSpecialDay_manage`；GET 需 `gibbonSchoolYearID` 或 `gibbonSchoolYearTermID` 或 `from`+`to` |
+| GET/POST | `/v1/special-days` | `school.structure`；实际 `网页: schoolYearSpecialDay_manage`；GET 需 `gibbonSchoolYearID` 或 `gibbonSchoolYearTermID` 或 `from`+`to` |
 | PATCH/DELETE | `/v1/special-days/{id}` | 同上 |
 
 学期创建必填：`gibbonSchoolYearID`、`name`、`nameShort`、`sequenceNumber`、`firstDay`、`lastDay`。`firstDay` 必须不晚于 `lastDay`，否则 422。
@@ -93,7 +99,7 @@ Timing Change 可带 `schoolOpen` / `schoolStart` / `schoolEnd` / `schoolClose`�
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
-| GET | `/v1/courses`、`/v1/classes` | 能看教案或课表；返回精简 `{id,name}`，可带 `gibbonSchoolYearID`（默认当前学年）；无全校权限时只列自己任教/就读的 |
+| GET | `/v1/courses`、`/v1/classes` | `planner.read` 或 `timetable.read`；`GET /v1/courses` 返回 `{id,name}`；`GET /v1/classes` 返回 `{id,name,gibbonCourseID}`（1.3.05+）；可带 `gibbonSchoolYearID`（默认当前学年）；无全校权限时只列自己任教/就读的。没有 `GET /v1/classes/{id}` |
 | POST | `/v1/courses` | `timetable.courses` |
 | GET/PATCH/DELETE | `/v1/courses/{id}` | 同上；详情是完整课程行 |
 | GET/POST | `/v1/courses/{id}/classes` | 同上 |
@@ -109,23 +115,38 @@ Timing Change 可带 `schoolOpen` / `schoolStart` / `schoolEnd` / `schoolClose`�
 |---|---|---|
 | GET/POST | `/v1/people` | `user.admin`；GET 可 `q`、`limit` |
 | GET/PATCH/DELETE | `/v1/people/{id}` | 同上；响应不含密码哈希 |
-| POST | `/v1/people/{id}/password` | 重置；可省略 `password` 则生成 |
-| GET/POST | `/v1/people/{id}/enrolment` | Admissions `studentEnrolment_manage` |
+| POST | `/v1/people/{id}/password` | 同上；重置；可省略 `password` 则生成（可重复） |
+| GET/POST | `/v1/people/{id}/enrolment` | `网页: studentEnrolment_manage` |
 | GET | `/v1/student-enrolments` | 同上；`gibbonSchoolYearID`、`gibbonFormGroupID`、`q` |
 | PATCH/DELETE | `/v1/student-enrolments/{id}` | 同上 |
-| GET/POST | `/v1/roles` | User Admin `role_manage` |
+| GET/POST | `/v1/roles` | `网页: role_manage` |
 | PATCH/DELETE | `/v1/roles/{id}` | 同上 |
-| GET/POST | `/v1/families` | `family_manage` |
+| GET/POST | `/v1/families` | `网页: family_manage` |
 | GET/PATCH/DELETE | `/v1/families/{id}` | 同上；GET 含 adults/children |
 | POST | `/v1/families/{id}/adults`、`/children` | 同上 |
 | DELETE | `/v1/family-adults/{id}`、`/v1/family-children/{id}` | 同上 |
-| GET/POST | `/v1/medical-conditions` | School Admin `medicalConditions_manage` |
+| GET/POST | `/v1/medical-conditions` | `网页: medicalConditions_manage` |
 | PATCH/DELETE | `/v1/medical-conditions/{id}` | 同上 |
-| GET/PUT | `/v1/people/{id}/medical` | Students `medicalForm_manage` |
+| GET/PUT | `/v1/people/{id}/medical` | `网页: medicalForm_manage`；PUT 是 upsert |
 | POST | `/v1/people/{id}/medical-conditions` | 同上 |
 | DELETE | `/v1/person-medical-conditions/{id}` | 同上 |
 
 创建人员必填：`surname`、`firstName`、`preferredName`、`officialName`、`gender`、`username`、`gibbonRoleIDPrimary`。可选 `password`；没有则响应带 `generatedPassword`（只此一次）。密码必须过学校密码策略，否则 422；`username` 已占用也 422。`staffRecord=Y` 同时建教职工（`staffType` 默认 `Teaching`）；`studentRecord=Y` 需同时给 `gibbonYearGroupID`、`gibbonFormGroupID`。已有人员补建教职工档案请用 `POST /v1/staff`。
+
+人员精简字段（PATCH 只更新出现的键；`""` 对 `gibbonHouseID` / `dob` / `dateStart` / `dateEnd` / `gibbonSchoolYearIDClassOf` 会写成 null）：
+
+| 字段 | POST | PATCH | 必填 / 默认 |
+|---|---|---|---|
+| `surname` `firstName` `preferredName` `officialName` `gender` `username` `gibbonRoleIDPrimary` | 可 | 可 | POST 必填 |
+| `password` | 可（不入库明文） | 否（用 password 接口） | 省略则生成 |
+| `status` | 可 | 可 | `Full` |
+| `canLogin` | 可 | 可 | `Y` |
+| `passwordForceReset` | 可 | 可 | `N` |
+| `gibbonRoleIDAll` | 可 | 可 | 默认等于主键角色 |
+| `email` `dob` `phone*` `title` 及其余人表字段 | 可 | 可 | 多数默认空串 |
+| `staffRecord` `staffType` `studentRecord` `gibbonYearGroupID` `gibbonFormGroupID` | POST 侧写 | 否 | `studentRecord=Y` 时后两项必填 |
+
+列表 `GET /v1/people` 为精简人员行；正文级字段（地址、紧急联系人等）要 `GET /v1/people/{id}`。
 
 入学名册必填 `gibbonYearGroupID`、`gibbonFormGroupID`；`gibbonSchoolYearID` 默认当前学年，同一同学年重复入学会 422。可选 `autoEnrolStudent=Y` 按行政班自动选课。
 
@@ -141,9 +162,9 @@ Timing Change 可带 `schoolOpen` / `schoolStart` / `schoolEnd` / `schoolClose`�
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
-| GET | `/v1/staff` | `staff.read`（Staff Directory）；可 `q`、`type`=`Teaching`/`Support`、`gibbonPersonID`、`limit`；`all=Y` 含 Expected/Left，需完整目录或 Manage Staff |
+| GET | `/v1/staff` | `staff.read`；可 `q`、`type`=`Teaching`/`Support`、`gibbonPersonID`、`limit`；`all=Y` 含 Expected/Left，需完整目录或 `staff.write` |
 | GET | `/v1/staff/{id}` | 同上；`id` 是 `gibbonStaffID`；含姓名、邮箱、电话、入离职日等人员字段 |
-| POST | `/v1/staff` | `staff.write`（Manage Staff） |
+| POST | `/v1/staff` | `staff.write` |
 | PATCH/DELETE | `/v1/staff/{id}` | 同上 |
 
 创建必填：`gibbonPersonID`、`type`（`Teaching`/`Support`，也接受 `staffType`）。该人必须已有 **Staff** 角色，且还没有 staff 记录，否则 422。可选 `initials`（全校唯一）、`jobTitle`、`firstAidQualified`（`Y`/`N`/空）、`firstAidQualification`、`firstAidExpiry`、`countryOfOrigin`、`qualifications`、`biographicalGrouping`、`biographicalGroupingPriority`、`biography`、`coverageExclude`、`coveragePriority`；`dateStart`/`dateEnd` 会写到人员记录。`firstAidQualified` 不是 `Y` 时急救资格与到期日会被清空。删除只删 staff 档案，不删人员账号。
@@ -152,28 +173,74 @@ Timing Change 可带 `schoolOpen` / `schoolStart` / `schoolEnd` / `schoolClose`�
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
-| GET/POST | `/v1/planner/lessons` | 读/写教案 |
-| GET/PATCH/DELETE | `/v1/planner/lessons/{id}` | 能看/改该班 |
-| GET | `/v1/planner/classes/{classId}/slots` | 课格+已有教案 |
-| GET | `/v1/planner/classes/{classId}/coverage` | 覆盖率 |
-| GET | `/v1/planner/units` | **必填** `gibbonCourseID` |
+| GET/POST | `/v1/planner/lessons` | 读 `planner.read` / 写 `planner.write` |
+| GET/PATCH/DELETE | `/v1/planner/lessons/{id}` | 能看/改该班（无 `planner.editAllClasses` 时只能改自己任教的班） |
+| GET | `/v1/planner/classes/{classId}/slots` | `planner.read` |
+| GET | `/v1/planner/classes/{classId}/coverage` | `planner.read` |
+| GET | `/v1/planner/units` | `planner.units`；**必填** `gibbonCourseID` |
 | POST | `/v1/planner/units` | `planner.units` |
 | GET/PATCH/DELETE | `/v1/planner/units/{id}` | 同上；GET 含 blocks、classes |
-| POST | `/v1/planner/units/{id}/blocks` | 智能块 |
+| POST | `/v1/planner/units/{id}/blocks` | 同上 |
 | PATCH/DELETE | `/v1/planner/unit-blocks/{id}` | 同上 |
-| POST | `/v1/planner/units/{id}/classes` | 挂到班（只建 `gibbonUnitClass`） |
-| POST | `/v1/planner/units/{id}/deploy` | 按课表时段生成教案并挂块 |
-| POST | `/v1/planner/units/{id}/copy-forward` | body：`gibbonCourseID` |
-| POST | `/v1/planner/unit-classes/{id}/copy-back` | 工作副本拷回单元 |
-| POST | `/v1/planner/units/{id}/smart-blockify` | body：`gibbonPlannerEntryID` |
-| GET/POST | `/v1/planner/lessons/{id}/homework` | 教师端提交记录 |
+| POST | `/v1/planner/units/{id}/classes` | 同上；幂等 |
+| POST | `/v1/planner/units/{id}/deploy` | 同上；非幂等 |
+| POST | `/v1/planner/units/{id}/copy-forward` | 同上；body：`gibbonCourseID` |
+| POST | `/v1/planner/unit-classes/{id}/copy-back` | 同上 |
+| POST | `/v1/planner/units/{id}/smart-blockify` | 同上；body：`gibbonPlannerEntryID` |
+| GET/POST | `/v1/planner/lessons/{id}/homework` | `planner.write` |
 | PATCH/DELETE | `/v1/planner/homework/{id}` | 同上 |
 
-教案创建必填：`gibbonCourseClassID`、`date`、`timeStart`、`timeEnd`、`name`（超过 50 字会被截断，不报错）。`homework=Y` 时必须有 `homeworkDetails`、`homeworkDueDateTime`。
+教案创建必填：`gibbonCourseClassID`、`date`、`timeStart`、`timeEnd`、`name`。PATCH 是与现有记录 merge 后再整份校验，未出现的字段保持原值。本节字段表即该端点字段全集（以服务端为准，含 spec 曾漏掉的作业/互评字段）。`fields` 只在 POST 生效，PATCH 传入会被忽略。
 
-GET `/v1/planner/lessons` 可带 `gibbonSchoolYearID`（默认当前学年）、`gibbonCourseClassID`、`from`、`to`；不带班级时只列自己相关的班。GET 单个教案会附带 `homeworkSubmissions`、`smartBlocks`、`outcomes`（均只读）。直建教案 `viewableStudents` 默认 `Y`、`viewableParents` 默认 `N`（注意与 deploy 的默认值不同）。
+**可见性**：`viewableStudents` / `viewableParents` 控制该教案内容字段（`name` / `summary` / `description` / `homeworkDetails`）是否对学生/家长可见。`teachersNotes` 在网页上恒为教师专属。含学生个人信息的批改/讲评一律写 `teachersNotes`；面向学生的教学内容写 `description`。API GET 仍会把 `teachersNotes` 返回给能看该班的令牌。
 
-单元创建必填 `gibbonCourseID`、`name`。智能块创建只必填 `title`，可选 `type`、`length`、`contents`、`teachersNotes`、`sequenceNumber`。挂班（`units/{id}/classes`）是幂等的：已挂过就返回原记录，传 `running=Y` 可顺带激活。
+| 字段 | 类型 | POST | PATCH | 必填条件 | 默认值 | 教案页区域 | 可见对象 |
+|---|---|---|---|---|---|---|---|
+| `gibbonCourseClassID` | string | 可 | 可 | POST 必填 | — | 班级 | — |
+| `date` | YYYY-MM-DD | 可 | 可 | POST 必填 | — | 日期 | — |
+| `timeStart` `timeEnd` | HH:MM[:SS] | 可 | 可 | POST 必填 | — | 时段 | — |
+| `name` | string | 可 | 可 | POST 必填 | — | 课名 | 受 `viewable*` |
+| `summary` | string | 可 | 可 | 否 | 空则从 `description` 剥标签截 252 字 | 列表摘要 | 受 `viewable*` |
+| `description` | HTML | 可 | 可 | 否 | `""` | 正文 | 受 `viewable*` |
+| `teachersNotes` | HTML | 可 | 可 | 否 | `""` | 教师备注 | 仅教师（网页） |
+| `gibbonUnitID` | string/null | 可 | 可 | 否 | `null`；`""`/`null` 均清空 | 所属单元 | — |
+| `homework` | Y/N | 可 | 可 | 否 | `N` | 作业开关 | — |
+| `homeworkDetails` | HTML | 可 | 可 | `homework=Y` 时必填 | `""` | 作业说明 | 受 `viewable*` |
+| `homeworkDueDateTime` | datetime | 可 | 可 | `homework=Y` 时必填 | `null` | 作业截止 | 受 `viewable*` |
+| `homeworkTimeCap` | string/null | 可 | 可 | 否 | `homework=Y` 才保留 | 作业时限 | — |
+| `homeworkLocation` | enum | 可 | 可 | 否 | `homework=Y` 时默认 `Out of Class` | 作业地点 | — |
+| `homeworkSubmission` | Y/N | 可 | 可 | 否 | `N` | 在线提交 | — |
+| `homeworkSubmissionDateOpen` `homeworkSubmissionDrafts` `homeworkSubmissionType` `homeworkSubmissionRequired` | 杂 | 可 | 可 | 否 | 空/`null` | 提交设置 | — |
+| `homeworkCrowdAssess` 及 `homeworkCrowdAssess*Read` | Y/N | 可 | 可 | 否 | `N` | 同伴互评开关 | — |
+| `viewableStudents` | Y/N | 可 | 可 | 否 | 直建 `Y`（deploy 默认 `N`） | 学生可见开关 | 开关本身 |
+| `viewableParents` | Y/N | 可 | 可 | 否 | 直建 `N`（deploy 默认 `N`） | 家长可见开关 | 开关本身 |
+| `fields` | string/JSON | 可 | 否 | 否 | `null` | 自定义字段 | — |
+
+`name` 超过 50 字会被截断，不报错。`homework=Y` 时必须有 `homeworkDetails` 与 `homeworkDueDateTime`——**创建与更新（merge 后）均校验**；违反 422：`homeworkDetails and homeworkDueDateTime are required when homework is Y.`。PATCH 只把 `homework` 改成 `Y` 时，会用合并后的旧值做这项检查。
+
+GET `/v1/planner/lessons` 可带 `gibbonSchoolYearID`（默认当前学年）、`gibbonCourseClassID`、`from`、`to`；不带班级时只列自己相关的班。
+
+**列表是精简视图**，行字段为：`gibbonPlannerEntryID`、`gibbonCourseClassID`、`gibbonUnitID`、`date`、`timeStart`、`timeEnd`、`name`、`summary`、`homework`、`homeworkDueDateTime`、`homeworkSubmission`、`viewableStudents`、`viewableParents`，外加三个**字符串**（不是对象）：`course`（课程简称）、`class`（班级简称）、`unit`（单元名，可空）。**不含** `description`、`teachersNotes`、`homeworkDetails`、`homeworkLocation`。正文类字段必须 `GET /v1/planner/lessons/{id}`。详情另附只读 `homeworkSubmissions`、`smartBlocks`、`outcomes`。
+
+**从班级找课程与单元**（`GET /v1/planner/units` 必填 `gibbonCourseID`，`GET /v1/classes` 本身没有详情路由）：
+
+1. `GET /v1/classes` → 用返回的 `gibbonCourseID`（需模块 1.3.05+）。
+2. `GET /v1/planner/units?gibbonCourseID=…` 列单元；`GET /v1/courses/{id}` 看课程详情；`GET /v1/courses/{id}/classes` 反查该课程下的班。
+3. 旧实例没有 `gibbonCourseID` 时：枚举 `GET /v1/courses`，再对每个课程 `GET /v1/courses/{id}/classes` 直到匹配班级 `id`。
+4. 教案列表行的 `course`/`unit` 只是名称，**不能**当 ID 用。无全校权限时，课程/班级列表都只含自己任教或就读的。
+
+单元精简字段（PATCH 只更新出现的键）：
+
+| 字段 | POST | PATCH | 必填 / 默认 |
+|---|---|---|---|
+| `gibbonCourseID` `name` | 可 | 可 | POST 必填 |
+| `description` `details` `tags` | 可 | 可 | `""` |
+| `active` | 可 | 可 | `Y` |
+| `ordering` | 可 | 可 | `0` |
+| `map` | 可 | 可 | `Y` |
+| `license` `sharedPublic` | 可 | 可 | 可选 |
+
+智能块：创建只必填 `title`；可选 `type`、`length`、`contents`、`teachersNotes`、`sequenceNumber`（默认 1）。挂班（`units/{id}/classes`）是幂等的：已挂过就返回原记录，传 `running=Y` 可顺带激活。
 
 部署 JSON：
 
@@ -207,8 +274,8 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
-| GET | `/v1/attendance/codes` | 任一出勤点名权限，或 School Admin 出勤设置 |
-| POST | `/v1/attendance/codes` | School Admin `attendanceSettings`（`attendance.codes`） |
+| GET | `/v1/attendance/codes` | 任一 `attendance.class` / `attendance.formGroup` / `attendance.person`，或 `attendance.codes` |
+| POST | `/v1/attendance/codes` | `attendance.codes` |
 | GET/PATCH/DELETE | `/v1/attendance/codes/{id}` | GET 同列表；PATCH/DELETE 同 POST。`type=Core` 的内置代码不能删，可以改 |
 | GET/POST | `/v1/attendance/classes/{id}` | `attendance.class`；GET **必填** `date`；可选 `gibbonTTDayRowClassID` |
 | GET/POST | `/v1/attendance/form-groups/{id}` | `attendance.formGroup`；GET **必填** `date`。无 `_all` 时只能点自己导师的行政班 |
@@ -242,7 +309,22 @@ GET 点名表返回学生名单（含每人当前 `type`，未点过则为学校
 | GET/PUT | `/v1/markbook/columns/{id}/entries` | 同上 |
 | POST/GET/DELETE | `/v1/markbook/columns/{id}/entries/{studentId}/response` | 同上；该生回复文件 |
 
-栏目创建必填：`name`、`description`、`type`、`date`。`attainment` 默认 `Y`，此时还要 `gibbonScaleIDAttainment`。`effort` 默认跟随学校 `enableEffort` 设置（关了就是 `N`，给了 `gibbonScaleIDEffort` 也会被清掉）。`comment` 默认 `Y`。`viewableStudents` / `viewableParents` 默认 `N`。没给 `gibbonSchoolYearTermID` 时会按 `date` 自动归入对应学期。不做量规。**删除栏目会连带删掉该栏全部给分，不可恢复。**
+栏目创建必填：`name`、`description`、`type`、`date`。栏目精简字段：
+
+| 字段 | POST | PATCH | 必填 / 默认 |
+|---|---|---|---|
+| `name` `description` `type` `date` | 可 | 可 | POST 必填 |
+| `attainment` | 可 | 可 | `Y`；为 `Y` 时 POST 还要 `gibbonScaleIDAttainment` |
+| `gibbonScaleIDAttainment` `gibbonScaleIDEffort` | 可 | 可 | `effort=N` 或学校关 effort 时被清空 |
+| `effort` | 可 | 可 | 跟随学校 `enableEffort`（关了就是 `N`） |
+| `comment` | 可 | 可 | `Y` |
+| `uploadedResponse` | 可 | 可 | `N` |
+| `viewableStudents` `viewableParents` | 可 | 可 | `N`（学生/家长看成绩，与教案开关无关） |
+| `complete` `completeDate` | 可 | 可 | `N` / `complete=N` 时日期清空 |
+| `gibbonUnitID` `gibbonPlannerEntryID` `gibbonSchoolYearTermID` | 可 | 可 | 学期可按 `date` 自动归入 |
+| `columnColor` | 可 | 可 | `""` |
+
+没给 `gibbonSchoolYearTermID` 时会按 `date` 自动归入对应学期。不做量规。**删除栏目会连带删掉该栏全部给分，不可恢复。** PATCH 栏目是 merge 校验后再只写入请求里出现的键。
 
 `entries` GET 返回 `{ "column": ..., "data": [...] }`，`data` 覆盖全班学生（没给分的字段为 `null`）。每条含 `response`：无文件为 `{ "present": false }`；有文件为 `{ "present": true, "size", "contentType", "download" }`，`download` 是 API 路径，不是 `/uploads/` 磁盘路径。没有客户端原文件名。
 
@@ -299,14 +381,14 @@ curl -sS -X DELETE \
 
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|
-| GET | `/v1/attendance/reports/student-history` | Attendance `report_studentHistory` | `_all` 必填 `gibbonPersonID`；`_my` 强制自己；`_myChildren` 只能查子女 |
-| GET | `/v1/attendance/reports/consecutive-absences` | `report_consecutiveAbsences` | `numberOfSchoolDays` 默认 7（1–99） |
-| GET | `/v1/attendance/reports/not-present` | `report_studentsNotPresent_byDate` | **必填** `date`；可选 `allStudents=Y` |
-| GET | `/v1/attendance/reports/not-onsite` | `report_studentsNotOnsite_byDate` | 同上 |
-| GET | `/v1/attendance/reports/not-in-class` | `report_studentsNotInClass_byDate` | **必填** `date`；可选 `allStudents`、`types`、`gibbonYearGroupIDList` |
-| GET | `/v1/attendance/reports/form-groups-not-registered` | `report_formGroupsNotRegistered_byDate` | `dateStart`/`dateEnd` 或单个 `date` |
-| GET | `/v1/attendance/reports/classes-not-registered` | `report_courseClassesNotRegistered_byDate` | 同上 |
-| GET | `/v1/attendance/reports/trends` | `report_graph_byType` | 返回 `{ days, series }` 计数，不是图；可选 `dateStart`/`dateEnd`/`gibbonFormGroupID` |
+| GET | `/v1/attendance/reports/student-history` | `attendance.reports`；实际 `网页: report_studentHistory` | `_all` 必填 `gibbonPersonID`；`_my` 强制自己；`_myChildren` 只能查子女 |
+| GET | `/v1/attendance/reports/consecutive-absences` | `attendance.reports`；实际 `网页: report_consecutiveAbsences` | `numberOfSchoolDays` 默认 7（1–99） |
+| GET | `/v1/attendance/reports/not-present` | `attendance.reports`；实际 `网页: report_studentsNotPresent_byDate` | **必填** `date`；可选 `allStudents=Y` |
+| GET | `/v1/attendance/reports/not-onsite` | `attendance.reports`；实际 `网页: report_studentsNotOnsite_byDate` | 同上 |
+| GET | `/v1/attendance/reports/not-in-class` | `attendance.reports`；实际 `网页: report_studentsNotInClass_byDate` | **必填** `date`；可选 `allStudents`、`types`、`gibbonYearGroupIDList` |
+| GET | `/v1/attendance/reports/form-groups-not-registered` | `attendance.reports`；实际 `网页: report_formGroupsNotRegistered_byDate` | `dateStart`/`dateEnd` 或单个 `date` |
+| GET | `/v1/attendance/reports/classes-not-registered` | `attendance.reports`；实际 `网页: report_courseClassesNotRegistered_byDate` | 同上 |
+| GET | `/v1/attendance/reports/trends` | `attendance.reports`；实际 `网页: report_graph_byType` | 返回 `{ days, series }` 计数，不是图；可选 `dateStart`/`dateEnd`/`gibbonFormGroupID` |
 
 `capabilities.attendance.reports` 为任一上述报表即可。
 
@@ -331,24 +413,24 @@ curl -sS -X DELETE \
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
-| GET/POST | `/v1/finance/fee-categories` | `feeCategories_manage` |
+| GET/POST | `/v1/finance/fee-categories` | `finance.fees`；实际 `网页: feeCategories_manage` |
 | GET/PATCH/DELETE | `/v1/finance/fee-categories/{id}` | 同上 |
-| GET/POST | `/v1/finance/fees` | `fees_manage`；GET **必填** `gibbonSchoolYearID` |
+| GET/POST | `/v1/finance/fees` | `finance.fees`；实际 `网页: fees_manage`；GET **必填** `gibbonSchoolYearID` |
 | GET/PATCH | `/v1/finance/fees/{id}` | 同上 |
-| GET/POST | `/v1/finance/budget-cycles` | `budgetCycles_manage`；POST 可带 `allocations` |
+| GET/POST | `/v1/finance/budget-cycles` | `网页: budgetCycles_manage`；POST 可带 `allocations` |
 | GET/PATCH/DELETE | `/v1/finance/budget-cycles/{id}` | 同上；GET 含各预算科目额度 `allocations` |
 | GET/PUT | `/v1/finance/budget-cycles/{id}/allocations` | 同上；PUT 按预算科目 upsert 额度 |
-| GET/POST | `/v1/finance/budgets` | `budgets_manage` |
+| GET/POST | `/v1/finance/budgets` | `finance.budgets` |
 | GET/PATCH/DELETE | `/v1/finance/budgets/{id}` | 同上；GET 含 `staff` |
 | POST | `/v1/finance/budgets/{id}/staff` | 同上；`gibbonPersonID` + `access`=`Full`/`Write`/`Read` |
 | DELETE | `/v1/finance/budget-staff/{id}` | 同上 |
-| GET/POST | `/v1/finance/expense-approvers` | `expenseApprovers_manage` |
+| GET/POST | `/v1/finance/expense-approvers` | `网页: expenseApprovers_manage` |
 | PATCH/DELETE | `/v1/finance/expense-approvers/{id}` | 同上 |
-| GET/POST | `/v1/finance/expenses` | GET：`expenses_manage` 或 `expenseRequest_manage`；POST 默认走「我的申请」（需 `expenseRequest_manage`）；仅 `expensesAll` 且学校开启直接添加（`allowExpenseAdd`）时，传非 `Requested` 的 `status` 才生效，否则 `status` 被静默改回 `Requested`，不报错 |
+| GET/POST | `/v1/finance/expenses` | GET：`finance.expenses` 或 `finance.expensesAll`；POST 默认走「我的申请」（需 `网页: expenseRequest_manage`）；仅 `finance.expensesAll` 且学校开启直接添加（`allowExpenseAdd`）时，传非 `Requested` 的 `status` 才生效，否则 `status` 被静默改回 `Requested`，不报错 |
 | GET | `/v1/finance/expenses/{id}`、`.../print` | 同上；含 `log` |
-| POST | `/v1/finance/expenses/{id}/approvals` | `expenses_manage`；`{ "decision": "approve"|"reject"|"comment", "comment": "" }`，**201** |
-| POST | `/v1/finance/expenses/{id}/reimburse` | `expenseRequest_manage` |
-| GET/POST | `/v1/finance/petty-cash` | `pettyCash`；GET 可选 `gibbonSchoolYearID` |
+| POST | `/v1/finance/expenses/{id}/approvals` | `finance.expenses`；实际 `网页: expenses_manage`；`{ "decision": "approve"|"reject"|"comment", "comment": "" }`，**201** |
+| POST | `/v1/finance/expenses/{id}/reimburse` | `网页: expenseRequest_manage` |
+| GET/POST | `/v1/finance/petty-cash` | `finance.pettyCash`；GET 可选 `gibbonSchoolYearID` |
 | PATCH/DELETE | `/v1/finance/petty-cash/{id}` | 同上 |
 | POST | `/v1/finance/petty-cash/{id}/action` | 同上；按 `actionRequired` 标 `Repaid`/`Refunded` |
 
@@ -389,11 +471,11 @@ curl -sS -X DELETE \
 
 ## 行为记录
 
-无行为信、无模式分析。`type` 只能是 `Positive` / `Negative` / `Observation`。学校开了描述词（`enableDescriptors=Y`）时 `descriptor` 必填。`Manage Behaviour Records_my` 只能改自己写的记录。删除行为记录会连带删其全部 followUps。
+无行为信、无模式分析。`type` 只能是 `Positive` / `Negative` / `Observation`。学校开了描述词（`enableDescriptors=Y`）时 `descriptor` 必填。无 `behaviour.writeAll` 时只能改自己写的记录。删除行为记录会连带删其全部 followUps。GET 可带 `gibbonSchoolYearID`（默认当前学年）和 `type`。
 
 | 方法 | 路径 | 权限 |
 |---|---|---|
-| GET/POST | `/v1/behaviour` | `behaviour_manage` |
+| GET/POST | `/v1/behaviour` | `behaviour.write`；`behaviour.writeAll` 可看/改全部 |
 | GET/PATCH/DELETE | `/v1/behaviour/{id}` | 同上；GET 含 `followUps` |
 | POST | `/v1/behaviour/{id}/follow-up` | 同上；`{ "followUp": "..." }` |
 

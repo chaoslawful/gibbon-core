@@ -2,6 +2,12 @@
 
 manifest 的 `notes` 取自本文件对应版本的小节（打包脚本自动提取、净化后写入）。
 
+## 1.3.05 - 2026-09-11
+
+- 教案字段表、可见性模型（`teachersNotes` 仅教师）、PATCH merge 语义、openapi 路由清单边界写入技能；讲评/含学生个人信息的内容写 `teachersNotes`。
+- `GET /v1/classes` 每行增加 `gibbonCourseID`，打通班级→单元检索。OpenAPI 补上人员医疗状况两条路由，并对齐必填查询参数。
+- 权限列改为 capability / `网页:` 两套词；429 允许等 60 秒重试最多 2 次。
+
 ## 1.3.04 - 2026-09-08
 
 - 记分册栏目在 `uploadedResponse=Y` 时可按学生上传/下载/删除回复文件：`POST/GET/DELETE /v1/markbook/columns/{id}/entries/{studentId}/response`。POST 为 multipart 字段 `file`，成功是 **200**。须先 `PUT /entries` 建该生成绩行。GET 下载是文件字节（`curl -o`），不要当 JSON。GET entries 每条含 `response.present` 等元数据，不含磁盘路径。批量给分不再改动已有回复文件。需 API 模块 1.3.04+。

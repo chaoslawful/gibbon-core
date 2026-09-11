@@ -443,6 +443,33 @@ if [ "$PACKAGE_SKILLS" = "true" ]; then
                 exit 1
             fi
 
+            # reference.md backtick paths must be a subset of Spec.php path keys
+            if [ -f "$skill_dir/reference.md" ]; then
+                missing_paths="$(php -r '
+$spec = file_get_contents($argv[1]);
+$ref = file_get_contents($argv[2]);
+preg_match_all("#'\''(/v1/[^'\'']+)'\''#", $spec, $m1);
+preg_match_all("#`(/v1/[A-Za-z0-9_{}/.-]+)`#", $ref, $m2);
+$specPaths = array_flip($m1[1]);
+$missing = [];
+foreach (array_unique($m2[1]) as $path) {
+    if (!isset($specPaths[$path])) {
+        $missing[] = $path;
+    }
+}
+if ($missing) {
+    fwrite(STDERR, implode("\n", $missing));
+    exit(1);
+}
+' "$SOURCE_DIR/modules/API/src/OpenApi/Spec.php" "$skill_dir/reference.md" 2>&1)" || true
+                if [ -n "$missing_paths" ]; then
+                    echo -e "${RED}Error: $skill_name/reference.md has routes missing from OpenAPI Spec.php:${NC}"
+                    echo "$missing_paths"
+                    rm -rf "$TEMP_DIR"
+                    exit 1
+                fi
+            fi
+
             # Stage the skill directory, strip local-only files (same rules as the
             # main package cleanup), then build both archive formats from the
             # staging copy so their contents match exactly and no find | zip -@

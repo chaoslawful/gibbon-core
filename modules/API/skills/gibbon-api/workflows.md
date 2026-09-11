@@ -12,7 +12,7 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 1. `GET /v1/me` → 记下 `gibbonSchoolYearID`、`capabilities`。
 2. `GET /v1/school-year` → `firstDay` / `lastDay`。
-3. 需要班级 ID：`GET /v1/classes`，用返回的 `id` 作为 `gibbonCourseClassID`。
+3. 需要班级 ID：`GET /v1/classes`，用返回的 `id` 作为 `gibbonCourseClassID`，`gibbonCourseID` 建单元时用（1.3.05+）。
 
 ---
 
@@ -52,7 +52,7 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 需 `planner.units`。
 
-1. `POST /v1/planner/units` → `{ "gibbonCourseID":"...", "name":"单元名" }`
+1. 先拿课程 ID：`GET /v1/classes` 找到目标班的 `gibbonCourseID`（旧实例没有该字段时，枚举 `GET /v1/courses` 再 `GET /v1/courses/{id}/classes` 直到匹配班级 `id`）。然后 `POST /v1/planner/units` → `{ "gibbonCourseID":"...", "name":"单元名" }`
 2. `POST /v1/planner/units/{id}/blocks` → `{ "title":"块标题", "contents":"...", "length":"45" }`
 3. 只挂班、还不生成教案：`POST /v1/planner/units/{id}/classes` → `{ "gibbonCourseClassID":"...", "running":"Y" }`
 4. 按课表日期生成教案：先用 coverage/slots 拿到该班时段，再 `POST /v1/planner/units/{id}/deploy`，`lessons[].blocks` 用智能块 ID。没给 `name` 的课自动叫「单元名 N」；deploy 出的教案 `viewableStudents`/`viewableParents` 默认 `N`（与直建教案相反），要对学生可见就显式传 `Y`。
@@ -91,9 +91,9 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 ## F. 学期与特殊日
 
-需 `school.structure`（具体是学期/特殊日管理权限）。
+需 `school.structure`（学期/特殊日仍要对应网页权限；学年 CRUD 是 `网页: schoolYear_manage`，不在 `school.structure` 里）。
 
-1. `GET /v1/school-years` 拿到学年 ID。
+1. 当前学年 ID：`GET /v1/school-year` 或 `/v1/me`。列出全部学年才用 `GET /v1/school-years`。
 2. `POST /v1/terms` 建学期。`sequenceNumber` 全局唯一，可先 `GET /v1/terms?gibbonSchoolYearID=` 看已有序号再 +1。
 3. 停课/调时/不上课表：`POST /v1/special-days`。先有学期。`School Closure` 当天不能点名。
 
@@ -159,7 +159,7 @@ curl -sS -X POST \
 
 需 `behaviour.write`。
 
-1. `GET /v1/behaviour` 可加 `type=Positive|Negative|Observation`。
+1. `GET /v1/behaviour` 可加 `gibbonSchoolYearID`、`type=Positive|Negative|Observation`。
 2. 单人：`POST /v1/behaviour`。多人同一事件用 `gibbonPersonIDs`。
 3. 跟进：`POST /v1/behaviour/{id}/follow-up`。需要进学生备注时创建时带 `"copyToNotes": "Y"`。
 4. 不要做行为信、模式分析。
@@ -174,8 +174,8 @@ curl -sS -X POST \
 | Unit Planner | 单元、智能块、部署 |
 | Timetable / Timetable Admin | 课表、作息、课格、日期 |
 | Timetable Admin 课程/选课 | courses / classes / enrolment |
-| School Admin 结构 | 年级组、学部、学院、行政班、场地、学年、学期、特殊日 |
-| User Admin | 人员、角色、家庭、密码 |
+| School Admin 结构 | 年级组、学部、学院、行政班、场地、学期、特殊日（学年 CRUD 另需 `网页: schoolYear_manage`） |
+| User Admin | 人员（`user.admin`）；角色/家庭为 `网页: role_manage` / `family_manage` |
 | Admissions 入学名册 | student-enrolments |
 | Students 医疗 | 人员医疗表 |
 | Attendance 按班/行政班/个人点名 | attendance.* |

@@ -8,6 +8,7 @@ Gibbon™, Gibbon Education Ltd. (Hong Kong)
 
 namespace Gibbon\Module\API\Controllers;
 
+use Gibbon\Contracts\Database\Connection;
 use Gibbon\Contracts\Services\Session;
 use Gibbon\Domain\School\FacilityGateway;
 use Gibbon\Domain\Timetable\CourseGateway;
@@ -22,17 +23,20 @@ class CourseController
     protected CourseGateway $courseGateway;
     protected FacilityGateway $facilityGateway;
     protected PermissionMapper $permissions;
+    protected Connection $db;
 
     public function __construct(
         Session $session,
         CourseGateway $courseGateway,
         FacilityGateway $facilityGateway,
-        PermissionMapper $permissions
+        PermissionMapper $permissions,
+        Connection $db
     ) {
         $this->session = $session;
         $this->courseGateway = $courseGateway;
         $this->facilityGateway = $facilityGateway;
         $this->permissions = $permissions;
+        $this->db = $db;
     }
 
     public function schoolYear(Request $request, Response $response): Response
@@ -67,12 +71,39 @@ class CourseController
         $personID = $this->session->get('gibbonPersonID');
 
         if ($this->permissions->canViewAllPlannerClasses() || $this->permissions->canManageTimetables()) {
-            $rows = $this->courseGateway->selectClassListBySchoolYear($yearID)->fetchAll();
+            $rows = $this->db->select(
+                "SELECT gibbonCourseClass.gibbonCourseClassID, gibbonCourse.gibbonCourseID,
+                        CONCAT(gibbonCourse.nameShort, '.', gibbonCourseClass.nameShort) AS name
+                 FROM gibbonCourse
+                 JOIN gibbonCourseClass ON (gibbonCourseClass.gibbonCourseID=gibbonCourse.gibbonCourseID)
+                 WHERE gibbonCourse.gibbonSchoolYearID=:gibbonSchoolYearID
+                 ORDER BY name",
+                ['gibbonSchoolYearID' => $yearID]
+            )->fetchAll();
         } else {
-            $rows = $this->courseGateway->selectClassListBySchoolYearAndPerson($yearID, $personID)->fetchAll();
+            $rows = $this->db->select(
+                "SELECT gibbonCourseClass.gibbonCourseClassID, gibbonCourse.gibbonCourseID,
+                        CONCAT(gibbonCourse.nameShort, '.', gibbonCourseClass.nameShort) AS name
+                 FROM gibbonCourse
+                 JOIN gibbonCourseClass ON (gibbonCourseClass.gibbonCourseID=gibbonCourse.gibbonCourseID)
+                 JOIN gibbonCourseClassPerson ON (gibbonCourseClassPerson.gibbonCourseClassID=gibbonCourseClass.gibbonCourseClassID)
+                 WHERE gibbonCourseClassPerson.gibbonPersonID=:gibbonPersonID
+                   AND gibbonCourse.gibbonSchoolYearID=:gibbonSchoolYearID
+                   AND NOT gibbonCourseClassPerson.role LIKE '%- Left'
+                 ORDER BY name",
+                ['gibbonSchoolYearID' => $yearID, 'gibbonPersonID' => $personID]
+            )->fetchAll();
         }
 
-        return Json::write($response, ['data' => $this->mapValueName($rows)]);
+        $data = array_map(function ($row) {
+            return [
+                'id' => $row['gibbonCourseClassID'] ?? null,
+                'name' => $row['name'] ?? null,
+                'gibbonCourseID' => $row['gibbonCourseID'] ?? null,
+            ];
+        }, $rows);
+
+        return Json::write($response, ['data' => $data]);
     }
 
     public function spaces(Request $request, Response $response): Response

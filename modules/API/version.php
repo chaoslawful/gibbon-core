@@ -10,5 +10,5 @@ Gibbon™, Gibbon Education Ltd. (Hong Kong)
  * Disk version for Additional modules. module_manage.php compares this
  * against the installed row in gibbonModule.version.
  */
-$moduleVersion = '1.3.04';
+$moduleVersion = '1.3.05';
 $coreVersion = '30.0.00';
