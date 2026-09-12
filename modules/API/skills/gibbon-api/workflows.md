@@ -50,9 +50,9 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 
 ## D. 单元：写块并部署到班
 
-需 `planner.units`。
+列单元 `GET /v1/planner/units` 只需 `planner.read`；创建/改块/挂班/deploy 等写操作需 `planner.units`。
 
-1. 先拿课程 ID：`GET /v1/classes` 找到目标班的 `gibbonCourseID`（旧实例没有该字段时，枚举 `GET /v1/courses` 再 `GET /v1/courses/{id}/classes` 直到匹配班级 `id`）。然后 `POST /v1/planner/units` → `{ "gibbonCourseID":"...", "name":"单元名" }`
+1. 先拿课程 ID：`GET /v1/classes` 找到目标班的 `gibbonCourseID`（旧实例没有该字段时，枚举 `GET /v1/courses` 再 `GET /v1/courses/{id}/classes` 直到匹配班级 `id`）。列单元：`GET /v1/planner/units?gibbonCourseID=…`。然后 `POST /v1/planner/units` → `{ "gibbonCourseID":"...", "name":"单元名" }`
 2. `POST /v1/planner/units/{id}/blocks` → `{ "title":"块标题", "contents":"...", "length":"45" }`
 3. 只挂班、还不生成教案：`POST /v1/planner/units/{id}/classes` → `{ "gibbonCourseClassID":"...", "running":"Y" }`
 4. 按课表日期生成教案：先用 coverage/slots 拿到该班时段，再 `POST /v1/planner/units/{id}/deploy`，`lessons[].blocks` 用智能块 ID。没给 `name` 的课自动叫「单元名 N」；deploy 出的教案 `viewableStudents`/`viewableParents` 默认 `N`（与直建教案相反），要对学生可见就显式传 `Y`。
@@ -60,7 +60,7 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 6. 工作副本改完拷回：`POST /v1/planner/unit-classes/{gibbonUnitClassID}/copy-back` —— **会清空单元原有全部块再覆盖，先跟用户确认**
 7. 从已有教案生成块：`POST /v1/planner/units/{id}/smart-blockify` → `{ "gibbonPlannerEntryID":"..." }`（追加，不动已有块）
 
-教师改作业提交：`GET/POST /v1/planner/lessons/{id}/homework`。
+教师改作业提交：`GET /v1/planner/lessons/{id}/homework` 需能看该班（`planner.read`）；`POST` 与改/删提交需 `planner.write`。
 
 ---
 
@@ -107,14 +107,14 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 2. 行政班：路径换成 `/v1/attendance/form-groups/{id}`。行政班 `attendance=N` 或不是你导师的班（无 `_all` 权限时）会直接 403；有 `_all` 权限时不查 `attendance` 标志，`attendance=N` 的班也能点。
 3. 个人：`POST /v1/attendance/people/{gibbonPersonID}`。
 
-不要给未来日期或停课日点名（会 422）。重复 POST 同一天是覆盖更新。改出勤代码用学校管理员令牌：`POST/PATCH/DELETE /v1/attendance/codes`；内置 `Core` 代码不能删。
+不要给未来日期或停课日点名（会 422）。重复 POST 同一天按**同一上下文**覆盖（教学班按班+课格；行政班按 Form Group；个人按 Person 且无班级），改 `type` 也是 update，不会再插一条。行政班「已点」日志同一天同样覆盖。改出勤代码用学校管理员令牌：`POST/PATCH/DELETE /v1/attendance/codes`；内置 `Core` 代码不能删。
 
 历史与报表（只读）：
 
 1. 某个学生：`GET /v1/attendance/reports/student-history?gibbonPersonID=`
 2. 连续缺勤：`GET /v1/attendance/reports/consecutive-absences?numberOfSchoolDays=7`
 3. 某天谁没来/不在校/不在课上：`not-present` / `not-onsite` / `not-in-class`，都要 `date=`
-4. 哪些班还没点名：`form-groups-not-registered`、`classes-not-registered`
+4. 哪些班还没点名：`form-groups-not-registered`、`classes-not-registered`（不传 date 时默认今天）
 5. 按类型统计：`GET /v1/attendance/reports/trends`（JSON 数列，不是图）
 
 ---
@@ -126,7 +126,7 @@ Gibbon 里：**课表**决定「哪天哪节哪个班」；**教案**是该班�
 1. `GET /v1/grade-scales` 再 `GET /v1/grade-scales/{id}` 拿 `value`。
 2. `POST /v1/markbook/classes/{classId}/columns` 建栏目（`type` 用 GET columns 返回的 `types`；学校没开 effort 就别传 `effort`，传了也会被清成 `N`）。要上传回复文件时设 `uploadedResponse=Y`（默认 `N`）。已有栏目用 `PATCH /v1/markbook/columns/{id}` 把 `uploadedResponse` 改成 `Y`。
 3. `GET /v1/markbook/columns/{id}/entries` 看学生（全班都在 `data` 里，没给分的字段为 `null`；`response.present` 表示是否已有回复文件）。
-4. `PUT /v1/markbook/columns/{id}/entries` 按学生 upsert 分数/努力/评语；`attainmentValue` 传空字符串即清除该生分数。给分不会动回复文件。该生必须先有 entry，才能传文件。
+4. `PUT /v1/markbook/columns/{id}/entries` 按学生 upsert 分数/努力/评语；已有行缺键保留原值，空字符串清除该维度。给分不会动回复文件。该生必须先有 entry，才能传文件。
 5. 上传回复（multipart，不要带 JSON Content-Type）：
 
 ```bash

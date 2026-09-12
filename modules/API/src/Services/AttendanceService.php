@@ -294,19 +294,31 @@ class AttendanceService
             throw new ApiException('records must be a non-empty array.', 422);
         }
 
-        $this->db->insert(
-            'INSERT INTO gibbonAttendanceLogFormGroup SET gibbonPersonIDTaker=:taker, gibbonFormGroupID=:id, date=:date, timestampTaken=:taken',
-            [
-                'taker' => $this->session->get('gibbonPersonID'),
-                'id' => $gibbonFormGroupID,
-                'date' => $date,
-                'taken' => date('Y-m-d H:i:s'),
-            ]
-        );
-
-        $allowed = array_column($this->formGroupStudents($gibbonFormGroupID, $date), 'gibbonPersonID');
         $taker = $this->session->get('gibbonPersonID');
         $now = date('Y-m-d H:i:s');
+        $takenId = $this->db->selectOne(
+            "SELECT gibbonAttendanceLogFormGroupID FROM gibbonAttendanceLogFormGroup
+             WHERE gibbonFormGroupID=:id AND date=:date ORDER BY timestampTaken DESC LIMIT 1",
+            ['id' => $gibbonFormGroupID, 'date' => $date]
+        );
+        if (!empty($takenId)) {
+            $this->db->update(
+                'UPDATE gibbonAttendanceLogFormGroup SET gibbonPersonIDTaker=:taker, timestampTaken=:taken WHERE gibbonAttendanceLogFormGroupID=:log',
+                ['taker' => $taker, 'taken' => $now, 'log' => $takenId]
+            );
+        } else {
+            $this->db->insert(
+                'INSERT INTO gibbonAttendanceLogFormGroup SET gibbonPersonIDTaker=:taker, gibbonFormGroupID=:id, date=:date, timestampTaken=:taken',
+                [
+                    'taker' => $taker,
+                    'id' => $gibbonFormGroupID,
+                    'date' => $date,
+                    'taken' => $now,
+                ]
+            );
+        }
+
+        $allowed = array_column($this->formGroupStudents($gibbonFormGroupID, $date), 'gibbonPersonID');
 
         foreach ($records as $i => $record) {
             if (!is_array($record)) {
@@ -334,12 +346,9 @@ class AttendanceService
                 'date' => $date,
                 'timestampTaken' => $now,
             ];
-            $existing = $this->db->select(
-                "SELECT * FROM gibbonAttendanceLogPerson WHERE gibbonPersonID=:id AND date=:date ORDER BY gibbonAttendanceLogPersonID DESC",
-                ['id' => $personId, 'date' => $date]
-            )->fetch();
-            if (!empty($existing) && ($existing['context'] ?? '') === 'Form Group' && ($existing['type'] ?? '') === $type && ($existing['direction'] ?? '') === $code['direction']) {
-                $this->personLogs->update($existing['gibbonAttendanceLogPersonID'], $data);
+            $matchId = $this->matchingFormGroupLogId($personId, $date, $gibbonFormGroupID);
+            if ($matchId) {
+                $this->personLogs->update($matchId, $data);
             } else {
                 $this->personLogs->insert($data);
             }
@@ -387,12 +396,6 @@ class AttendanceService
         $taker = $this->session->get('gibbonPersonID');
         $now = date('Y-m-d H:i:s');
 
-        $rows = $this->db->select(
-            "SELECT * FROM gibbonAttendanceLogPerson WHERE gibbonPersonID=:id AND date=:date ORDER BY gibbonAttendanceLogPersonID DESC",
-            ['id' => $gibbonPersonID, 'date' => $date]
-        )->fetchAll();
-        $existing = $rows[0] ?? [];
-        $samePersonType = !empty($existing) && ($existing['context'] ?? '') === 'Person' && ($existing['type'] ?? '') === $type;
         $data = [
             'gibbonAttendanceCodeID' => $code['gibbonAttendanceCodeID'],
             'gibbonPersonID' => $gibbonPersonID,
@@ -406,8 +409,9 @@ class AttendanceService
             'timestampTaken' => $now,
         ];
 
-        if ($samePersonType && ($existing['direction'] ?? '') === $code['direction'] && (int) ($existing['gibbonCourseClassID'] ?? 0) === 0) {
-            $this->personLogs->update($existing['gibbonAttendanceLogPersonID'], $data);
+        $matchId = $this->matchingPersonLogId($gibbonPersonID, $date);
+        if ($matchId) {
+            $this->personLogs->update($matchId, $data);
         } else {
             $this->personLogs->insert($data);
         }
@@ -527,6 +531,48 @@ class AttendanceService
             if (empty($row['gibbonTTDayRowClassID']) || $row['gibbonTTDayRowClassID'] == $ttId) {
                 return (string) $row['gibbonAttendanceLogPersonID'];
             }
+        }
+
+        return null;
+    }
+
+    protected function matchingFormGroupLogId(string $personId, string $date, string $formGroupId): ?string
+    {
+        $rows = $this->db->select(
+            "SELECT * FROM gibbonAttendanceLogPerson WHERE gibbonPersonID=:id AND date=:date ORDER BY gibbonAttendanceLogPersonID DESC",
+            ['id' => $personId, 'date' => $date]
+        )->fetchAll();
+        $fallback = null;
+        foreach ($rows as $row) {
+            if (($row['context'] ?? '') !== 'Form Group') {
+                continue;
+            }
+            if (($row['gibbonFormGroupID'] ?? '') == $formGroupId) {
+                return (string) $row['gibbonAttendanceLogPersonID'];
+            }
+            if ($fallback === null) {
+                $fallback = (string) $row['gibbonAttendanceLogPersonID'];
+            }
+        }
+
+        return $fallback;
+    }
+
+    protected function matchingPersonLogId(string $personId, string $date): ?string
+    {
+        $rows = $this->db->select(
+            "SELECT * FROM gibbonAttendanceLogPerson WHERE gibbonPersonID=:id AND date=:date ORDER BY gibbonAttendanceLogPersonID DESC",
+            ['id' => $personId, 'date' => $date]
+        )->fetchAll();
+        foreach ($rows as $row) {
+            if (($row['context'] ?? '') !== 'Person') {
+                continue;
+            }
+            if ((int) ($row['gibbonCourseClassID'] ?? 0) !== 0) {
+                continue;
+            }
+
+            return (string) $row['gibbonAttendanceLogPersonID'];
         }
 
         return null;

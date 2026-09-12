@@ -191,14 +191,15 @@ class MarkbookService
             if ($studentId === '' || !in_array($studentId, $allowed, true)) {
                 throw new ApiException("entries[$i] has an unknown gibbonPersonIDStudent.", 422);
             }
-            $payload = $this->entryPayload($column, $row, $enableEffort === 'Y');
-            $payload['gibbonMarkbookColumnID'] = $id;
-            $payload['gibbonPersonIDStudent'] = $studentId;
-            $payload['gibbonPersonIDLastEdit'] = $editor;
             $existing = $this->entries->selectBy([
                 'gibbonMarkbookColumnID' => $id,
                 'gibbonPersonIDStudent' => $studentId,
             ])->fetch();
+            $existing = is_array($existing) ? $existing : [];
+            $payload = $this->entryPayload($column, $row, $enableEffort === 'Y', $existing);
+            $payload['gibbonMarkbookColumnID'] = $id;
+            $payload['gibbonPersonIDStudent'] = $studentId;
+            $payload['gibbonPersonIDLastEdit'] = $editor;
             if (!empty($existing)) {
                 $this->entries->update($existing['gibbonMarkbookEntryID'], $payload);
             } else {
@@ -341,7 +342,7 @@ class MarkbookService
         return $data;
     }
 
-    protected function entryPayload(array $column, array $row, bool $effortEnabled): array
+    protected function entryPayload(array $column, array $row, bool $effortEnabled, array $existing = []): array
     {
         $payload = [
             'modifiedAssessment' => null,
@@ -352,11 +353,11 @@ class MarkbookService
             $payload['attainmentDescriptor'] = null;
             $payload['attainmentConcern'] = null;
         } elseif (empty($column['gibbonScaleIDAttainment'])) {
-            $payload['attainmentValue'] = $row['attainmentValue'] ?? '';
+            $payload['attainmentValue'] = $this->entryField($row, $existing, 'attainmentValue', '');
             $payload['attainmentDescriptor'] = '';
             $payload['attainmentConcern'] = '';
         } else {
-            $value = $row['attainmentValue'] ?? '';
+            $value = $this->entryField($row, $existing, 'attainmentValue', '');
             $grade = $this->describeGrade($column['gibbonScaleIDAttainment'], $value);
             $payload['attainmentValue'] = $value;
             $payload['attainmentDescriptor'] = $grade['descriptor'];
@@ -368,11 +369,11 @@ class MarkbookService
             $payload['effortDescriptor'] = null;
             $payload['effortConcern'] = null;
         } elseif (empty($column['gibbonScaleIDEffort'])) {
-            $payload['effortValue'] = $row['effortValue'] ?? '';
+            $payload['effortValue'] = $this->entryField($row, $existing, 'effortValue', '');
             $payload['effortDescriptor'] = '';
             $payload['effortConcern'] = '';
         } else {
-            $value = $row['effortValue'] ?? '';
+            $value = $this->entryField($row, $existing, 'effortValue', '');
             $grade = $this->describeGrade($column['gibbonScaleIDEffort'], $value);
             $payload['effortValue'] = $value;
             $payload['effortDescriptor'] = $grade['descriptor'];
@@ -382,10 +383,22 @@ class MarkbookService
         if (($column['comment'] ?? 'Y') !== 'Y') {
             $payload['comment'] = null;
         } else {
-            $payload['comment'] = $row['comment'] ?? '';
+            $payload['comment'] = $this->entryField($row, $existing, 'comment', '');
         }
 
         return $payload;
+    }
+
+    protected function entryField(array $row, array $existing, string $key, $empty)
+    {
+        if (array_key_exists($key, $row)) {
+            return $row[$key];
+        }
+        if (array_key_exists($key, $existing)) {
+            return $existing[$key];
+        }
+
+        return $empty;
     }
 
     protected function describeGrade($scaleId, $value): array

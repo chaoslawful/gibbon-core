@@ -4,7 +4,7 @@ description: >-
   通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、教职工、出勤、记分册（含成绩回复文件）、行为记录与财务支出。
   仅在用户明确要求使用 gibbon-api skill、按该 REST API 操作 Gibbon、或安装本 skill 后点名操作课表/课程规划时使用。
 disable-model-invocation: true
-version: 1.3.05
+version: 1.3.06
 ---
 
 # Gibbon Agent REST API
@@ -156,10 +156,10 @@ fi
 - 创建成功 **201**，删除成功 **204** 无 body。deploy、copy-forward、行为 follow-up、报销审批记录也创建资源，返回 **201**；不创建资源的动作（copy-back、smart-blockify、重置密码、标记已付、零用金 action）以及**记分册回复文件 POST**（上传/替换）返回 **200**。
 - 下载回复文件：同路径 GET，响应是**文件字节**不是 JSON。用 `curl -o 文件` 保存；不要按 JSON 解析，也不要加 `Content-Type: application/json`。
 - 未提供密码时，创建/重置人员会生成随机密码，只在该次响应出现 `generatedPassword`。
-- **Windows Git Bash 坑**：`curl -d` 内联 JSON 里带中文会被弄坏，服务端当成空 body 报 422。把 JSON 写进临时文件，用 `-d @文件` 发送。更新脚本里的 `mktemp -d`、`sed -i`、`find -exec cp` 在 Git Bash 下一般可用；没有 `unzip` 会改下 tar 包。`mktemp` 可能返回 `/tmp/...` 的 MSYS 路径，不要把它交给原生 Windows 程序。
+- **Windows Git Bash 坑**：`curl -d` 内联 JSON 里带中文会被弄坏，服务端当成空 body 报 422。把 JSON 写进临时文件，用 `-d @文件` 发送。更新步骤里的 `mktemp -d`、`find -exec cp` 在 Git Bash 下一般可用；没有 `unzip` 会改下 tar 包。`mktemp` 可能返回 `/tmp/...` 的 MSYS 路径，不要把它交给原生 Windows 程序。[setup.md](setup.md) 写 `.env` 的 `set_key` 用了 `sed -i`，在 Git Bash 下通常可用。
 - **`GET /v1/openapi.json` 是路由清单，不是字段手册**：绝大多数写操作没有 requestBody，多数 GET 也未声明查询参数。判断「有哪些路由」用它；判断「字段怎么填」以 [reference.md](reference.md) 为准。两者都没有时：先 GET 同资源的现有记录看字段形状，再小步试写并核对回读，不要臆造字段名。
-- **PATCH 语义分两种**：教案是先与现有记录 merge、再整份校验后写入，未出现的字段保持原值。多数其它资源（`RestTable`）只更新请求里出现的键。确认报告**只列拟变更的字段**。清空字符串传 `""`；教案的 `gibbonUnitID` 传 `""` 或 `null` 均可置空。
-- **教案可见性**：`viewableStudents` / `viewableParents` 控制 `name` / `summary` / `description` / `homeworkDetails` 等对谁可见。`teachersNotes` 在网页上恒为教师专属。涉及学生姓名、错题、行为观察的内容一律写 `teachersNotes`，面向学生的教学内容写 `description`。API GET 详情仍会把 `teachersNotes` 返回给能看该班的令牌，写入时仍按网页可见性选字段。
+- **PATCH 语义分三种**：教案是先与现有记录 merge、再整份校验后**整行写回**，未出现的字段保持原值。多数其它资源（`RestTable`）只更新请求里出现的键。记分册栏目、特殊日、出勤代码等是 merge 校验后再**只写出现的键**（校验可能额外清空关联字段，例如学校关 effort 时会把 `gibbonScaleIDEffort` 写成 `null`，即使 body 没带 `effort`）。确认报告**只列拟变更的字段**。清空字符串传 `""`；教案的 `gibbonUnitID` 传 `""` 或 `null` 均可置空。记分册 `PUT /entries` 对已有行也是字段级：缺键保留原值，空串清该维度。
+- **教案可见性**：`viewableStudents` / `viewableParents` 是**整课**对学生/家长的列表与详情开关，不是字段级 ACL。打开后网页才给学生看 `name` / `summary` / `description` / `homeworkDetails`。`teachersNotes` 在网页上恒为教师专属。涉及学生姓名、错题、行为观察的内容一律写 `teachersNotes`，面向学生的教学内容写 `description`。API GET 详情仍会把 `teachersNotes` 返回给能看该班的令牌，写入时仍按网页可见性选字段。
 - 参数必填性以服务端 422 为准；spec 未标 `required` 不等于可选。
 
 ## 写操作：先报告，确认后才执行

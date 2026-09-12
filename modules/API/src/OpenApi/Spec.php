@@ -91,12 +91,14 @@ class Spec
             'viewableParents' => $yn,
             'fields' => ['type' => 'string', 'description' => 'Custom planner fields; accepted on POST only'],
         ];
+        $lessonPatch = $lessonWrite;
+        unset($lessonPatch['fields']);
 
         $spec = [
             'openapi' => '3.0.3',
             'info' => [
                 'title' => 'Gibbon Agent API',
-                'version' => '1.3.05',
+                'version' => '1.3.06',
                 'description' => 'REST API for authorised agents. Requests run as the token owner with the role locked at token creation. Covers school structure, terms, special days, timetables, courses, people, staff, units, lesson planner, attendance, attendance reports, markbook, behaviour, and finance expenses.',
             ],
             'servers' => [
@@ -169,7 +171,7 @@ class Spec
                         'summary' => 'Update a lesson plan',
                         'operationId' => 'updateLesson',
                         'parameters' => [$idParam('id', 'gibbonPlannerEntryID')],
-                        'requestBody' => $json($lessonWrite),
+                        'requestBody' => $json($lessonPatch),
                         'responses' => ['200' => $ok, '403' => $err, '422' => $err],
                     ],
                     'delete' => [
@@ -364,6 +366,7 @@ class Spec
                         $query('type', 'Teaching or Support'),
                         $query('all', 'Y to include Expected/Left (full directory or manage only)'),
                         $query('gibbonPersonID', 'Look up the staff record for a person'),
+                        $query('status', 'Person status filter; full directory only'),
                         $query('limit', 'Page size, default 50'),
                     ],
                     'responses' => ['200' => $ok, '403' => $err],
@@ -374,7 +377,17 @@ class Spec
                 ['get' => ['summary' => 'Get staff record with person identity', 'parameters' => [$idParam('id', 'gibbonStaffID')], 'responses' => ['200' => $ok, '404' => $err]]],
                 $item('staff record')
             ),
-            '/v1/people' => $crud('people'),
+            '/v1/people' => [
+                'get' => [
+                    'summary' => 'List people',
+                    'parameters' => [
+                        $query('q', 'Search name or username'),
+                        $query('limit', 'Page size, default 50'),
+                    ],
+                    'responses' => ['200' => $ok, '403' => $err],
+                ],
+                'post' => ['summary' => 'Create person', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],
+            ],
             '/v1/people/{id}' => array_merge(['get' => ['summary' => 'Get person', 'parameters' => [$idParam('id', 'gibbonPersonID')], 'responses' => ['200' => $ok]]], $item('person')),
             '/v1/people/{id}/password' => ['post' => ['summary' => 'Reset person password', 'parameters' => [$idParam('id', 'gibbonPersonID')], 'responses' => ['200' => $ok]]],
             '/v1/people/{id}/enrolment' => [
@@ -502,8 +515,8 @@ class Spec
             ],
             '/v1/attendance/reports/student-history' => ['get' => ['summary' => 'Student attendance history for the current year', 'parameters' => [$query('gibbonPersonID', 'Required for Student History_all; ignored for _my (forced to self); _myChildren must be a child')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
             '/v1/attendance/reports/consecutive-absences' => ['get' => ['summary' => 'Students with consecutive absences', 'parameters' => [$query('numberOfSchoolDays', 'School days, 1-99')], 'responses' => ['200' => $ok, '403' => $err]]],
-            '/v1/attendance/reports/not-present' => ['get' => ['summary' => 'Students not present on a date', 'parameters' => [['name' => 'date', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string'], 'description' => 'YYYY-MM-DD']], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
-            '/v1/attendance/reports/not-onsite' => ['get' => ['summary' => 'Students not onsite on a date', 'parameters' => [['name' => 'date', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string'], 'description' => 'YYYY-MM-DD']], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
+            '/v1/attendance/reports/not-present' => ['get' => ['summary' => 'Students not present on a date', 'parameters' => [['name' => 'date', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string'], 'description' => 'YYYY-MM-DD'], $query('allStudents', 'Y to include all students')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
+            '/v1/attendance/reports/not-onsite' => ['get' => ['summary' => 'Students not onsite on a date', 'parameters' => [['name' => 'date', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string'], 'description' => 'YYYY-MM-DD'], $query('allStudents', 'Y to include all students')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
             '/v1/attendance/reports/not-in-class' => ['get' => ['summary' => 'Students not in class on a date', 'parameters' => [['name' => 'date', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string'], 'description' => 'YYYY-MM-DD'], $query('allStudents', 'Y to include all students'), $query('types', 'Attendance type filter'), $query('gibbonYearGroupIDList', 'Year group id list')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
             '/v1/attendance/reports/form-groups-not-registered' => ['get' => ['summary' => 'Form groups that have not taken attendance', 'parameters' => [$query('dateStart', 'Start date'), $query('dateEnd', 'End date'), $query('date', 'Alias: used as both start and end when dateStart/dateEnd omitted')], 'responses' => ['200' => $ok, '403' => $err]]],
             '/v1/attendance/reports/classes-not-registered' => ['get' => ['summary' => 'Classes that have not taken attendance', 'parameters' => [$query('dateStart', 'Start date'), $query('dateEnd', 'End date'), $query('date', 'Alias: used as both start and end when dateStart/dateEnd omitted')], 'responses' => ['200' => $ok, '403' => $err]]],
