@@ -66,7 +66,7 @@ class MySqlConnector
     {
         $databaseName = "`" . str_replace("`", "``", $databaseName) . "`";
 
-        $querySuccess = $connection->statement("CREATE DATABASE IF NOT EXISTS {$databaseName} DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8mb3_general_ci");
+        $querySuccess = $connection->statement("CREATE DATABASE IF NOT EXISTS {$databaseName} DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_0900_ai_ci");
 
         if ($querySuccess) {
             $connection->statement("USE {$databaseName}");
@@ -86,7 +86,7 @@ class MySqlConnector
         $dsn = "mysql:host={$databaseServer};";
         $dsn .= !empty($databasePort)? "port={$databasePort};" : '';
         $dsn .= !empty($databaseName)? "dbname={$databaseName};" : '';
-        $dsn .= "charset=utf8";
+        $dsn .= "charset=utf8mb4";
 
         return $dsn;
     }
@@ -96,6 +96,7 @@ class MySqlConnector
         $connection->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $connection->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
         $connection->setAttribute(\PDO::ATTR_STATEMENT_CLASS, array(Result::class));
+        $connection->exec("SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci");
     }
 
     /**

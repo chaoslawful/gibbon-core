@@ -25,7 +25,7 @@ $moduleTables[] = "CREATE TABLE `gibbonAPIClient` (
   `timestampCreated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`gibbonAPIClientID`),
   UNIQUE KEY `clientID` (`clientID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci";
 
 $moduleTables[] = "CREATE TABLE `gibbonAPIAuthorizationCode` (
   `gibbonAPIAuthorizationCodeID` int(12) UNSIGNED ZEROFILL NOT NULL AUTO_INCREMENT,
@@ -38,7 +38,7 @@ $moduleTables[] = "CREATE TABLE `gibbonAPIAuthorizationCode` (
   `timestampCreated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`gibbonAPIAuthorizationCodeID`),
   KEY `codeHash` (`codeHash`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci";
 
 $moduleTables[] = "CREATE TABLE `gibbonAPIToken` (
   `gibbonAPITokenID` int(12) UNSIGNED ZEROFILL NOT NULL AUTO_INCREMENT,
@@ -56,7 +56,7 @@ $moduleTables[] = "CREATE TABLE `gibbonAPIToken` (
   PRIMARY KEY (`gibbonAPITokenID`),
   UNIQUE KEY `tokenHash` (`tokenHash`),
   KEY `gibbonPersonID` (`gibbonPersonID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci";
 
 $moduleTables[] = "CREATE TABLE `gibbonAPIAuditLog` (
   `gibbonAPIAuditLogID` int(14) UNSIGNED ZEROFILL NOT NULL AUTO_INCREMENT,
@@ -70,7 +70,7 @@ $moduleTables[] = "CREATE TABLE `gibbonAPIAuditLog` (
   PRIMARY KEY (`gibbonAPIAuditLogID`),
   KEY `gibbonAPITokenID` (`gibbonAPITokenID`),
   KEY `timestamp` (`timestamp`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci";
 
 $gibbonSetting[] = "INSERT INTO `gibbonSetting` (`scope`, `name`, `nameDisplay`, `description`, `value`) VALUES ('API', 'apiEnabled', 'API Enabled', 'Allow external agents to call the REST API with a personal access token.', 'Y')";
 $gibbonSetting[] = "INSERT INTO `gibbonSetting` (`scope`, `name`, `nameDisplay`, `description`, `value`) VALUES ('API', 'tokenExpiryDays', 'Token Expiry (Days)', 'Default lifetime of a new personal access token. Use 0 for no expiry.', '90')";

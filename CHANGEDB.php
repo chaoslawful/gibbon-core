@@ -1055,4 +1055,76 @@ ALTER TABLE `gibbonCalendarEventType` CHANGE `color` `color` VARCHAR(7) NULL, CH
 ++$count;
 $sql[$count][0] = '30.0.01';
 $sql[$count][1] = "
-UPDATE `gibbonAction` SET URLList='calendar_view.php,calendar_event_view.php' WHERE name='View Calendar' AND gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Calendar');end";
+UPDATE `gibbonAction` SET URLList='calendar_view.php,calendar_event_view.php' WHERE name='View Calendar' AND gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Calendar');end
+DROP PROCEDURE IF EXISTS gibbonConvertToUtf8mb4;end
+CREATE PROCEDURE gibbonConvertToUtf8mb4()
+BEGIN
+  DECLARE done INT DEFAULT FALSE;
+  DECLARE t VARCHAR(64);
+  DECLARE cur CURSOR FOR
+    SELECT TABLE_NAME
+    FROM information_schema.TABLES
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_TYPE = 'BASE TABLE'
+      AND TABLE_COLLATION <> 'utf8mb4_0900_ai_ci';
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+  OPEN cur;
+  convert_loop: LOOP
+    FETCH cur INTO t;
+    IF done THEN
+      LEAVE convert_loop;
+    END IF;
+    BEGIN
+      DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+      SET @s = CONCAT('ALTER TABLE `', REPLACE(t, '`', '``'), '` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci');
+      PREPARE stmt FROM @s;
+      EXECUTE stmt;
+      DEALLOCATE PREPARE stmt;
+    END;
+  END LOOP;
+  CLOSE cur;
+END;end
+CALL gibbonConvertToUtf8mb4();end
+DROP PROCEDURE IF EXISTS gibbonConvertToUtf8mb4;end
+ALTER TABLE `gibbonApplicationForm`
+  MODIFY `companyAddress` TEXT NULL,
+  MODIFY `dayType` TEXT NULL,
+  MODIFY `homeAddressCountry` TEXT NULL,
+  MODIFY `homeAddressDistrict` TEXT NULL,
+  MODIFY `howDidYouHear` TEXT NULL,
+  MODIFY `howDidYouHearMore` TEXT NULL,
+  MODIFY `schoolAddress1` TEXT NOT NULL,
+  MODIFY `schoolAddress2` TEXT NOT NULL,
+  MODIFY `officialName` TEXT NOT NULL,
+  MODIFY `parent1officialName` TEXT NULL,
+  MODIFY `parent2officialName` TEXT NULL,
+  MODIFY `companyContact` TEXT NULL,
+  MODIFY `companyName` TEXT NULL,
+  MODIFY `languageChoice` TEXT NULL,
+  MODIFY `referenceEmail` TEXT NULL,
+  MODIFY `siblingName1` TEXT NOT NULL,
+  MODIFY `siblingName2` TEXT NOT NULL,
+  MODIFY `siblingName3` TEXT NOT NULL,
+  MODIFY `email` TEXT NULL,
+  MODIFY `parent1email` TEXT NULL,
+  MODIFY `parent2email` TEXT NULL,
+  MODIFY `surname` TEXT NOT NULL,
+  MODIFY `firstName` TEXT NOT NULL,
+  MODIFY `preferredName` TEXT NOT NULL,
+  MODIFY `parent1surname` TEXT NULL,
+  MODIFY `parent1firstName` TEXT NULL,
+  MODIFY `parent1preferredName` TEXT NULL,
+  MODIFY `parent2surname` TEXT NULL,
+  MODIFY `parent2firstName` TEXT NULL,
+  MODIFY `parent2preferredName` TEXT NULL,
+  MODIFY `parent1relationship` TEXT NULL,
+  MODIFY `parent2relationship` TEXT NULL,
+  MODIFY `schoolName1` TEXT NOT NULL,
+  MODIFY `schoolName2` TEXT NOT NULL,
+  MODIFY `schoolLanguage1` TEXT NOT NULL,
+  MODIFY `schoolLanguage2` TEXT NOT NULL,
+  MODIFY `siblingSchool1` TEXT NOT NULL,
+  MODIFY `siblingSchool2` TEXT NOT NULL,
+  MODIFY `siblingSchool3` TEXT NOT NULL;end
+ALTER TABLE `gibbonApplicationForm` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;end";

@@ -90,9 +90,9 @@ if (isActionAccessible($guid, $connection2, '/modules/System Admin/systemCheck.p
             ->append((version_compare($mysqlVersion, $mysqlRequirement, '>='))? $trueIcon : $falseIcon);
 
     $row = $form->addRow();
-        $row->addLabel('mysqlCollationLabel', __('MySQL Collation'))->description(sprintf( __('Database collation should be set to %s'), 'utf8_general_ci or utf8mb3_general_ci'));
+        $row->addLabel('mysqlCollationLabel', __('MySQL Collation'))->description(sprintf( __('Database collation should be set to %s'), 'utf8mb4_0900_ai_ci'));
         $row->addTextField('mysqlCollation')->setValue($mysqlCollation)->readonly()
-            ->append(($mysqlCollation == 'utf8_general_ci' || $mysqlCollation == 'utf8mb3_general_ci')? $trueIcon : $falseIcon);
+            ->append(($mysqlCollation == 'utf8mb4_0900_ai_ci')? $trueIcon : $falseIcon);
 
     $row = $form->addRow();
         $row->addLabel('pdoSupportLabel', __('MySQL PDO Support'));

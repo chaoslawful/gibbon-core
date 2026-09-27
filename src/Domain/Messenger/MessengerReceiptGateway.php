@@ -92,7 +92,7 @@ class MessengerReceiptGateway extends QueryableGateway
         // Delete individual targets
         $data = ['gibbonMessengerID' => $gibbonMessengerID, 'recipientList' => $recipientList];
         $sql = "DELETE gibbonMessengerTarget FROM gibbonMessengerTarget
-                JOIN gibbonMessengerReceipt ON (gibbonMessengerReceipt.gibbonMessengerID=gibbonMessengerTarget.gibbonMessengerID AND gibbonMessengerReceipt.targetType=gibbonMessengerTarget.type COLLATE utf8_general_ci AND gibbonMessengerReceipt.gibbonPersonID=gibbonMessengerTarget.id)
+                JOIN gibbonMessengerReceipt ON (gibbonMessengerReceipt.gibbonMessengerID=gibbonMessengerTarget.gibbonMessengerID AND gibbonMessengerReceipt.targetType=gibbonMessengerTarget.type COLLATE utf8mb4_0900_ai_ci AND gibbonMessengerReceipt.gibbonPersonID=gibbonMessengerTarget.id)
                 WHERE gibbonMessengerTarget.gibbonMessengerID=:gibbonMessengerID 
                 AND gibbonMessengerTarget.type='Individuals'
                 AND FIND_IN_SET(gibbonMessengerReceipt.gibbonMessengerReceiptID, :recipientList)";

@@ -33,7 +33,7 @@ if (!(mysql_select_db($databaseName, $connection))) {
     showError();
 }
 
-mysql_set_charset('utf8');
+mysql_set_charset('utf8mb4');
 
 $gibbonRubricID = $_GET['gibbonRubricID'] ?? '';
 echo rubricEdit($guid, $connection, $gibbonRubricID);
