@@ -207,6 +207,8 @@ class RouteMap
         $app->get('/v1/finance/expenses/{id}/print', fn ($req, $res, $args) => $fin()->printExpense($req, $res, $args));
         $app->post('/v1/finance/expenses/{id}/approvals', fn ($req, $res, $args) => $fin()->storeApproval($req, $res, $args));
         $app->post('/v1/finance/expenses/{id}/reimburse', fn ($req, $res, $args) => $fin()->reimburseExpense($req, $res, $args));
+        $app->post('/v1/finance/expenses/{id}/voucher', fn ($req, $res, $args) => $fin()->updateExpenseVoucher($req, $res, $args));
+        $app->post('/v1/finance/expense-vouchers', fn ($req, $res) => $fin()->updateExpenseVouchers($req, $res));
         $app->get('/v1/finance/petty-cash', fn ($req, $res) => $fin()->pettyCash($req, $res));
         $app->post('/v1/finance/petty-cash', fn ($req, $res) => $fin()->storePettyCash($req, $res));
         $app->patch('/v1/finance/petty-cash/{id}', fn ($req, $res, $args) => $fin()->updatePettyCash($req, $res, $args));

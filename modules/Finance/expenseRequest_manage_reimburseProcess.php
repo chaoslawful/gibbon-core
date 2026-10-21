@@ -132,8 +132,15 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                         //Write back to gibbonFinanceExpense
                         try {
                             // XXX: modified by wxz — store out-of-pocket date only; school transfer date is filled when reimbursement is completed
+                            $voucherStart = expenseVoucherStartValues($row['status'], $row['voucherStatus'] ?? null);
                             $data = array('gibbonFinanceExpenseID' => $gibbonFinanceExpenseID, 'status' => 'Paid', 'selfPaymentDate' => $selfPaymentDate, 'paymentAmount' => $paymentAmount, 'gibbonPersonIDPayment' => $gibbonPersonIDPayment, 'paymentMethod' => $paymentMethod, 'paymentReimbursementReceipt' => $attachment, 'paymentReimbursementStatus' => 'Requested');
-                            $sql = 'UPDATE gibbonFinanceExpense SET status=:status, selfPaymentDate=:selfPaymentDate, paymentAmount=:paymentAmount, gibbonPersonIDPayment=:gibbonPersonIDPayment, paymentMethod=:paymentMethod, paymentReimbursementReceipt=:paymentReimbursementReceipt, paymentReimbursementStatus=:paymentReimbursementStatus WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID';
+                            $sql = 'UPDATE gibbonFinanceExpense SET status=:status, selfPaymentDate=:selfPaymentDate, paymentAmount=:paymentAmount, gibbonPersonIDPayment=:gibbonPersonIDPayment, paymentMethod=:paymentMethod, paymentReimbursementReceipt=:paymentReimbursementReceipt, paymentReimbursementStatus=:paymentReimbursementStatus';
+                            if (!empty($voucherStart)) {
+                                $data['voucherStatus'] = $voucherStart['voucherStatus'];
+                                $data['voucherReissueCount'] = $voucherStart['voucherReissueCount'];
+                                $sql .= ', voucherStatus=:voucherStatus, voucherReissueCount=:voucherReissueCount';
+                            }
+                            $sql .= ' WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID';
                             // XXX: ends here
                             $result = $connection2->prepare($sql);
                             $result->execute($data);
@@ -177,6 +184,18 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                             header("Location: {$URL}");
                             exit();
                         }
+
+                        // XXX: added by wxz
+                        if (!empty($voucherStart)) {
+                            try {
+                                insertExpenseLog($connection2, $gibbonFinanceExpenseID, $session->get('gibbonPersonID'), $voucherStart['logAction'], '');
+                            } catch (PDOException $e) {
+                                $URL .= '&return=error2';
+                                header("Location: {$URL}");
+                                exit();
+                            }
+                        }
+                        // XXX: ends here
 
                         $URLSuccess .= '&return=success0';
                         header("Location: {$URLSuccess}");

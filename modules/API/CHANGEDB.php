@@ -6,7 +6,7 @@ Copyright © 2010, Gibbon Foundation
 Gibbon™, Gibbon Education Ltd. (Hong Kong)
 */
 
-//Updated to v1.3.06
+//Updated to v1.3.07
 $count = 0;
 
 ++$count;
@@ -19,5 +19,9 @@ $sql[$count][1] = '';
 
 ++$count;
 $sql[$count][0] = '1.3.06';
+$sql[$count][1] = '';
+
+++$count;
+$sql[$count][0] = '1.3.07';
 $sql[$count][1] = '';
 ?>

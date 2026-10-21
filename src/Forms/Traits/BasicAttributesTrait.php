@@ -157,6 +157,17 @@ trait BasicAttributesTrait
     }
 
     /**
+     * Remove an attribute so it is omitted from the rendered tag.
+     * @param  string  $key
+     * @return self
+     */
+    public function removeAttribute($key)
+    {
+        unset($this->attributes[$key]);
+        return $this;
+    }
+
+    /**
      * Get the value of an attribute by the provided key.
      * @param   string  $key
      * @return  mixed

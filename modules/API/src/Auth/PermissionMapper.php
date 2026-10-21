@@ -100,6 +100,7 @@ class PermissionMapper
             'markbook.editAllClasses' => $this->canEditAllMarkbookClasses(),
             'finance.expenses' => $this->canManageExpenses() || $this->canRequestExpenses(),
             'finance.expensesAll' => $this->canManageAllExpenses(),
+            'finance.vouchers' => $this->canManageExpenseVouchers(),
             'finance.fees' => $this->canManageFees() || $this->canManageFeeCategories(),
             'finance.budgets' => $this->canManageBudgets(),
             'finance.pettyCash' => $this->canManagePettyCash(),
@@ -431,6 +432,11 @@ class PermissionMapper
     public function canManageAllExpenses(): bool
     {
         return $this->access->get('Finance', 'expenses_manage')->allows('Manage Expenses_all');
+    }
+
+    public function canManageExpenseVouchers(): bool
+    {
+        return $this->access->allows('Finance', 'expenses_manage_voucher');
     }
 
     public function canManageBudgets(): bool

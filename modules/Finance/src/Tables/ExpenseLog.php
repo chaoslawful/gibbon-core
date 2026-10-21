@@ -48,6 +48,16 @@ class ExpenseLog
 
         $expenses = $this->expenseGateway->queryExpenseLogByID($criteria, $gibbonFinanceExpenseID);
 
+        global $guid, $connection2;
+        if (!function_exists('canManageExpenseVouchers')) {
+            require_once dirname(__DIR__, 2).'/moduleFunctions.php';
+        }
+        if (empty($guid) || empty($connection2) || !canManageExpenseVouchers($guid, $connection2)) {
+            $expenses->filter(function ($log) {
+                return strpos((string) ($log['action'] ?? ''), 'Voucher - ') !== 0;
+            });
+        }
+
         $table = DataTable::create('expenseLog')->withData($expenses);
 
         $table->addExpandableColumn('comment')->setExpanded($expanded);
@@ -58,7 +68,10 @@ class ExpenseLog
         $table->addColumn('date', __('Date'))
             ->format(Format::using('date', 'timestamp'));
             
-        $table->addColumn('action', __('Event'));
+        $table->addColumn('action', __('Event'))
+            ->format(function ($log) {
+                return __($log['action']);
+            });
 
         return $table;
     }

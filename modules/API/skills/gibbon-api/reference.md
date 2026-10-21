@@ -1,4 +1,4 @@
-# 接口一览（适用于 API 模块 1.3.06，与 skill `version` 同号）
+# 接口一览（适用于 API 模块 1.3.07，与 skill `version` 同号）
 
 Base：`$GIBBON_API_BASE`（例 `http://localhost/api.php`）。路径均以 `/v1` 开头。未特别说明时需要 Bearer。
 
@@ -13,7 +13,7 @@ Base：`$GIBBON_API_BASE`（例 `http://localhost/api.php`）。路径均以 `/v
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|
 | GET | `/v1/openapi.json` | 无 | OpenAPI 3.0.3。**路由清单**，绝大多数写操作无 requestBody |
-| GET | `/v1/me` | 令牌有效 | 身份、锁定角色、`capabilities`（26 项 true/false）、学年 |
+| GET | `/v1/me` | 令牌有效 | 身份、锁定角色、`capabilities`（27 项 true/false）、学年 |
 | GET | `/v1/school-year` | 令牌有效 | **当前学年**（单数）：`gibbonSchoolYearID`、`gibbonSchoolYearName`、`firstDay`、`lastDay`。不要与下方复数学年管理混淆 |
 
 `/v1/me` 响应：`gibbonPersonID`、`username`、`preferredName`、`surname`、`gibbonRoleID`（锁定角色）、`roleName`、`roleCategory`、`gibbonSchoolYearID`、`token`（令牌 ID/名称/类型/过期时间）、`capabilities`。
@@ -431,11 +431,33 @@ curl -sS -X DELETE \
 | GET | `/v1/finance/expenses/{id}`、`/v1/finance/expenses/{id}/print` | 同上；含 `log` |
 | POST | `/v1/finance/expenses/{id}/approvals` | `finance.expenses`；实际 `网页: expenses_manage`；`{ "decision": "approve"|"reject"|"comment", "comment": "" }`，**201** |
 | POST | `/v1/finance/expenses/{id}/reimburse` | `网页: expenseRequest_manage` |
+| POST | `/v1/finance/expenses/{id}/voucher` | `finance.vouchers`，且须能改费用（`finance.expensesAll` 或本人创建且预算 Full/Write） |
+| POST | `/v1/finance/expense-vouchers` | 同上 |
 | GET/POST | `/v1/finance/petty-cash` | `finance.pettyCash`；GET 可选 `gibbonSchoolYearID` |
 | PATCH/DELETE | `/v1/finance/petty-cash/{id}` | 同上 |
 | POST | `/v1/finance/petty-cash/{id}/action` | 同上；按 `actionRequired` 标 `Repaid`/`Refunded` |
 
 `GET /v1/finance/expenses` **必填** `gibbonFinanceBudgetCycleID`。可选 `status`（`Requested` / `Approved` / `Rejected` / `Cancelled` / `Ordered` / `Paid`，非法值 422）、`gibbonFinanceBudgetID`（预算不存在 404）。两个筛选都是精确匹配；不传则不限制。`mine=Y` 只看自己的申请。非 `expensesAll` 的管理员只能看到并操作自己有权预算科目下的报销；`reimburse` 仅限本人申请或 `expensesAll`，且状态须为 `Approved` / `Paid`。一次返回该周期下全部匹配记录，没有分页。
+
+费用凭证和报销状态是两条线，**不要**直接改 `voucherStatus`。没有 `finance.vouchers` 时，列表、详情和打印都不返回 `voucherStatus`、`voucherReissueCount`，日志里 `action` 以 `Voucher - ` 开头的行也会去掉。此时若仍传 `voucherStatus` 筛选，返回 **403**。有这项能力才能筛选，取值与网页相同：`Untracked`（已付款且未跟踪）、`Pending Invoice`、`Pending Invoice First`、`Pending Invoice Reissue`、`Pending Print`、`Pending Submission`、`Submitted`。非法值 **422**。数据库还没执行凭证字段更新时，筛选和推进都是 **422** `The voucher progress database update has not been applied yet.`
+
+推进用动作，不写字段。单条 `POST /v1/finance/expenses/{id}/voucher` 成功 **200**，body 是更新后的费用（含日志）。进度与动作不符是 **422**，不要当成跳过成功。批量 `POST /v1/finance/expense-vouchers` 成功 **200**，body 是 `{ "updated", "skipped" }`；一条都没更新也是 200，不是系统错误。只读预算即使有 `finance.vouchers` 也不能推进，**403**。`finance.expensesAll` 可改看到的费用；否则只能改本人创建、且预算权限为 Full 或 Write 的费用，单条不是本人 **403**。
+
+```json
+{ "action": "issue", "reason": "", "progress": "" }
+```
+
+批量把同一对象放进 `ids` 数组。`action`：
+
+| action | 含义 | 额外字段 |
+|---|---|---|
+| `issue` | 待开发票 → 待打印 | 无 |
+| `print` | 待打印 → 待送交 | 无 |
+| `submit` | 待送交 → 已送交 | 无 |
+| `reissue` | 待打印或待送交退回待开发票，退回次数 +1 | `reason` 必填，否则 422 |
+| `assign` | 只补记已付款且尚未跟踪的订单 | `progress` 必填 |
+
+`assign` 的 `progress`：`Pending Invoice`（待开发票，第一次，退回次数 0）、`Pending Invoice Reissue`（待开发票，退回后重开，退回次数 1）、`Pending Print`、`Pending Submission`、`Submitted`。费用变成已支付且凭证仍为空时，创建或 `reimburse` 会自动写成待开发票，不必再调开始跟踪。
 
 报销申请 POST：
 

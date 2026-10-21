@@ -331,7 +331,9 @@ class FormFactory implements FormFactoryInterface
         $clearURL = Url::fromRoute()->withQueryParams($parameters);
         $clearLink = sprintf('<a href="%s" class="right px-3 py-2 text-xs font-medium text-gray-600">%s</a> &nbsp;', $clearURL, __($clearLabel));
 
-        return $this->createSubmit(__('Go'))->prepend($clearLink);
+        // Search forms use GET. A named submit button is added to the query string, so keep the
+        // visible label translated but omit the name attribute.
+        return $this->createSubmit('Go', 'searchSubmit')->removeAttribute('name')->prepend($clearLink);
     }
 
     public function createConfirmSubmit($label = 'Yes', $cancel = false)

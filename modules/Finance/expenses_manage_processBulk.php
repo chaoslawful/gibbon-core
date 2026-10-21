@@ -41,6 +41,7 @@ if ($gibbonFinanceBudgetCycleID == '' or $action == '') { echo 'Fatal error load
             header("Location: {$URL}");
         } else {
             $partialFail = false;
+            $voucherActions = ['voucherIssue', 'voucherPrint', 'voucherSubmit', 'voucherReissue', 'voucherAssign'];
             //Export
             if ($action == 'export') {
                 $session->set('financeExpenseExportIDs', $gibbonFinanceExpenseIDs);
@@ -50,6 +51,47 @@ if ($gibbonFinanceBudgetCycleID == '' or $action == '') { echo 'Fatal error load
                 // THIS CODE HAS BEEN COMMENTED OUT, AS THE EXPORT RETURNS WITHOUT IT...NOT SURE WHY!
                     //$URL.="&bulkReturn=success0" ;
                 //header("Location: {$URL}");
+            } elseif (in_array($action, $voucherActions, true)) {
+                $URL .= '&status2='.urlencode($_GET['status2'] ?? '')
+                    .'&gibbonFinanceBudgetID2='.urlencode($_GET['gibbonFinanceBudgetID2'] ?? '')
+                    .'&voucherStatus2='.urlencode($_GET['voucherStatus2'] ?? '');
+                $scope = canBulkUpdateExpenseVouchers($connection2, $guid, $session->get('gibbonPersonID'));
+                if ($scope === false) {
+                    $URL .= '&return=error0';
+                    header("Location: {$URL}");
+                    exit();
+                }
+
+                $reason = trim((string) ($_POST['voucherReissueReason'] ?? ''));
+                $assign = expenseVoucherAssignInput($_POST['voucherAssignChoice'] ?? '');
+                if ($action === 'voucherReissue' && $reason === '') {
+                    $URL .= '&return=error1';
+                    header("Location: {$URL}");
+                    exit();
+                }
+                if ($action === 'voucherAssign' && $assign === null) {
+                    $URL .= '&return=error1';
+                    header("Location: {$URL}");
+                    exit();
+                }
+
+                try {
+                    $result = applyExpenseVoucherBulk($connection2, $gibbonFinanceExpenseIDs, $action, $session->get('gibbonPersonID'), [
+                        'reason' => $reason,
+                        'assignStatus' => is_array($assign) ? $assign['assignStatus'] : '',
+                        'assignReissue' => is_array($assign) ? $assign['assignReissue'] : 'N',
+                    ], $scope);
+                } catch (PDOException $e) {
+                    $URL .= '&return=error2';
+                    header("Location: {$URL}");
+                    exit();
+                }
+
+                $returnCode = ($result['updated'] > 0) ? 'successVoucher' : 'warningVoucher';
+                $URL .= '&return='.$returnCode
+                    .'&voucherUpdated='.(int) $result['updated']
+                    .'&voucherSkipped='.(int) $result['skipped'];
+                header("Location: {$URL}");
             } else {
                 $URL .= '&return=error1';
                 header("Location: {$URL}");

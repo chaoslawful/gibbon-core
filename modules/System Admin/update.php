@@ -65,6 +65,11 @@ if (isActionAccessible($guid, $connection2, '/modules/System Admin/update.php') 
         'cuttingEdgeCode' => __('Line').': '.$updater->cuttingEdgeCodeLine,
     ]]);
 
+    require_once __DIR__.'/../Finance/moduleFunctions.php';
+    if (!expenseVoucherSchemaReady($connection2)) {
+        echo renderExpenseVoucherSchemaForm($session->get('absoluteURL'), '/modules/System Admin/update.php');
+    }
+
     if (!$updater->isCuttingEdge()) {
         // Check for new version of Gibbon
         echo getCurrentVersion($guid, $connection2, $version);

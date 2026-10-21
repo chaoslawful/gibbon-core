@@ -160,7 +160,7 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
 
 {% block bulkActions %}
     {% if bulkActions %}
-    <div class="bulkActionPanel hidden absolute top-0 right-0 w-full flex items-center justify-between p-1 pt-2 bg-{{ themeColour }}-600 rounded-t-md z-20">
+    <div class="bulkActionPanel{{ table.getMetaData('bulkActionSticky') ? ' bulkActionSticky' : '' }} hidden absolute top-0 right-0 w-full flex items-center justify-between p-1 pt-2 bg-{{ themeColour }}-600 rounded-t-md z-20">
         <div class="bulkActionCount flex-grow text-white text-sm text-right pr-3">
             <span>0</span> {{ __('Selected') }}
         </div>
@@ -171,6 +171,117 @@ For info about editing, see: https://twig.symfony.com/doc/2.x/
             {{ bulkActions.getValidationOutput|raw }}
         </script>
     </div>
+    {% if table.getMetaData('bulkActionSticky') %}
+    <script>
+    (function () {
+        var panel = document.querySelector('.bulkActionPanel.bulkActionSticky');
+        if (!panel) return;
+
+        var headerOverlap = 6;
+
+        function resetPanel() {
+            panel.style.position = '';
+            panel.style.left = '';
+            panel.style.width = '';
+            panel.style.right = '';
+            panel.style.zIndex = '';
+            var form = panel.closest('.bulkActionForm');
+            var thead = form ? form.querySelector('thead') : null;
+            if (thead) thead.style.top = '';
+        }
+
+        function offsetWithin(element, ancestor) {
+            var top = 0;
+            var node = element;
+            while (node && node !== ancestor) {
+                top += node.offsetTop;
+                node = node.offsetParent;
+            }
+            if (node === ancestor) return top;
+            return element.getBoundingClientRect().top - ancestor.getBoundingClientRect().top;
+        }
+
+        function pinBulkPanel() {
+            if (panel.classList.contains('hidden')) {
+                resetPanel();
+                return;
+            }
+
+            var form = panel.closest('.bulkActionForm');
+            var thead = form ? form.querySelector('thead') : null;
+            var table = form ? form.querySelector('table') : null;
+            var anchor = panel.parentElement;
+            if (!form || !thead || !table || !anchor) return;
+
+            var anchorRect = anchor.getBoundingClientRect();
+            var tableRect = table.getBoundingClientRect();
+            var panelHeight = panel.offsetHeight;
+            var theadOffset = offsetWithin(thead, anchor);
+            var stickOffset = Math.max(0, panelHeight - headerOverlap);
+            var naturalPanelTop = anchorRect.top + theadOffset - stickOffset;
+
+            if (naturalPanelTop > 0 || tableRect.bottom <= stickOffset + thead.offsetHeight) {
+                thead.style.top = '';
+                panel.style.position = 'absolute';
+                panel.style.top = (theadOffset - stickOffset) + 'px';
+                panel.style.left = '';
+                panel.style.width = '';
+                panel.style.right = '';
+                panel.style.zIndex = '';
+            } else {
+                panel.style.position = 'fixed';
+                panel.style.top = '0px';
+                panel.style.left = anchorRect.left + 'px';
+                panel.style.width = anchorRect.width + 'px';
+                panel.style.right = 'auto';
+                panel.style.zIndex = '40';
+                thead.style.top = stickOffset + 'px';
+            }
+        }
+
+        var listening = false;
+
+        function watchBulkPanel() {
+            if (listening) return;
+            listening = true;
+            window.addEventListener('scroll', pinBulkPanel, { passive: true });
+            document.addEventListener('scroll', pinBulkPanel, { passive: true, capture: true });
+            window.addEventListener('resize', pinBulkPanel);
+        }
+
+        function unwatchBulkPanel() {
+            if (!listening) return;
+            listening = false;
+            window.removeEventListener('scroll', pinBulkPanel);
+            document.removeEventListener('scroll', pinBulkPanel, { capture: true });
+            window.removeEventListener('resize', pinBulkPanel);
+            resetPanel();
+        }
+
+        function syncBulkPanel() {
+            requestAnimationFrame(function () {
+                if (panel.classList.contains('hidden')) {
+                    unwatchBulkPanel();
+                } else {
+                    watchBulkPanel();
+                    pinBulkPanel();
+                }
+            });
+        }
+
+        document.addEventListener('change', function (event) {
+            if (event.target.closest('.bulkActionForm')) {
+                syncBulkPanel();
+            }
+        });
+        document.addEventListener('click', function (event) {
+            if (event.target.closest('.bulkActionForm .bulkCheckbox, .bulkActionForm .checkall')) {
+                syncBulkPanel();
+            }
+        });
+    })();
+    </script>
+    {% endif %}
     {% endif %}
 {% endblock bulkActions %}
 

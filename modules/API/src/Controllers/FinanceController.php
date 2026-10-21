@@ -156,6 +156,16 @@ class FinanceController
         return Json::write($response, $this->expenses->reimburse($args['id'], $this->body($request)));
     }
 
+    public function updateExpenseVoucher(Request $request, Response $response, array $args): Response
+    {
+        return Json::write($response, $this->expenses->updateVoucher($args['id'], $this->body($request)));
+    }
+
+    public function updateExpenseVouchers(Request $request, Response $response): Response
+    {
+        return Json::write($response, $this->expenses->updateVouchers($this->body($request)));
+    }
+
     public function printExpense(Request $request, Response $response, array $args): Response
     {
         return Json::write($response, $this->expenses->printPayload($args['id']));

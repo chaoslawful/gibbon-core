@@ -38,6 +38,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_vi
         $page->addError(__('The highest grouped action cannot be determined.'));
     } else {
         // Proceed!
+        $canManageExpenseVouchers = canManageExpenseVouchers($guid, $connection2);
         $gibbonFinanceBudgetCycleID = $_GET['gibbonFinanceBudgetCycleID'] ?? '';
 
         $urlParams = compact('gibbonFinanceBudgetCycleID');
@@ -162,6 +163,18 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_vi
                             $row = $form->addRow();
                                 $row->addLabel('status', __('Status'));
                                 $row->addTextField('status')->maxLength(60)->required()->readonly()->setValue(__($values['status']));
+
+                            if ($canManageExpenseVouchers && (($values['status'] ?? '') == 'Paid' || !empty($values['voucherStatus']))) {
+                                $row = $form->addRow();
+                                    $row->addLabel('voucherProgress', __('Voucher Progress'));
+                                    $row->addTextField('voucherProgress')->readonly()->setValue(formatExpenseVoucherProgress($values));
+                                $reissueCount = (int) ($values['voucherReissueCount'] ?? 0);
+                                if (($values['voucherStatus'] ?? '') === 'Pending Invoice' && $reissueCount > 0) {
+                                    $row = $form->addRow();
+                                        $row->addLabel('voucherReissueCount', __('Reissue Count'));
+                                        $row->addTextField('voucherReissueCount')->readonly()->setValue((string) $reissueCount);
+                                }
+                            }
 
                             $row = $form->addRow();
                             $column = $row->addColumn();

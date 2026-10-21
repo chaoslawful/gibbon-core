@@ -146,12 +146,13 @@ curl -sS -X POST \
 
 需对应 `finance.*`。账单、缴费、在线支付没有接口，不要尝试。
 
-1. `GET /v1/finance/budget-cycles` 拿周期 ID。列出该周期费用：`GET /v1/finance/expenses?gibbonFinanceBudgetCycleID=`，可选 `status`、`gibbonFinanceBudgetID`。需要收费目录时：`GET /v1/finance/fee-categories`、`GET /v1/finance/fees?gibbonSchoolYearID=`。
+1. `GET /v1/finance/budget-cycles` 拿周期 ID。列出该周期费用：`GET /v1/finance/expenses?gibbonFinanceBudgetCycleID=`，可选 `status`、`gibbonFinanceBudgetID`。有 `finance.vouchers` 时还可加 `voucherStatus`。需要收费目录时：`GET /v1/finance/fee-categories`、`GET /v1/finance/fees?gibbonSchoolYearID=`。
 2. 给该周期各预算科目额度：`PUT /v1/finance/budget-cycles/{id}/allocations`，或先 `GET .../allocations` 看现有科目。
 3. 提交：`POST /v1/finance/expenses`（`gibbonFinanceBudgetCycleID`、预算、标题、金额、`purchaseBy`=`School`/`Self`、`countAgainstBudget`）。
 4. 审批：`POST /v1/finance/expenses/{id}/approvals`，`decision`=`approve`/`reject`/`comment`。不要自己改 `status`。成功是 **201**，但要以返回的 `expense.status` 为准——仍是 `Requested` 表示只过了预算关或学校关的一部分。学校财务的 `expenseApprovalType`（One Of / Two Of / Chain Of All）和是否先要预算负责人批，决定要几个人、按什么顺序；不是这一轮的人 `approve` 会 403。详见 [reference.md](reference.md)「财务」节。
-5. 打印用 `GET /v1/finance/expenses/{id}/print`（JSON）。标已付：`POST .../reimburse`。
-6. 零用金：`POST /v1/finance/petty-cash`，需要还款/退款时再 `POST .../action`。
+5. 打印用 `GET /v1/finance/expenses/{id}/print`（JSON）。标已付：`POST .../reimburse`。变成已支付且凭证仍为空时，服务端会自动写成待开发票。
+6. 有 `finance.vouchers` 才继续问发票现在到哪一步，并用 `POST /v1/finance/expenses/{id}/voucher` 推进：`issue`、`print`、`submit`、`reissue`（要 `reason`）、`assign`（要 `progress`）。不要改 `voucherStatus`。多条用 `POST /v1/finance/expense-vouchers`，看返回的 `updated` 和 `skipped`。没有这项能力时，响应里不会出现凭证字段。
+7. 零用金：`POST /v1/finance/petty-cash`，需要还款/退款时再 `POST .../action`。
 
 ---
 
@@ -183,6 +184,7 @@ curl -sS -X POST \
 | Attendance 报表 | attendance.reports |
 | Markbook 编辑 | 记分册栏目、给分、学生回复文件 |
 | Finance 报销/预算/零用金/费用目录 | finance.expenses / finance.budgets / finance.pettyCash / finance.fees |
+| Finance 管理费用凭证 | finance.vouchers |
 | Behaviour 管理记录 | behaviour.write |
 
 令牌锁定角色后，即使用户网页能切换其它角色，API 也只用锁定的那一个。

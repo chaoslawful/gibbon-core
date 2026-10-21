@@ -1497,3 +1497,455 @@ function getInvoiceTotalFee($pdo, $gibbonFinanceInvoiceID, $status)
 
     return $totalFee;
 }
+
+// XXX: added by wxz — invoice voucher progress, separate from staff reimbursement
+function expenseVoucherStatusLabels()
+{
+    return [
+        'Pending Invoice' => __('Waiting for Invoice'),
+        'Pending Print' => __('Waiting to Print'),
+        'Pending Submission' => __('Waiting to Submit'),
+        'Submitted' => __('Submitted to Finance'),
+    ];
+}
+
+function expenseVoucherAssignChoices()
+{
+    return [
+        'Pending Invoice' => __('Waiting for Invoice, first time'),
+        'Pending Invoice Reissue' => __('Waiting for Invoice, returned for reissue'),
+        'Pending Print' => __('Waiting to Print'),
+        'Pending Submission' => __('Waiting to Submit'),
+        'Submitted' => __('Submitted to Finance'),
+    ];
+}
+
+function expenseVoucherAssignInput($choice)
+{
+    $choice = (string) $choice;
+    if (!array_key_exists($choice, expenseVoucherAssignChoices())) {
+        return null;
+    }
+    if ($choice === 'Pending Invoice Reissue') {
+        return ['assignStatus' => 'Pending Invoice', 'assignReissue' => 'Y'];
+    }
+
+    return ['assignStatus' => $choice, 'assignReissue' => 'N'];
+}
+
+function formatExpenseVoucherProgress($expense)
+{
+    $voucherStatus = $expense['voucherStatus'] ?? '';
+    if ($voucherStatus === '' || $voucherStatus === null) {
+        return (($expense['status'] ?? '') === 'Paid') ? __('Not Tracked') : '';
+    }
+
+    $labels = expenseVoucherStatusLabels();
+
+    return $labels[$voucherStatus] ?? __($voucherStatus);
+}
+
+function expenseVoucherRowActions(array $expense)
+{
+    $current = $expense['voucherStatus'] ?? null;
+    if ($current === '') {
+        $current = null;
+    }
+    $orderStatus = $expense['status'] ?? '';
+
+    if ($orderStatus === 'Paid' && $current === null) {
+        return [[
+            'action' => 'voucherAssign',
+            'name' => 'edit',
+            'label' => __('Record Untracked Orders'),
+            'icon' => 'edit',
+        ]];
+    }
+    if ($current === 'Pending Invoice') {
+        return [[
+            'action' => 'voucherIssue',
+            'name' => 'accept',
+            'label' => __('Mark Invoice Issued'),
+            'icon' => 'document-check',
+        ]];
+    }
+    if ($current === 'Pending Print') {
+        return [
+            [
+                'action' => 'voucherPrint',
+                'name' => 'print',
+                'label' => __('Mark Printed'),
+                'icon' => 'print',
+            ],
+            [
+                'action' => 'voucherReissue',
+                'name' => 'reject',
+                'label' => __('Return for Reissue'),
+                'icon' => 'previous',
+            ],
+        ];
+    }
+    if ($current === 'Pending Submission') {
+        return [
+            [
+                'action' => 'voucherSubmit',
+                'name' => 'accept',
+                'label' => __('Mark Submitted to Finance'),
+                'icon' => 'share',
+            ],
+            [
+                'action' => 'voucherReissue',
+                'name' => 'reject',
+                'label' => __('Return for Reissue'),
+                'icon' => 'previous',
+            ],
+        ];
+    }
+
+    return [];
+}
+
+function expenseVoucherActionApplies(array $expense, $action)
+{
+    foreach (expenseVoucherRowActions($expense) as $rowAction) {
+        if ($rowAction['action'] === $action) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function expenseVoucherConfirmMessage($action)
+{
+    $messages = [
+        'voucherIssue' => __('Mark this expense invoice as issued?'),
+        'voucherPrint' => __('Mark this expense invoice as printed?'),
+        'voucherSubmit' => __('Mark this expense invoice as submitted to finance?'),
+    ];
+
+    return $messages[$action] ?? '';
+}
+
+function renderExpenseVoucherRowActions(array $expense, array $urlParams)
+{
+    $actions = expenseVoucherRowActions($expense);
+    if (count($actions) < 1) {
+        return '';
+    }
+
+    $html = '';
+    $count = count($actions);
+    foreach ($actions as $index => $action) {
+        $link = (new \Gibbon\Tables\Action($action['name'], $action['label']))
+            ->setURL('/modules/Finance/expenses_manage_voucher.php')
+            ->addParam('gibbonFinanceExpenseID', $expense['gibbonFinanceExpenseID'])
+            ->addParam('voucherAction', $action['action'])
+            ->addParams($urlParams)
+            ->setIcon($action['icon'])
+            ->setCompact()
+            ->modalWindow();
+        if ($count > 1) {
+            if ($index === 0) {
+                $link->groupAlign('left');
+            } elseif ($index === $count - 1) {
+                $link->groupAlign('right');
+            } else {
+                $link->groupAlign('middle');
+            }
+        }
+        $html .= $link->getOutput($expense);
+    }
+
+    return '<span class="inline-flex items-center" style="flex-wrap:nowrap;flex-shrink:0;white-space:nowrap">'.$html.'</span>';
+}
+
+function expenseVoucherStartValues($previousStatus, $currentVoucherStatus)
+{
+    if ($previousStatus === 'Paid') {
+        return null;
+    }
+    if ($currentVoucherStatus !== null && $currentVoucherStatus !== '') {
+        return null;
+    }
+
+    return [
+        'voucherStatus' => 'Pending Invoice',
+        'voucherReissueCount' => 0,
+        'logAction' => 'Voucher - Started',
+    ];
+}
+
+function insertExpenseLog($connection2, $gibbonFinanceExpenseID, $gibbonPersonID, $action, $comment = '')
+{
+    $data = [
+        'gibbonFinanceExpenseID' => $gibbonFinanceExpenseID,
+        'gibbonPersonID' => $gibbonPersonID,
+        'action' => $action,
+        'comment' => $comment,
+    ];
+    $sql = "INSERT INTO gibbonFinanceExpenseLog SET gibbonFinanceExpenseID=:gibbonFinanceExpenseID, gibbonPersonID=:gibbonPersonID, timestamp='".date('Y-m-d H:i:s')."', action=:action, comment=:comment";
+    $result = $connection2->prepare($sql);
+    $result->execute($data);
+}
+
+function canManageExpenseVouchers($guid, $connection2)
+{
+    return isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_voucher.php');
+}
+
+function expenseVoucherExportValues(array $row)
+{
+    $status = $row['voucherStatus'] ?? null;
+    if ($status === '') {
+        $status = null;
+    }
+
+    if ($status === null) {
+        return [
+            'progress' => (($row['status'] ?? '') === 'Paid') ? __('Not Tracked') : '',
+            'reissueCount' => '',
+        ];
+    }
+
+    $labels = expenseVoucherStatusLabels();
+
+    return [
+        'progress' => $labels[$status] ?? __($status),
+        'reissueCount' => (string) (int) ($row['voucherReissueCount'] ?? 0),
+    ];
+}
+
+function canBulkUpdateExpenseVouchers($connection2, $guid, $gibbonPersonID)
+{
+    if (!canManageExpenseVouchers($guid, $connection2)) {
+        return false;
+    }
+
+    $highestAction = getHighestGroupedAction($guid, '/modules/Finance/expenses_manage.php', $connection2);
+    if ($highestAction == 'Manage Expenses_all') {
+        return 'all';
+    }
+    if ($highestAction == false) {
+        return false;
+    }
+
+    $budgets = getBudgetsByPerson($connection2, $gibbonPersonID);
+    if (is_array($budgets)) {
+        foreach ($budgets as $budget) {
+            if ($budget[2] == 'Full' or $budget[2] == 'Write') {
+                return 'own';
+            }
+        }
+    }
+
+    return false;
+}
+
+function nextExpenseVoucherState(array $expense, $action, array $input)
+{
+    $current = $expense['voucherStatus'] ?? null;
+    if ($current === '') {
+        $current = null;
+    }
+    $count = (int) ($expense['voucherReissueCount'] ?? 0);
+    $orderStatus = $expense['status'] ?? '';
+
+    if ($action === 'voucherIssue' && $current === 'Pending Invoice') {
+        return ['voucherStatus' => 'Pending Print', 'voucherReissueCount' => $count, 'logAction' => 'Voucher - Invoice Issued', 'comment' => ''];
+    }
+    if ($action === 'voucherPrint' && $current === 'Pending Print') {
+        return ['voucherStatus' => 'Pending Submission', 'voucherReissueCount' => $count, 'logAction' => 'Voucher - Printed', 'comment' => ''];
+    }
+    if ($action === 'voucherSubmit' && $current === 'Pending Submission') {
+        return ['voucherStatus' => 'Submitted', 'voucherReissueCount' => $count, 'logAction' => 'Voucher - Submitted', 'comment' => ''];
+    }
+    if ($action === 'voucherReissue' && ($current === 'Pending Print' || $current === 'Pending Submission')) {
+        return ['voucherStatus' => 'Pending Invoice', 'voucherReissueCount' => $count + 1, 'logAction' => 'Voucher - Reissue', 'comment' => trim((string) ($input['reason'] ?? ''))];
+    }
+    if ($action === 'voucherAssign' && $orderStatus === 'Paid' && $current === null) {
+        $target = $input['assignStatus'] ?? '';
+        $allowed = ['Pending Invoice', 'Pending Print', 'Pending Submission', 'Submitted'];
+        if (!in_array($target, $allowed, true)) {
+            return null;
+        }
+        $reissue = (($input['assignReissue'] ?? '') === 'Y') && $target === 'Pending Invoice';
+
+        return [
+            'voucherStatus' => $target,
+            'voucherReissueCount' => $reissue ? 1 : 0,
+            'logAction' => 'Voucher - Assign',
+            'comment' => $reissue ? $target.' (reissue)' : $target,
+        ];
+    }
+
+    return null;
+}
+
+function applyExpenseVoucherBulk($connection2, array $expenseIDs, $action, $gibbonPersonID, array $input, $scope = 'all')
+{
+    $updated = 0;
+    $skipped = 0;
+
+    $connection2->beginTransaction();
+    try {
+        foreach ($expenseIDs as $gibbonFinanceExpenseID) {
+            if (!ctype_digit((string) $gibbonFinanceExpenseID)) {
+                $skipped++;
+                continue;
+            }
+
+            $data = ['gibbonFinanceExpenseID' => $gibbonFinanceExpenseID];
+            $sql = 'SELECT gibbonFinanceExpenseID, status, voucherStatus, voucherReissueCount, gibbonPersonIDCreator FROM gibbonFinanceExpense WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID';
+            if ($scope === 'own') {
+                $sql .= ' AND gibbonPersonIDCreator=:gibbonPersonIDCreator';
+                $data['gibbonPersonIDCreator'] = $gibbonPersonID;
+            }
+            $result = $connection2->prepare($sql);
+            $result->execute($data);
+            $expense = $result->fetch();
+            if (empty($expense)) {
+                $skipped++;
+                continue;
+            }
+
+            $next = nextExpenseVoucherState($expense, $action, $input);
+            if ($next === null) {
+                $skipped++;
+                continue;
+            }
+
+            $update = $connection2->prepare('UPDATE gibbonFinanceExpense SET voucherStatus=:voucherStatus, voucherReissueCount=:voucherReissueCount WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID');
+            $update->execute([
+                'voucherStatus' => $next['voucherStatus'],
+                'voucherReissueCount' => $next['voucherReissueCount'],
+                'gibbonFinanceExpenseID' => $gibbonFinanceExpenseID,
+            ]);
+            insertExpenseLog($connection2, $gibbonFinanceExpenseID, $gibbonPersonID, $next['logAction'], $next['comment']);
+            $updated++;
+        }
+        $connection2->commit();
+    } catch (PDOException $e) {
+        if ($connection2->inTransaction()) {
+            $connection2->rollBack();
+        }
+        throw $e;
+    }
+
+    return ['updated' => $updated, 'skipped' => $skipped];
+}
+
+function expenseVoucherLogActions()
+{
+    return [
+        'Voucher - Started',
+        'Voucher - Invoice Issued',
+        'Voucher - Printed',
+        'Voucher - Submitted',
+        'Voucher - Reissue',
+        'Voucher - Assign',
+    ];
+}
+
+function expenseVoucherEnumSql($currentType, array $extraValues)
+{
+    if (!preg_match('/^enum\((.*)\)$/i', $currentType, $matches)) {
+        return null;
+    }
+
+    $existing = str_getcsv($matches[1], ',', "'");
+    $merged = $existing;
+    foreach ($extraValues as $value) {
+        if (!in_array($value, $merged, true)) {
+            $merged[] = $value;
+        }
+    }
+    if ($merged === $existing) {
+        return null;
+    }
+
+    $quoted = array_map(function ($value) {
+        return "'".str_replace("'", "''", $value)."'";
+    }, $merged);
+
+    return 'enum('.implode(',', $quoted).')';
+}
+
+function expenseVoucherSchemaGaps($connection2, $refresh = false)
+{
+    static $gaps = null;
+    if ($gaps !== null && !$refresh) {
+        return $gaps;
+    }
+
+    $gaps = [];
+    $expenseColumns = [];
+    foreach ($connection2->query('SHOW COLUMNS FROM gibbonFinanceExpense')->fetchAll(PDO::FETCH_ASSOC) as $column) {
+        $expenseColumns[$column['Field']] = $column;
+    }
+    if (!isset($expenseColumns['voucherStatus'])) {
+        $gaps[] = 'voucherStatus';
+    }
+    if (!isset($expenseColumns['voucherReissueCount'])) {
+        $gaps[] = 'voucherReissueCount';
+    }
+
+    $actionType = '';
+    foreach ($connection2->query('SHOW COLUMNS FROM gibbonFinanceExpenseLog')->fetchAll(PDO::FETCH_ASSOC) as $column) {
+        if ($column['Field'] === 'action') {
+            $actionType = $column['Type'];
+        }
+    }
+    if (strpos($actionType, 'Voucher - Started') === false) {
+        $gaps[] = 'logAction';
+    }
+
+    return $gaps;
+}
+
+function applyExpenseVoucherSchema($connection2)
+{
+    $gaps = expenseVoucherSchemaGaps($connection2);
+    if (empty($gaps)) {
+        return true;
+    }
+
+    if (in_array('voucherStatus', $gaps, true)) {
+        $connection2->exec("ALTER TABLE `gibbonFinanceExpense` ADD `voucherStatus` enum('Pending Invoice','Pending Print','Pending Submission','Submitted') DEFAULT NULL AFTER `paymentReimbursementStatus`");
+    }
+    if (in_array('voucherReissueCount', $gaps, true)) {
+        $connection2->exec('ALTER TABLE `gibbonFinanceExpense` ADD `voucherReissueCount` int UNSIGNED NOT NULL DEFAULT 0 AFTER `voucherStatus`');
+    }
+    if (in_array('logAction', $gaps, true)) {
+        $actionType = '';
+        foreach ($connection2->query('SHOW COLUMNS FROM gibbonFinanceExpenseLog')->fetchAll(PDO::FETCH_ASSOC) as $column) {
+            if ($column['Field'] === 'action') {
+                $actionType = $column['Type'];
+            }
+        }
+        $enumSql = expenseVoucherEnumSql($actionType, expenseVoucherLogActions());
+        if ($enumSql === null) {
+            throw new PDOException('The expense log action column could not be updated.');
+        }
+        $connection2->exec('ALTER TABLE `gibbonFinanceExpenseLog` MODIFY `action` '.$enumSql.' NOT NULL');
+    }
+
+    return empty(expenseVoucherSchemaGaps($connection2, true));
+}
+
+function expenseVoucherSchemaReady($connection2)
+{
+    return empty(expenseVoucherSchemaGaps($connection2));
+}
+
+function renderExpenseVoucherSchemaForm($absoluteURL, $returnAddress)
+{
+    $form = \Gibbon\Forms\Form::create('voucherSchema', $absoluteURL.'/modules/Finance/expenses_voucherSchemaProcess.php');
+    $form->addHiddenValue('address', $returnAddress);
+    $form->setTitle(__('Expense Voucher Progress Database Update'));
+    $form->setDescription(__('The code is updated, but the database is still missing the voucher progress fields. The action below only adds fields and log actions. Existing expenses are not changed.'));
+    $form->addRow()->addSubmit(__('Apply Database Update'));
+
+    return $form->getOutput();
+}
+// XXX: ends here

@@ -56,7 +56,11 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
                     (SELECT MAX(logOrder.timestamp) FROM gibbonFinanceExpenseLog AS logOrder WHERE logOrder.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logOrder.action = 'Order') AS orderTimestampLog,
                     (SELECT MAX(logPayment.timestamp) FROM gibbonFinanceExpenseLog AS logPayment WHERE logPayment.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logPayment.action = 'Payment') AS paymentTimestampLog,
                     (SELECT MAX(logReimburseRequest.timestamp) FROM gibbonFinanceExpenseLog AS logReimburseRequest WHERE logReimburseRequest.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logReimburseRequest.action = 'Reimbursement Request') AS reimbursementRequestTimestampLog,
-                    (SELECT MAX(logReimburseDone.timestamp) FROM gibbonFinanceExpenseLog AS logReimburseDone WHERE logReimburseDone.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logReimburseDone.action = 'Reimbursement Completion') AS reimbursementCompleteTimestampLog
+                    (SELECT MAX(logReimburseDone.timestamp) FROM gibbonFinanceExpenseLog AS logReimburseDone WHERE logReimburseDone.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logReimburseDone.action = 'Reimbursement Completion') AS reimbursementCompleteTimestampLog,
+                    (SELECT MAX(logVoucherIssued.timestamp) FROM gibbonFinanceExpenseLog AS logVoucherIssued WHERE logVoucherIssued.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logVoucherIssued.action = 'Voucher - Invoice Issued') AS voucherIssuedTimestampLog,
+                    (SELECT MAX(logVoucherPrinted.timestamp) FROM gibbonFinanceExpenseLog AS logVoucherPrinted WHERE logVoucherPrinted.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logVoucherPrinted.action = 'Voucher - Printed') AS voucherPrintedTimestampLog,
+                    (SELECT MAX(logVoucherSubmitted.timestamp) FROM gibbonFinanceExpenseLog AS logVoucherSubmitted WHERE logVoucherSubmitted.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logVoucherSubmitted.action = 'Voucher - Submitted') AS voucherSubmittedTimestampLog,
+                    (SELECT MAX(logVoucherReissue.timestamp) FROM gibbonFinanceExpenseLog AS logVoucherReissue WHERE logVoucherReissue.gibbonFinanceExpenseID = gibbonFinanceExpense.gibbonFinanceExpenseID AND logVoucherReissue.action = 'Voucher - Reissue') AS voucherReissueTimestampLog
 				FROM gibbonFinanceExpense
 					JOIN gibbonPerson ON (gibbonFinanceExpense.gibbonPersonIDCreator=gibbonPerson.gibbonPersonID)
 					JOIN gibbonFinanceBudget ON (gibbonFinanceExpense.gibbonFinanceBudgetID=gibbonFinanceBudget.gibbonFinanceBudgetID)
@@ -82,9 +86,11 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
         $style_border = array('borders' => array('right' => array('borderStyle' => Border::BORDER_THIN, 'color' => array('argb' => '766f6e')), 'left' => array('borderStyle' => Border::BORDER_THIN, 'color' => array('argb' => '766f6e')), 'top' => array('borderStyle' => Border::BORDER_THIN, 'color' => array('argb' => '766f6e')), 'bottom' => array('borderStyle' => Border::BORDER_THIN, 'color' => array('argb' => '766f6e'))));
         $style_head_fill = array('fill' => array('fillType' => Fill::FILL_SOLID, 'color' => array('rgb' => 'B89FE2')));
 
+        $includeVoucherExport = canManageExpenseVouchers($guid, $connection2);
+
         //Auto set column widths
         // XXX: modified by wxz
-        for($col = 'A'; $col !== 'R'; $col++)
+        for($col = 'A'; $col !== ($includeVoucherExport ? 'X' : 'R'); $col++)
             $excel->getActiveSheet()->getColumnDimension($col)->setAutoSize(true);
         // XXX: ends here
 
@@ -142,6 +148,21 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
         $excel->getActiveSheet()->setCellValueByColumnAndRow(17, 1, __('Date Self Paid'));
         $excel->getActiveSheet()->getStyleByColumnAndRow(17, 1)->applyFromArray($style_border);
         $excel->getActiveSheet()->getStyleByColumnAndRow(17, 1)->applyFromArray($style_head_fill);
+        if ($includeVoucherExport) {
+            $voucherHeaders = [
+                18 => __('Voucher Progress'),
+                19 => __('Reissue Count'),
+                20 => __('Voucher Issued Timestamp'),
+                21 => __('Voucher Printed Timestamp'),
+                22 => __('Voucher Submitted Timestamp'),
+                23 => __('Latest Reissue Timestamp'),
+            ];
+            foreach ($voucherHeaders as $column => $header) {
+                $excel->getActiveSheet()->setCellValueByColumnAndRow($column, 1, $header);
+                $excel->getActiveSheet()->getStyleByColumnAndRow($column, 1)->applyFromArray($style_border);
+                $excel->getActiveSheet()->getStyleByColumnAndRow($column, 1)->applyFromArray($style_head_fill);
+            }
+        }
         // XXX: ends here
 		$excel->getActiveSheet()->getStyle("1:1")->getFont()->setBold(true);
 
@@ -206,6 +227,21 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
             //Column Q
             $excel->getActiveSheet()->setCellValueByColumnAndRow(17, $count, $row['selfPaymentDate'] ?? '');
             $excel->getActiveSheet()->getStyleByColumnAndRow(17, $count)->applyFromArray($style_border);
+            if ($includeVoucherExport) {
+                $voucherExport = expenseVoucherExportValues($row);
+                $voucherCells = [
+                    18 => $voucherExport['progress'],
+                    19 => $voucherExport['reissueCount'],
+                    20 => $row['voucherIssuedTimestampLog'] ?? '',
+                    21 => $row['voucherPrintedTimestampLog'] ?? '',
+                    22 => $row['voucherSubmittedTimestampLog'] ?? '',
+                    23 => $row['voucherReissueTimestampLog'] ?? '',
+                ];
+                foreach ($voucherCells as $column => $value) {
+                    $excel->getActiveSheet()->setCellValueByColumnAndRow($column, $count, $value);
+                    $excel->getActiveSheet()->getStyleByColumnAndRow($column, $count)->applyFromArray($style_border);
+                }
+            }
             // XXX: ends here
         }
         if ($count == 0) {

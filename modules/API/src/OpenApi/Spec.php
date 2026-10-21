@@ -98,8 +98,8 @@ class Spec
             'openapi' => '3.0.3',
             'info' => [
                 'title' => 'Gibbon Agent API',
-                'version' => '1.3.06',
-                'description' => 'REST API for authorised agents. Requests run as the token owner with the role locked at token creation. Covers school structure, terms, special days, timetables, courses, people, staff, units, lesson planner, attendance, attendance reports, markbook, behaviour, and finance expenses.',
+                'version' => '1.3.07',
+                'description' => 'REST API for authorised agents. Requests run as the token owner with the role locked at token creation. Covers school structure, terms, special days, timetables, courses, people, staff, units, lesson planner, attendance, attendance reports, markbook, behaviour, finance expenses, and expense voucher progress.',
             ],
             'servers' => [
                 ['url' => $baseUrl.'/api.php', 'description' => 'API front controller'],
@@ -550,6 +550,7 @@ class Spec
                         $query('status', 'Requested, Approved, Rejected, Cancelled, Ordered, or Paid'),
                         $query('gibbonFinanceBudgetID', 'Filter by budget'),
                         $query('mine', 'Y for own requests'),
+                        $query('voucherStatus', 'Untracked, Pending Invoice, Pending Invoice First, Pending Invoice Reissue, Pending Print, Pending Submission, or Submitted. Requires finance.vouchers.'),
                     ],
                     'responses' => ['200' => $ok, '403' => $err, '422' => $err],
                 ],
@@ -559,6 +560,8 @@ class Spec
             '/v1/finance/expenses/{id}/print' => ['get' => ['summary' => 'Print payload for an expense (JSON, not PDF)', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok]]],
             '/v1/finance/expenses/{id}/approvals' => ['post' => ['summary' => 'Create an approval, rejection or comment on an expense', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['201' => $created, '403' => $err, '422' => $err]]],
             '/v1/finance/expenses/{id}/reimburse' => ['post' => ['summary' => 'Mark an approved expense as reimbursed', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
+            '/v1/finance/expenses/{id}/voucher' => ['post' => ['summary' => 'Advance one expense voucher. action is issue, print, submit, reissue, or assign.', 'parameters' => [$idParam('id', 'gibbonFinanceExpenseID')], 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
+            '/v1/finance/expense-vouchers' => ['post' => ['summary' => 'Advance voucher progress for many expenses. Returns updated and skipped counts.', 'responses' => ['200' => $ok, '403' => $err, '422' => $err]]],
             '/v1/finance/petty-cash' => [
                 'get' => ['summary' => 'List petty cash', 'parameters' => [$query('gibbonSchoolYearID', 'Year id')], 'responses' => ['200' => $ok, '403' => $err]],
                 'post' => ['summary' => 'Create petty cash record', 'responses' => ['201' => $created, '403' => $err, '422' => $err]],

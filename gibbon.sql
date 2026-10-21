@@ -437,7 +437,8 @@ INSERT INTO `gibbonAction` (`gibbonActionID`, `gibbonModuleID`, `name`, `precede
 (0001023, 0147, 'Manage Events_all', 1, 'Administration', 'Manage, create and edit all Calendar events.', '', 'calendar_event_manage.php, calendar_event_add.php, calendar_event_edit.php, calendar_event_delete.php, calendar_event_view.php, calendar_event_participants.php, calendar_event_participants_add.php, calendar_event_participants_edit.php, calendar_event_participants_delete.php', 'calendar_event_manage.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N'),
 (0001024, 0147, 'Manage Events_my', 0, 'Administration', 'Allows users to create and edit thier own calendar events.', '', 'calendar_event_manage.php, calendar_event_add.php, calendar_event_edit.php, calendar_event_delete.php, calendar_event_view.php, calendar_event_participants.php, calendar_event_participants_add.php, calendar_event_participants_edit.php, calendar_event_participants_delete.php', 'calendar_event_manage.php', 'Y', 'Y', 'Y', 'Y', 'N', 'N', 'Y', 'Y', 'N', 'N', 'N'),
 (0001025, 0146, 'Student Alerts by Class', 0, 'Reports', 'View all alerts for a given class.', NULL, 'report_alertsByClass.php', 'report_alertsByClass.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N'),
-(0001026, 0003, 'Impersonate User', 0, 'Utilities', '', NULL, 'impersonateUser.php', 'impersonateUser.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N');
+(0001026, 0003, 'Impersonate User', 0, 'Utilities', '', NULL, 'impersonateUser.php', 'impersonateUser.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N'),
+(0001027, 0135, 'Manage Expense Vouchers', 0, 'Expenses', 'Allows the user to see and update voucher progress on the expense list.', NULL, 'expenses_manage_voucher.php,expenses_manage_voucherProcess.php', 'expenses_manage_voucher.php', 'N', 'N', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N');
 
 -- --------------------------------------------------------
 
@@ -2181,6 +2182,8 @@ CREATE TABLE `gibbonFinanceExpense` (
   `paymentID` varchar(100) DEFAULT NULL,
   `paymentReimbursementReceipt` varchar(255) NOT NULL,
   `paymentReimbursementStatus` enum('Requested','Complete') DEFAULT NULL,
+  `voucherStatus` enum('Pending Invoice','Pending Print','Pending Submission','Submitted') DEFAULT NULL,
+  `voucherReissueCount` int UNSIGNED NOT NULL DEFAULT 0,
   `gibbonPersonIDCreator` int(10) UNSIGNED ZEROFILL NOT NULL,
   `timestampCreator` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `statusApprovalBudgetCleared` enum('N','Y') NOT NULL DEFAULT 'N'
@@ -2213,7 +2216,7 @@ CREATE TABLE `gibbonFinanceExpenseLog` (
   `gibbonFinanceExpenseID` int(14) UNSIGNED ZEROFILL NOT NULL,
   `gibbonPersonID` int(10) UNSIGNED ZEROFILL NOT NULL,
   `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `action` enum('Request','Approval - Partial - Budget','Approval - Partial - School','Approval - Final','Approval - Exempt','Rejection','Cancellation','Order','Payment','Reimbursement Request','Reimbursement Completion','Comment') NOT NULL,
+  `action` enum('Request','Approval - Partial - Budget','Approval - Partial - School','Approval - Final','Approval - Exempt','Rejection','Cancellation','Order','Payment','Reimbursement Request','Reimbursement Completion','Comment','Voucher - Started','Voucher - Invoice Issued','Voucher - Printed','Voucher - Submitted','Voucher - Reissue','Voucher - Assign') NOT NULL,
   `comment` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -4191,7 +4194,8 @@ INSERT INTO `gibbonPermission` (`permissionID`, `gibbonRoleID`, `gibbonActionID`
 (0000054096, 001, 0001025),
 (0000054097, 002, 0001025),
 (0000054098, 002, 0001020),
-(0000054099, 001, 0001026);
+(0000054099, 001, 0001026),
+(0000054100, 001, 0001027);
 
 -- --------------------------------------------------------
 
@@ -8087,7 +8091,7 @@ ALTER TABLE `gibbonYearGroup`
 -- AUTO_INCREMENT for table `gibbonAction`
 --
 ALTER TABLE `gibbonAction`
-  MODIFY `gibbonActionID` int(7) UNSIGNED ZEROFILL NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1027;
+  MODIFY `gibbonActionID` int(7) UNSIGNED ZEROFILL NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1028;
 
 --
 -- AUTO_INCREMENT for table `gibbonActivity`
@@ -8801,7 +8805,7 @@ ALTER TABLE `gibbonPayment`
 -- AUTO_INCREMENT for table `gibbonPermission`
 --
 ALTER TABLE `gibbonPermission`
-  MODIFY `permissionID` int(10) UNSIGNED ZEROFILL NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=54100;
+  MODIFY `permissionID` int(10) UNSIGNED ZEROFILL NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=54101;
 
 --
 -- AUTO_INCREMENT for table `gibbonPerson`

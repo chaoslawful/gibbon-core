@@ -45,6 +45,8 @@ class ExpenseGateway extends QueryableGateway
                 'gibbonFinanceExpense.status',
                 'gibbonFinanceExpense.title',
                 'gibbonFinanceExpense.paymentReimbursementStatus',
+                'gibbonFinanceExpense.voucherStatus',
+                'gibbonFinanceExpense.voucherReissueCount',
                 'gibbonFinanceExpense.timestampCreator',
                 'gibbonFinanceExpense.paymentDate',
                 'gibbonFinanceExpense.cost',
@@ -83,7 +85,28 @@ class ExpenseGateway extends QueryableGateway
                 return $query
                     ->where('gibbonFinanceExpense.gibbonPersonIDCreator = :gibbonPersonIDCreator')
                     ->bindValue('gibbonPersonIDCreator', $gibbonPersonIDCreator);
-            }
+            },
+            'voucher' => function ($query, $voucher) {
+                if ($voucher === 'Untracked') {
+                    return $query
+                        ->where("gibbonFinanceExpense.status = 'Paid'")
+                        ->where('gibbonFinanceExpense.voucherStatus IS NULL');
+                }
+                if ($voucher === 'Pending Invoice First') {
+                    return $query
+                        ->where("gibbonFinanceExpense.voucherStatus = 'Pending Invoice'")
+                        ->where('gibbonFinanceExpense.voucherReissueCount = 0');
+                }
+                if ($voucher === 'Pending Invoice Reissue') {
+                    return $query
+                        ->where("gibbonFinanceExpense.voucherStatus = 'Pending Invoice'")
+                        ->where('gibbonFinanceExpense.voucherReissueCount > 0');
+                }
+
+                return $query
+                    ->where('gibbonFinanceExpense.voucherStatus = :voucherStatus')
+                    ->bindValue('voucherStatus', $voucher);
+            },
         ]);
 
         return $this->runQuery($query, $criteria);

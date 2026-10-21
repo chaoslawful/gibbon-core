@@ -51347,3 +51347,149 @@ msgstr "报销完成时戳"
 msgid "Payment Date"
 msgstr "支付日期"
 
+
+
+# 费用凭证进度
+msgid "Voucher Progress"
+msgstr "凭证进度"
+
+msgid "Not Tracked"
+msgstr "未跟踪"
+
+msgid "Waiting for Invoice"
+msgstr "待开发票"
+
+msgid "First-time Waiting for Invoice"
+msgstr "仅首次待开发票"
+
+msgid "Reissue Waiting for Invoice"
+msgstr "仅退回重开"
+
+msgid "Waiting to Print"
+msgstr "待打印"
+
+msgid "Waiting to Submit"
+msgstr "待送交"
+
+msgid "Submitted to Finance"
+msgstr "已送交"
+
+msgid "Reissue Count"
+msgstr "退回次数"
+
+msgid "Reissued %1$s time(s)"
+msgstr "已退回 %1$s 次"
+
+msgid "Mark Invoice Issued"
+msgstr "标记为已开票"
+
+msgid "Mark Printed"
+msgstr "标记为已打印"
+
+msgid "Mark Submitted to Finance"
+msgstr "标记为已送交"
+
+msgid "Return for Reissue"
+msgstr "退回重开"
+
+msgid "Assign Voucher Progress"
+msgstr "指定凭证进度"
+
+msgid "Record Untracked Orders"
+msgstr "补记未跟踪订单"
+
+msgid "Where is the invoice now?"
+msgstr "发票现在到哪一步？"
+
+msgid "Waiting for Invoice, first time"
+msgstr "待开发票，第一次"
+
+msgid "Waiting for Invoice, returned for reissue"
+msgstr "待开发票，退回后重开"
+
+msgid "This only records paid orders that are not tracked yet. Choosing returned for reissue sets the reissue count to 1."
+msgstr "只会补记尚未跟踪的已付款订单；选「退回后重开」时，退回次数记为 1。"
+
+msgid "Reason for reissue"
+msgstr "退回原因"
+
+msgid "Mark as reissue"
+msgstr "标记为退回重开"
+
+msgid "Voucher progress updated for %1$s expenses. %2$s skipped."
+msgstr "已更新 %1$s 笔费用的凭证进度，跳过 %2$s 笔。"
+
+msgid "No expenses were updated because their voucher progress did not match this action."
+msgstr "没有费用被更新，因为凭证进度与该操作不符。"
+
+msgid "Voucher - Started"
+msgstr "开始凭证流程"
+
+msgid "Voucher - Invoice Issued"
+msgstr "凭证已开票"
+
+msgid "Voucher - Printed"
+msgstr "凭证已打印"
+
+msgid "Voucher - Submitted"
+msgstr "凭证已送交"
+
+msgid "Voucher - Reissue"
+msgstr "凭证退回重开"
+
+msgid "Voucher - Assign"
+msgstr "凭证指定进度"
+
+msgid "The expense voucher progress database update has been applied. Existing expenses were not changed."
+msgstr "费用凭证进度的数据库更新已执行，已有费用订单未改动。"
+
+msgid "The expense voucher progress database update could not be applied."
+msgstr "费用凭证进度的数据库更新未能执行。"
+
+msgid "The expense voucher progress database update has not been applied yet."
+msgstr "费用凭证进度的数据库更新尚未执行。"
+
+msgid "Open the system update page to apply it"
+msgstr "打开系统更新页面执行"
+
+msgid "The expense list cannot be opened until the voucher progress database update is applied."
+msgstr "费用凭证进度的数据库更新尚未执行，费用列表暂时不能打开。"
+
+msgid "Expense Voucher Progress Database Update"
+msgstr "费用凭证进度数据库更新"
+
+msgid "The code is updated, but the database is still missing the voucher progress fields. The action below only adds fields and log actions. Existing expenses are not changed."
+msgstr "代码已经更新，数据库还缺少凭证进度字段。下面的操作只增加字段和日志动作，不修改已有费用订单。"
+
+msgid "Apply Database Update"
+msgstr "执行数据库更新"
+
+msgid "Mark this expense invoice as issued?"
+msgstr "确认将这张费用标为已开票？"
+
+msgid "Mark this expense invoice as printed?"
+msgstr "确认将这张费用标为已打印？"
+
+msgid "Mark this expense invoice as submitted to finance?"
+msgstr "确认将这张费用标为已送交？"
+
+msgid "This only applies when the progress is Waiting for Invoice."
+msgstr "只在进度为待开发票时生效。"
+
+msgid "Manage Expense Vouchers"
+msgstr "管理费用凭证"
+
+msgid "Allows the user to see and update voucher progress on the expense list."
+msgstr "允许用户在费用列表中查看并更新凭证进度。"
+
+msgid "Voucher Issued Timestamp"
+msgstr "凭证已开票时间"
+
+msgid "Voucher Printed Timestamp"
+msgstr "凭证已打印时间"
+
+msgid "Voucher Submitted Timestamp"
+msgstr "凭证已送交时间"
+
+msgid "Latest Reissue Timestamp"
+msgstr "最近退回时间"

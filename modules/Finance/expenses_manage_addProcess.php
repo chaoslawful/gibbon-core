@@ -74,9 +74,17 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                 header("Location: {$URL}");
             } else {
                 //Write to database
+                // XXX: added by wxz — new paid expenses start invoice tracking
+                $voucherStart = ($status == 'Paid') ? expenseVoucherStartValues('', null) : null;
+                // XXX: ends here
                 try {
                     $data = array('gibbonFinanceBudgetCycleID' => $gibbonFinanceBudgetCycleID, 'gibbonFinanceBudgetID' => $gibbonFinanceBudgetID, 'title' => $title, 'body' => $body, 'status' => $status, 'statusApprovalBudgetCleared' => 'Y', 'cost' => $cost, 'countAgainstBudget' => $countAgainstBudget, 'purchaseBy' => $purchaseBy, 'purchaseDetails' => $purchaseDetails, 'gibbonPersonIDCreator' => $session->get('gibbonPersonID'), 'paymentDate' => $paymentDate, 'paymentAmount' => $paymentAmount, 'gibbonPersonIDPayment' => $gibbonPersonIDPayment, 'paymentMethod' => $paymentMethod, 'paymentID' => $paymentID);
                     $sql = "INSERT INTO gibbonFinanceExpense SET gibbonFinanceBudgetCycleID=:gibbonFinanceBudgetCycleID, gibbonFinanceBudgetID=:gibbonFinanceBudgetID, title=:title, body=:body, status=:status, statusApprovalBudgetCleared=:statusApprovalBudgetCleared, cost=:cost, countAgainstBudget=:countAgainstBudget, purchaseBy=:purchaseBy, purchaseDetails=:purchaseDetails, gibbonPersonIDCreator=:gibbonPersonIDCreator, timestampCreator='".date('Y-m-d H:i:s')."', paymentDate=:paymentDate, paymentAmount=:paymentAmount, gibbonPersonIDPayment=:gibbonPersonIDPayment, paymentMethod=:paymentMethod, paymentID=:paymentID";
+                    if (!empty($voucherStart)) {
+                        $data['voucherStatus'] = $voucherStart['voucherStatus'];
+                        $data['voucherReissueCount'] = $voucherStart['voucherReissueCount'];
+                        $sql .= ', voucherStatus=:voucherStatus, voucherReissueCount=:voucherReissueCount';
+                    }
                     $result = $connection2->prepare($sql);
                     $result->execute($data);
                 } catch (PDOException $e) {
@@ -114,6 +122,18 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                         header("Location: {$URL}");
                         exit();
                     }
+
+                    // XXX: added by wxz
+                    if ($status == 'Paid' && !empty($voucherStart)) {
+                        try {
+                            insertExpenseLog($connection2, $gibbonFinanceExpenseID, $session->get('gibbonPersonID'), $voucherStart['logAction'], '');
+                        } catch (PDOException $e) {
+                            $URL .= '&return=error2';
+                            header("Location: {$URL}");
+                            exit();
+                        }
+                    }
+                    // XXX: ends here
                 }
 
                 $URL .= "&return=success0&editID=$gibbonFinanceExpenseID";

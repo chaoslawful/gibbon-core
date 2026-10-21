@@ -47,6 +47,24 @@ class FinanceExpenseService
         'Paid',
     ];
 
+    public const VOUCHER_FILTERS = [
+        'Untracked',
+        'Pending Invoice',
+        'Pending Invoice First',
+        'Pending Invoice Reissue',
+        'Pending Print',
+        'Pending Submission',
+        'Submitted',
+    ];
+
+    public const VOUCHER_ACTIONS = [
+        'issue' => 'voucherIssue',
+        'print' => 'voucherPrint',
+        'submit' => 'voucherSubmit',
+        'reissue' => 'voucherReissue',
+        'assign' => 'voucherAssign',
+    ];
+
     public function list(array $query): array
     {
         $this->permissions->assertCanRequestOrManageExpenses();
@@ -92,9 +110,25 @@ class FinanceExpenseService
             $sql .= ' AND gibbonFinanceExpense.gibbonFinanceBudgetID=:budget';
             $params['budget'] = $budgetId;
         }
+        $voucher = trim((string) ($query['voucherStatus'] ?? ''));
+        if ($voucher !== '') {
+            $this->assertCanFilterVouchers($voucher);
+            if ($voucher === 'Untracked') {
+                $sql .= " AND gibbonFinanceExpense.status='Paid' AND gibbonFinanceExpense.voucherStatus IS NULL";
+            } elseif ($voucher === 'Pending Invoice First') {
+                $sql .= " AND gibbonFinanceExpense.voucherStatus='Pending Invoice' AND gibbonFinanceExpense.voucherReissueCount=0";
+            } elseif ($voucher === 'Pending Invoice Reissue') {
+                $sql .= " AND gibbonFinanceExpense.voucherStatus='Pending Invoice' AND gibbonFinanceExpense.voucherReissueCount>0";
+            } else {
+                $sql .= ' AND gibbonFinanceExpense.voucherStatus=:voucherStatus';
+                $params['voucherStatus'] = $voucher;
+            }
+        }
         $sql .= ' ORDER BY gibbonFinanceExpense.timestampCreator DESC';
 
-        return ['data' => $this->db->select($sql, $params)->fetchAll()];
+        $rows = $this->db->select($sql, $params)->fetchAll();
+
+        return ['data' => array_map(fn (array $row) => $this->presentExpense($row), $rows)];
     }
 
     public function get(string $id): array
@@ -106,7 +140,50 @@ class FinanceExpenseService
         $budget = $this->budgets->getByID($row['gibbonFinanceBudgetID']);
         $row['budget'] = $budget['name'] ?? null;
 
-        return $row;
+        return $this->presentExpense($row);
+    }
+
+    public function updateVoucher(string $id, array $body): array
+    {
+        $this->permissions->assertCanRequestOrManageExpenses();
+        $this->assertVoucherSchemaReady();
+        $parsed = $this->parseVoucherAction($body);
+        $row = RestTable::requireRow($this->expenses, $id, 'Expense not found.');
+        $this->assertCanSeeExpense($row);
+        $scope = $this->voucherWriteScope();
+        if ($scope === 'own' && (string) ($row['gibbonPersonIDCreator'] ?? '') !== (string) $this->session->get('gibbonPersonID')) {
+            throw new ApiException('You do not have permission to update voucher progress for this expense.', 403);
+        }
+        $this->loadFinanceFunctions();
+        $next = nextExpenseVoucherState($row, $parsed['action'], $parsed['input']);
+        if ($next === null) {
+            throw new ApiException('No expenses were updated because their voucher progress did not match this action.', 422);
+        }
+        $result = applyExpenseVoucherBulk($this->financeConnection(), [$id], $parsed['action'], $this->session->get('gibbonPersonID'), $parsed['input'], 'all');
+        if (($result['updated'] ?? 0) < 1) {
+            throw new ApiException('No expenses were updated because their voucher progress did not match this action.', 422);
+        }
+
+        return $this->get($id);
+    }
+
+    public function updateVouchers(array $body): array
+    {
+        $this->permissions->assertCanRequestOrManageExpenses();
+        $this->assertVoucherSchemaReady();
+        $ids = $body['ids'] ?? null;
+        if (!is_array($ids) || $ids === []) {
+            throw new ApiException('ids is required.', 422);
+        }
+        $parsed = $this->parseVoucherAction($body);
+        $scope = $this->voucherWriteScope();
+        $this->loadFinanceFunctions();
+        $result = applyExpenseVoucherBulk($this->financeConnection(), $ids, $parsed['action'], $this->session->get('gibbonPersonID'), $parsed['input'], $scope);
+
+        return [
+            'updated' => (int) ($result['updated'] ?? 0),
+            'skipped' => (int) ($result['skipped'] ?? 0),
+        ];
     }
 
     public function create(array $body): array
@@ -211,11 +288,17 @@ class FinanceExpenseService
         if (($row['status'] ?? '') !== 'Approved' && ($row['status'] ?? '') !== 'Paid') {
             throw new ApiException('Only approved expenses can be marked reimbursed.', 422);
         }
+        $this->loadFinanceFunctions();
         $data = RestTable::pick($body, ['paymentDate', 'paymentAmount', 'paymentMethod', 'paymentID', 'gibbonPersonIDPayment', 'selfPaymentDate']);
         RestTable::requireFields($data, ['paymentDate', 'paymentAmount', 'paymentMethod']);
         $data['status'] = 'Paid';
         $data['paymentReimbursementStatus'] = 'Complete';
         $data['gibbonPersonIDPayment'] = $data['gibbonPersonIDPayment'] ?? $this->session->get('gibbonPersonID');
+        $voucherStart = expenseVoucherStartValues($row['status'] ?? '', $row['voucherStatus'] ?? null);
+        if (!empty($voucherStart)) {
+            $data['voucherStatus'] = $voucherStart['voucherStatus'];
+            $data['voucherReissueCount'] = $voucherStart['voucherReissueCount'];
+        }
         if (!isset($body['paymentReimbursementReceipt'])) {
             $data['paymentReimbursementReceipt'] = $row['paymentReimbursementReceipt'] ?: '';
         } else {
@@ -223,6 +306,9 @@ class FinanceExpenseService
         }
         $this->expenses->update($id, $data);
         $this->addLog($id, 'Reimbursement', (string) ($body['comment'] ?? ''));
+        if (!empty($voucherStart)) {
+            $this->addLog($id, $voucherStart['logAction'], '');
+        }
 
         return $this->get($id);
     }
@@ -234,6 +320,7 @@ class FinanceExpenseService
 
     protected function createAdmin(array $body): array
     {
+        $this->loadFinanceFunctions();
         $data = RestTable::pick($body, [
             'gibbonFinanceBudgetCycleID', 'gibbonFinanceBudgetID', 'title', 'body', 'status',
             'cost', 'countAgainstBudget', 'purchaseBy', 'purchaseDetails',
@@ -242,6 +329,9 @@ class FinanceExpenseService
         RestTable::requireFields($data, ['gibbonFinanceBudgetCycleID', 'gibbonFinanceBudgetID', 'title', 'cost', 'status', 'countAgainstBudget', 'purchaseBy']);
         if ($data['status'] === 'Paid') {
             RestTable::requireFields($data, ['paymentDate', 'paymentAmount', 'gibbonPersonIDPayment', 'paymentMethod']);
+            $voucherStart = expenseVoucherStartValues('', null);
+            $data['voucherStatus'] = $voucherStart['voucherStatus'];
+            $data['voucherReissueCount'] = $voucherStart['voucherReissueCount'];
         }
         $data = RestTable::defaults($data, [
             'body' => '',
@@ -253,6 +343,9 @@ class FinanceExpenseService
         ]);
         $row = RestTable::create($this->expenses, $data);
         $this->addLog($row['gibbonFinanceExpenseID'], $data['status'] === 'Paid' ? 'Payment' : 'Request', '');
+        if ($data['status'] === 'Paid') {
+            $this->addLog($row['gibbonFinanceExpenseID'], 'Voucher - Started', '');
+        }
 
         return $this->get($row['gibbonFinanceExpenseID']);
     }
@@ -440,6 +533,93 @@ class FinanceExpenseService
     protected function loadFinanceFunctions(): void
     {
         require_once __DIR__.'/../../../Finance/moduleFunctions.php';
+    }
+
+    protected function financeConnection(): \PDO
+    {
+        global $connection2;
+        if ($connection2 instanceof \PDO) {
+            return $connection2;
+        }
+        $pdo = $this->db->getConnection();
+        if (!$pdo instanceof \PDO) {
+            throw new ApiException('Database connection is not available.', 500);
+        }
+
+        return $pdo;
+    }
+
+    protected function assertCanFilterVouchers(string $voucher): void
+    {
+        if (!$this->permissions->canManageExpenseVouchers()) {
+            throw new ApiException('You do not have permission to view voucher progress.', 403);
+        }
+        if (!in_array($voucher, self::VOUCHER_FILTERS, true)) {
+            throw new ApiException('voucherStatus must be one of: '.implode(', ', self::VOUCHER_FILTERS).'.', 422);
+        }
+        $this->assertVoucherSchemaReady();
+    }
+
+    protected function assertVoucherSchemaReady(): void
+    {
+        $this->loadFinanceFunctions();
+        if (!expenseVoucherSchemaReady($this->financeConnection())) {
+            throw new ApiException('The voucher progress database update has not been applied yet.', 422);
+        }
+    }
+
+    protected function voucherWriteScope(): string
+    {
+        if (!$this->permissions->canManageExpenseVouchers()) {
+            throw new ApiException('You do not have permission to update voucher progress.', 403);
+        }
+        $this->loadFinanceFunctions();
+        global $guid;
+        $scope = canBulkUpdateExpenseVouchers($this->financeConnection(), $guid, $this->session->get('gibbonPersonID'));
+        if ($scope !== 'all' && $scope !== 'own') {
+            throw new ApiException('You do not have permission to update voucher progress.', 403);
+        }
+
+        return $scope;
+    }
+
+    protected function parseVoucherAction(array $body): array
+    {
+        $this->loadFinanceFunctions();
+        $name = (string) ($body['action'] ?? '');
+        if (!isset(self::VOUCHER_ACTIONS[$name])) {
+            throw new ApiException('action must be one of: '.implode(', ', array_keys(self::VOUCHER_ACTIONS)).'.', 422);
+        }
+        $reason = trim((string) ($body['reason'] ?? ''));
+        if ($name === 'reissue' && $reason === '') {
+            throw new ApiException('reason is required when action is reissue.', 422);
+        }
+        $input = ['reason' => $reason, 'assignStatus' => '', 'assignReissue' => 'N'];
+        if ($name === 'assign') {
+            $assign = expenseVoucherAssignInput($body['progress'] ?? '');
+            if ($assign === null) {
+                throw new ApiException('progress must be one of: Pending Invoice, Pending Invoice Reissue, Pending Print, Pending Submission, Submitted.', 422);
+            }
+            $input['assignStatus'] = $assign['assignStatus'];
+            $input['assignReissue'] = $assign['assignReissue'];
+        }
+
+        return ['action' => self::VOUCHER_ACTIONS[$name], 'input' => $input];
+    }
+
+    protected function presentExpense(array $row): array
+    {
+        if ($this->permissions->canManageExpenseVouchers()) {
+            return $row;
+        }
+        unset($row['voucherStatus'], $row['voucherReissueCount']);
+        if (isset($row['log']) && is_array($row['log'])) {
+            $row['log'] = array_values(array_filter($row['log'], function ($log) {
+                return strncmp((string) ($log['action'] ?? ''), 'Voucher - ', 10) !== 0;
+            }));
+        }
+
+        return $row;
     }
 
     protected function addLog(string $expenseId, string $action, string $comment): string

@@ -1,10 +1,10 @@
 ---
 name: gibbon-api
 description: >-
-  通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、教职工、出勤、记分册（含成绩回复文件）、行为记录与财务支出。
+  通过 Gibbon Agent REST API 读写课表、课程规划、学校结构、人员、教职工、出勤、记分册（含成绩回复文件）、行为记录、财务支出与费用凭证进度。
   仅在用户明确要求使用 gibbon-api skill、按该 REST API 操作 Gibbon、或安装本 skill 后点名操作课表/课程规划时使用。
 disable-model-invocation: true
-version: 1.3.06
+version: 1.3.07
 ---
 
 # Gibbon Agent REST API
@@ -38,7 +38,7 @@ curl -sS \
   "$GIBBON_API_BASE/v1/me"
 ```
 
-4. 看 `capabilities` 再决定能做什么。它是**完整 26 项对象**，值为 `true`/`false`，只把 `true` 的当已授权（与账号网页上的其它角色无关，由令牌**创建时锁定的角色**决定）：
+4. 看 `capabilities` 再决定能做什么。它是**完整 27 项对象**，值为 `true`/`false`，只把 `true` 的当已授权（与账号网页上的其它角色无关，由令牌**创建时锁定的角色**决定）：
    - `planner.read` / `planner.write` / `planner.editAllClasses`：教案
    - `planner.units`：单元与智能块
    - `timetable.read` / `timetable.write`：课表结构与课格
@@ -49,7 +49,7 @@ curl -sS \
    - `attendance.class` / `attendance.formGroup` / `attendance.person`：按教学班 / 行政班 / 个人点名
    - `attendance.codes`：出勤代码管理；`attendance.reports`：出勤报表（只读；具体报表还要对应网页权限，缺则 403）
    - `markbook.write` / `markbook.editAllClasses`：记分册栏目、给分、学生回复文件
-   - `finance.expenses` / `finance.expensesAll`：报销；`finance.fees`：费用目录；`finance.budgets`：预算科目；`finance.pettyCash`：零用金
+   - `finance.expenses` / `finance.expensesAll`：报销；`finance.vouchers`：费用凭证进度（没有它时费用响应不含凭证字段和 `Voucher - ` 日志）；`finance.fees`：费用目录；`finance.budgets`：预算科目；`finance.pettyCash`：零用金
    - `behaviour.write` / `behaviour.writeAll`：行为记录
    - 预算周期（`网页: budgetCycles_manage`）与报销审批人（`网页: expenseApprovers_manage`）没有对应 capability，403 即缺权。reference.md 权限列：能自检的写 capability 名；不能自检的写成 `网页: …`
 

@@ -2,6 +2,12 @@
 
 manifest 的 `notes` 取自本文件对应版本的小节（打包脚本自动提取、净化后写入）。
 
+## 1.3.07 - 2026-10-21
+
+- 费用凭证进度：`finance.vouchers`。列表可按 `voucherStatus` 筛选；无此能力时响应去掉凭证字段和 `Voucher - ` 日志。
+- `POST /v1/finance/expenses/{id}/voucher` 推进单条，进度不符 **422**。`POST /v1/finance/expense-vouchers` 批量返回 `updated` 与 `skipped`，零更新仍是 **200**。不要直接改 `voucherStatus`。
+- capabilities 增至 27 项。
+
 ## 1.3.06 - 2026-09-12
 
 - 行政班/个人点名改为按同一上下文覆盖：改出勤码不再插入新日志；行政班「已点」记录同一天也 update。

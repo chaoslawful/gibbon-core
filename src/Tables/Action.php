@@ -22,6 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 namespace Gibbon\Tables;
 
 use Gibbon\Forms\Layout\WebLink;
+use Gibbon\Forms\Traits\ButtonGroupTrait;
 use Gibbon\Http\Url;
 use Gibbon\View\Component;
 
@@ -36,6 +37,8 @@ use Gibbon\View\Component;
  */
 class Action extends WebLink
 {
+    use ButtonGroupTrait;
+
     /**
      * Name of the action.
      *
@@ -114,6 +117,13 @@ class Action extends WebLink
     protected $displayLabel = false;
 
     /**
+     * Use tighter padding and a smaller icon. Used by grouped row actions.
+     *
+     * @var bool
+     */
+    protected $compact = false;
+
+    /**
      * Class constructor of Action.
      *
      * @param string $name   Name of the action. Usually 'add', 'addMultiple',
@@ -125,6 +135,7 @@ class Action extends WebLink
     {
         $this->name = $name;
         $this->setLabel($label);
+        $this->group = null;
 
         // Pre-defined settings for common actions
         switch ($this->name) {
@@ -214,6 +225,19 @@ class Action extends WebLink
         $this->icon = $icon;
         $this->iconClass = $class;
         $this->iconLibrary = $library;
+
+        return $this;
+    }
+
+    /**
+     * Render this action with less padding so several icons can sit in one group.
+     *
+     * @param bool $compact
+     * @return self
+     */
+    public function setCompact($compact = true)
+    {
+        $this->compact = (bool) $compact;
 
         return $this;
     }
@@ -341,6 +365,8 @@ class Action extends WebLink
             'iconLibrary'  => $this->iconLibrary,
             'label'        => $this->label,
             'displayLabel' => $this->displayLabel,
+            'groupClass'   => $this->getGroupClass(),
+            'compact'      => $this->compact,
         ]);
     }
 }

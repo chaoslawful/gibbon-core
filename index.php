@@ -414,6 +414,23 @@ if ($session->get('pageLoads') == 0 and $session->has('username') and !$session-
 // Show warning if not in the current school year
 // TODO: When we implement routing, these can become part of the HTTP middleware.
 if ($isLoggedIn) {
+    $page->return->addReturns([
+        'successVoucherSchema' => __('The expense voucher progress database update has been applied. Existing expenses were not changed.'),
+        'errorVoucherSchema' => __('The expense voucher progress database update could not be applied.'),
+    ]);
+    if ($session->has('voucherSchemaError')) {
+        $page->addError($session->get('voucherSchemaError'));
+        $session->forget('voucherSchemaError');
+    }
+
+    if (isActionAccessible($guid, $connection2, '/modules/System Admin/update.php')) {
+        require_once __DIR__.'/modules/Finance/moduleFunctions.php';
+        if (!expenseVoucherSchemaReady($connection2)) {
+            $updateUrl = $session->get('absoluteURL').'/index.php?q=/modules/System%20Admin/update.php';
+            $page->addWarning('<b>'.__('The expense voucher progress database update has not been applied yet.').'</b> <a href="'.$updateUrl.'">'.__('Open the system update page to apply it').'</a>');
+        }
+    }
+
     if ($session->get('gibbonSchoolYearID') != $session->get('gibbonSchoolYearIDCurrent')) {
         $page->addWarning('<b><u>'.sprintf(__('Warning: you are logged into the system in school year %1$s, which is not the current year.'), $session->get('gibbonSchoolYearName')).'</b></u>'.__('Your data may not look quite right (for example, students who have left the school will not appear in previous years), but you should be able to edit information from other years which is not available in the current year.'));
     }

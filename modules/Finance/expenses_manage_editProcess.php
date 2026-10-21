@@ -95,6 +95,9 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                         } else {
                             $row = $result->fetch();
                             $statusOld = $row['status'];
+                            // XXX: added by wxz — start invoice tracking only when payment is new
+                            $voucherStart = ($status == 'Paid') ? expenseVoucherStartValues($statusOld, $row['voucherStatus'] ?? null) : null;
+                            // XXX: ends here
 
                             //Check if params are specified
                             if ($status == 'Paid' and ($row['status'] == 'Approved' or $row['status'] == 'Ordered')) {
@@ -158,7 +161,15 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                             //Write back to gibbonFinanceExpense
                             try {
                                 $data = array('gibbonFinanceExpenseID' => $gibbonFinanceExpenseID, 'status' => $status, 'countAgainstBudget' => $countAgainstBudget, 'paymentDate' => $paymentDate, 'paymentAmount' => $paymentAmount, 'gibbonPersonIDPayment' => $gibbonPersonIDPayment, 'paymentMethod' => $paymentMethod, 'paymentID' => $paymentID, 'paymentReimbursementStatus' => $paymentReimbursementStatus);
-                                $sql = 'UPDATE gibbonFinanceExpense SET status=:status, countAgainstBudget=:countAgainstBudget, paymentDate=:paymentDate, paymentAmount=:paymentAmount, gibbonPersonIDPayment=:gibbonPersonIDPayment, paymentMethod=:paymentMethod, paymentID=:paymentID, paymentReimbursementStatus=:paymentReimbursementStatus WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID';
+                                $sql = 'UPDATE gibbonFinanceExpense SET status=:status, countAgainstBudget=:countAgainstBudget, paymentDate=:paymentDate, paymentAmount=:paymentAmount, gibbonPersonIDPayment=:gibbonPersonIDPayment, paymentMethod=:paymentMethod, paymentID=:paymentID, paymentReimbursementStatus=:paymentReimbursementStatus';
+                                // XXX: added by wxz
+                                if (!empty($voucherStart)) {
+                                    $data['voucherStatus'] = $voucherStart['voucherStatus'];
+                                    $data['voucherReissueCount'] = $voucherStart['voucherReissueCount'];
+                                    $sql .= ', voucherStatus=:voucherStatus, voucherReissueCount=:voucherReissueCount';
+                                }
+                                // XXX: ends here
+                                $sql .= ' WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID';
                                 $result = $connection2->prepare($sql);
                                 $result->execute($data);
                             } catch (PDOException $e) {
@@ -203,6 +214,18 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                                     header("Location: {$URL}");
                                     exit();
                                 }
+
+                                // XXX: added by wxz
+                                if (!empty($voucherStart)) {
+                                    try {
+                                        insertExpenseLog($connection2, $gibbonFinanceExpenseID, $session->get('gibbonPersonID'), $voucherStart['logAction'], '');
+                                    } catch (PDOException $e) {
+                                        $URL .= '&return=error2';
+                                        header("Location: {$URL}");
+                                        exit();
+                                    }
+                                }
+                                // XXX: ends here
                             }
 
                             $URL .= '&return=success0';

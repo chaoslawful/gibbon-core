@@ -34,6 +34,12 @@ require_once __DIR__ . '/moduleFunctions.php';
 if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.php') == false) {
     // Access denied
     $page->addError(__('You do not have access to this action.'));
+} elseif (!expenseVoucherSchemaReady($connection2)) {
+    $page->breadcrumbs->add(__('Manage Expenses'));
+    $page->addError(__('The expense list cannot be opened until the voucher progress database update is applied.'));
+    if (isActionAccessible($guid, $connection2, '/modules/System Admin/update.php')) {
+        echo renderExpenseVoucherSchemaForm($session->get('absoluteURL'), '/modules/Finance/expenses_manage.php');
+    }
 } else {
     //Get action with highest precendence
     $highestAction = getHighestGroupedAction($guid, $_GET['q'], $connection2);
@@ -46,6 +52,12 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
     $page->breadcrumbs->add(__('Manage Expenses'));
 
     $page->return->addReturns(['success0' => __('Your request was completed successfully.'), 'success1' => __('Your request was completed successfully, but notifications could not be sent out.')]);
+    if (isset($_GET['voucherUpdated'])) {
+        $page->return->addReturns([
+            'successVoucher' => sprintf(__('Voucher progress updated for %1$s expenses. %2$s skipped.'), (int) $_GET['voucherUpdated'], (int) ($_GET['voucherSkipped'] ?? 0)),
+            'warningVoucher' => __('No expenses were updated because their voucher progress did not match this action.'),
+        ]);
+    }
 
     echo '<p>';
     if ($highestAction == 'Manage Expenses_all') {
@@ -159,6 +171,8 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
 
     $status2 = $_GET['status2'] ?? '';
     $gibbonFinanceBudgetID2 = $_GET['gibbonFinanceBudgetID2'] ?? '';
+    $canManageExpenseVouchers = canManageExpenseVouchers($guid, $connection2);
+    $voucherStatus2 = $canManageExpenseVouchers ? ($_GET['voucherStatus2'] ?? '') : '';
     
     $form = Form::create('searchForm', $session->get('absoluteURL').'/index.php', 'get');
     $form->setTitle(__('Filters'));
@@ -194,6 +208,24 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
             ->fromArray($budgetsList)
             ->selected($gibbonFinanceBudgetID2);
 
+    if ($canManageExpenseVouchers) {
+        $voucherFilters = [
+            '' => __('All'),
+            'Untracked' => __('Not Tracked'),
+            'Pending Invoice' => __('Waiting for Invoice'),
+            'Pending Invoice First' => __('First-time Waiting for Invoice'),
+            'Pending Invoice Reissue' => __('Reissue Waiting for Invoice'),
+            'Pending Print' => __('Waiting to Print'),
+            'Pending Submission' => __('Waiting to Submit'),
+            'Submitted' => __('Submitted to Finance'),
+        ];
+        $row = $form->addRow();
+            $row->addLabel('voucherStatus2', __('Voucher Progress'));
+            $row->addSelect('voucherStatus2')
+                ->fromArray($voucherFilters)
+                ->selected($voucherStatus2);
+    }
+
     $row = $form->addRow();
         $row->addSearchSubmit($session, __('Clear Filters'), array('gibbonFinanceBudgetCycleID'));
 
@@ -205,6 +237,7 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
         ->sortBy(['defaultSortOrder', 'timestampCreator'])
         ->filterBy('budget', $gibbonFinanceBudgetID2)
         ->filterBy('status', $status2)
+        ->filterBy('voucher', $voucherStatus2)
         ->fromPOST();
 
     if ($highestAction == 'Manage Expenses_all') {
@@ -228,7 +261,11 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
         'status2'                    => $status2,
         'gibbonFinanceBudgetCycleID' => $gibbonFinanceBudgetCycleID,
         'gibbonFinanceBudgetID2'     => $gibbonFinanceBudgetID2,
+        'voucherStatus2'             => $voucherStatus2,
     ];
+    $voucherScope = $budgetsActionAccess
+        ? canBulkUpdateExpenseVouchers($connection2, $guid, $session->get('gibbonPersonID'))
+        : false;
 
     $form = BulkActionForm::create('bulkAction', $session->get('absoluteURL') . '/modules/Finance/expenses_manage_processBulk.php?'.http_build_query($urlParams));
     $form->setTitle(__('View'));
@@ -254,11 +291,33 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
     });
 
     if ($budgetsActionAccess) {
-        $bulkActions = ['export' => __('Export')];
+        $bulkActions = [
+            'export' => __('Export'),
+        ];
+        if ($voucherScope) {
+            $bulkActions['voucherIssue'] = __('Mark Invoice Issued');
+            $bulkActions['voucherPrint'] = __('Mark Printed');
+            $bulkActions['voucherSubmit'] = __('Mark Submitted to Finance');
+            $bulkActions['voucherReissue'] = __('Return for Reissue');
+            $bulkActions['voucherAssign'] = __('Record Untracked Orders');
+            $form->toggleVisibilityByClass('voucherReissueFields')->onSelect('action')->when('voucherReissue');
+            $form->toggleVisibilityByClass('voucherAssignFields')->onSelect('action')->when('voucherAssign');
+        }
+
         $col = $form->createBulkActionColumn($bulkActions);
+        if ($voucherScope) {
+            $col->addTextField('voucherReissueReason')
+                ->placeholder(__('Reason for reissue'))
+                ->setClass('voucherReissueFields w-48 hidden');
+            $col->addSelect('voucherAssignChoice')
+                ->fromArray(expenseVoucherAssignChoices())
+                ->placeholder(__('Where is the invoice now?'))
+                ->setClass('voucherAssignFields w-64 hidden');
+        }
         $col->addSubmit(__('Go'));
 
         $table->addMetaData('bulkActions', $col);
+        $table->addMetaData('bulkActionSticky', true);
     }
 
     $table->addColumn('title', __m('Finance', 'Title'))
@@ -276,6 +335,31 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage.ph
         ->formatDetails(function ($values) {
             return Format::small($values['paymentReimbursementStatus'] ?? '');
         });
+    if ($canManageExpenseVouchers) {
+    $table->addColumn('voucherStatus', __('Voucher Progress'))
+        ->format(function ($values) use ($voucherScope, $session, $urlParams) {
+            $label = formatExpenseVoucherProgress($values);
+            $labelHtml = $label === '' ? '' : '<span style="display:inline-block;min-width:4.5em;white-space:nowrap">'.$label.'</span>';
+            $canUpdate = $voucherScope === 'all'
+                || ($voucherScope === 'own' && (int) ($values['gibbonPersonIDCreator'] ?? 0) === (int) $session->get('gibbonPersonID'));
+            if (!$canUpdate) {
+                return $labelHtml;
+            }
+            $icons = renderExpenseVoucherRowActions($values, $urlParams);
+            if ($icons === '') {
+                return $labelHtml;
+            }
+
+            return '<span class="inline-flex items-center gap-2" style="flex-wrap:nowrap">'.$labelHtml.$icons.'</span>';
+        })
+        ->formatDetails(function ($values) {
+            $count = (int) ($values['voucherReissueCount'] ?? 0);
+            if (($values['voucherStatus'] ?? '') === 'Pending Invoice' && $count > 0) {
+                return Format::small(sprintf(__('Reissued %1$s time(s)'), $count));
+            }
+            return '';
+        });
+    }
     $table->addColumn('cost', __('Cost'))->description($session->get('currency'))
         ->format(Format::using('currency', 'cost'));
     // XXX: added by wxz
