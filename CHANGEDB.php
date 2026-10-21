@@ -1164,3 +1164,8 @@ JOIN `gibbonModule` m ON m.gibbonModuleID = a.gibbonModuleID
 WHERE m.name = 'Finance' AND a.name = 'Manage Expense Vouchers'
 AND NOT EXISTS (SELECT 1 FROM `gibbonPermission` p WHERE p.gibbonRoleID = '001' AND p.gibbonActionID = a.gibbonActionID);end
 ";
+
+//v30.0.01.2-od
+++$count;
+$sql[$count][0] = '30.0.01.2-od';
+$sql[$count][1] = "";
