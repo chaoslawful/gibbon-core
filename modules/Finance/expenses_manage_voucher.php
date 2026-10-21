@@ -50,7 +50,7 @@ if (!in_array($voucherAction, $allowedActions, true) || !ctype_digit((string) $g
 }
 
 $data = ['gibbonFinanceExpenseID' => $gibbonFinanceExpenseID];
-$sql = 'SELECT gibbonFinanceExpenseID, title, status, voucherStatus, voucherReissueCount, gibbonPersonIDCreator FROM gibbonFinanceExpense WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID';
+$sql = 'SELECT gibbonFinanceExpenseID, title, purchaseDetails, status, voucherStatus, voucherReissueCount, gibbonPersonIDCreator FROM gibbonFinanceExpense WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID';
 if ($scope === 'own') {
     $sql .= ' AND gibbonPersonIDCreator=:gibbonPersonIDCreator';
     $data['gibbonPersonIDCreator'] = $session->get('gibbonPersonID');
@@ -83,6 +83,10 @@ $form->addHiddenValue('gibbonFinanceExpenseID', $gibbonFinanceExpenseID);
 $form->addHiddenValue('voucherAction', $voucherAction);
 
 $form->addRow()->addContent('<b>'.htmlPrep($expense['title']).'</b>');
+$purchaseDetails = trim($expense['purchaseDetails'] ?? '');
+if ($purchaseDetails !== '') {
+    $form->addRow()->addContent('<div style="white-space:pre-wrap">'.htmlPrep($purchaseDetails).'</div>');
+}
 
 $confirm = expenseVoucherConfirmMessage($voucherAction);
 if ($confirm !== '') {
