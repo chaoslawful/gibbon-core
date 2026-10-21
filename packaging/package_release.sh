@@ -27,6 +27,11 @@ Options:
                          to <output>/skills/<skill-name>/).
                          Skill version comes from each SKILL.md frontmatter "version:"
                          and must match modules/API/version.php \$moduleVersion (not the core version).
+    -i, --od-i18n        Compile every .po under od-i18n with msgfmt and put the .mo
+                         files in the tarball at the runtime path i18n/<same relative path>.
+                         Example: od-i18n/zh_CN/LC_MESSAGES/gibbon.po
+                         becomes i18n/zh_CN/LC_MESSAGES/gibbon.mo.
+                         Off by default, so i18n/zh_CN stays out of the package.
     -h, --help           Show this help message
 
 Examples:
@@ -35,6 +40,7 @@ Examples:
     $0 --source /home/user/gibbon-core --output /home/user/releases
     $0 -n                    # Package without vendor and lib directories
     $0 -k                    # Also create skill packages (zip/tar.gz/manifest.json)
+    $0 -i                    # Also compile od-i18n into i18n/*.mo inside the tarball
 
 If options are not specified, default values will be used:
     - Source directory: Parent directory of script location (if script is in packaging/ subdirectory)
@@ -56,6 +62,7 @@ SOURCE_DIR=""
 OUTPUT_DIR=""
 SKIP_VENDOR_LIB=false
 PACKAGE_SKILLS=false
+COMPILE_OD_I18N=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -74,6 +81,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -k|--skills-zip)
             PACKAGE_SKILLS=true
+            shift
+            ;;
+        -i|--od-i18n)
+            COMPILE_OD_I18N=true
             shift
             ;;
         -h|--help)
@@ -185,6 +196,7 @@ echo "  Source directory: $SOURCE_DIR"
 echo "  Output directory: $OUTPUT_DIR"
 echo "  Exclude vendor/lib: $SKIP_VENDOR_LIB"
 echo "  Package skill zips: $PACKAGE_SKILLS"
+echo "  Compile od-i18n: $COMPILE_OD_I18N"
 echo "  Version: $VERSION"
 echo "  Temporary directory: $TEMP_DIR"
 echo ""
@@ -304,6 +316,44 @@ if [ -d "$SOURCE_DIR/i18n" ]; then
         rel_file="${file#$SOURCE_DIR/}"
         copy_item "$rel_file"
     done
+fi
+
+# Compile od-i18n catalogs into the package's runtime i18n tree.
+# bindtextdomain reads $absolutePath/i18n/<locale>/LC_MESSAGES/*.mo, not od-i18n.
+if [ "$COMPILE_OD_I18N" = "true" ]; then
+    echo -e "${GREEN}[4/9] Compiling od-i18n catalogs...${NC}"
+    OD_I18N_SRC="$SOURCE_DIR/od-i18n"
+    if [ ! -d "$OD_I18N_SRC" ]; then
+        echo -e "${RED}Error: od-i18n directory not found: $OD_I18N_SRC${NC}"
+        rm -rf "$TEMP_DIR"
+        exit 1
+    fi
+    if ! command -v msgfmt >/dev/null 2>&1; then
+        echo -e "${RED}Error: msgfmt is required to compile od-i18n. Install gettext and retry.${NC}"
+        rm -rf "$TEMP_DIR"
+        exit 1
+    fi
+
+    OD_I18N_COUNT=0
+    while IFS= read -r -d '' po_file; do
+        po_rel="${po_file#"$OD_I18N_SRC"/}"
+        mo_rel="${po_rel%.po}.mo"
+        mo_dest="$PACKAGE_DIR/i18n/$mo_rel"
+        mkdir -p "$(dirname "$mo_dest")"
+        if ! msgfmt --check-header --check-domain -o "$mo_dest" "$po_file"; then
+            echo -e "${RED}Error: msgfmt failed for od-i18n/$po_rel${NC}"
+            rm -rf "$TEMP_DIR"
+            exit 1
+        fi
+        echo "  Compiled: i18n/$mo_rel"
+        OD_I18N_COUNT=$((OD_I18N_COUNT + 1))
+    done < <(find "$OD_I18N_SRC" -type f -name '*.po' -print0 | sort -z)
+
+    if [ "$OD_I18N_COUNT" -eq 0 ]; then
+        echo -e "${RED}Error: No .po files found under $OD_I18N_SRC${NC}"
+        rm -rf "$TEMP_DIR"
+        exit 1
+    fi
 fi
 
 # 5. Copy vendor directory (composer dependencies)

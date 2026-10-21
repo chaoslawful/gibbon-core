@@ -53,7 +53,8 @@
 
 #### i18n 目录
 - 复制所有语言包
-- **排除** `zh_CN` 目录**
+- **排除** `zh_CN` 目录
+- 加 `-i` / `--od-i18n` 时，用 `msgfmt` 编译 `od-i18n` 下每个 `.po`，把 `.mo` 写到包内运行时路径。`od-i18n/zh_CN/LC_MESSAGES/gibbon.po` 变成 `i18n/zh_CN/LC_MESSAGES/gibbon.mo`。源目录 `od-i18n` 本身不打进包。未加此选项时，包里仍然没有 `i18n/zh_CN`。
 
 ## 使用方法
 
@@ -85,7 +86,7 @@ tar -tzf /home/wxz/src/gibbon-core-{VERSION}.tar.gz | head -20
 - ✅ **不包含** .git 目录
 - ✅ **不包含** tests 目录
 - ✅ **不包含** scripts 目录
-- ✅ **不包含** i18n/zh_CN
+- ✅ 默认**不包含** `i18n/zh_CN`；使用 `-i` 时包含编译出的 `i18n/zh_CN/LC_MESSAGES/gibbon.mo`
 
 ## Agent Skill 打包（-k / --skills-zip）
 

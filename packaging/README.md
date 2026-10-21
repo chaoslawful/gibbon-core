@@ -38,6 +38,9 @@ cd /home/wxz/src/gibbon-core/packaging
 
 # 额外打包 agent skill（zip/tar.gz/manifest.json，输出到 <output>/skills/<skill>/）
 ./package_release.sh -k
+
+# 编译 od-i18n 下的 .po，把 .mo 放进包内 i18n/<相同相对路径>
+./package_release.sh -i
 ```
 
 ### 查看帮助
