@@ -1128,3 +1128,39 @@ ALTER TABLE `gibbonApplicationForm`
   MODIFY `siblingSchool2` TEXT NOT NULL,
   MODIFY `siblingSchool3` TEXT NOT NULL;end
 ALTER TABLE `gibbonApplicationForm` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;end";
+
+//v30.0.01.1-od
+++$count;
+$sql[$count][0] = '30.0.01.1-od';
+$sql[$count][1] = "
+DROP PROCEDURE IF EXISTS gibbonOdExpenseVoucher;end
+CREATE PROCEDURE gibbonOdExpenseVoucher()
+BEGIN
+  IF (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gibbonFinanceExpense' AND COLUMN_NAME = 'voucherStatus') = 0 THEN
+    ALTER TABLE `gibbonFinanceExpense` ADD `voucherStatus` enum('Pending Invoice','Pending Print','Pending Submission','Submitted') DEFAULT NULL AFTER `paymentReimbursementStatus`;
+  END IF;
+  IF (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gibbonFinanceExpense' AND COLUMN_NAME = 'voucherReissueCount') = 0 THEN
+    ALTER TABLE `gibbonFinanceExpense` ADD `voucherReissueCount` int UNSIGNED NOT NULL DEFAULT 0 AFTER `voucherStatus`;
+  END IF;
+  SELECT COLUMN_TYPE INTO @voucherActionType FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gibbonFinanceExpenseLog' AND COLUMN_NAME = 'action';
+  IF LOCATE('Voucher - Started', @voucherActionType) = 0 THEN
+    SET @voucherActionSql = CONCAT('ALTER TABLE `gibbonFinanceExpenseLog` MODIFY `action` ', LEFT(@voucherActionType, CHAR_LENGTH(@voucherActionType) - 1), ',''Voucher - Started'',''Voucher - Invoice Issued'',''Voucher - Printed'',''Voucher - Submitted'',''Voucher - Reissue'',''Voucher - Assign'') NOT NULL');
+    PREPARE voucherActionStmt FROM @voucherActionSql;
+    EXECUTE voucherActionStmt;
+    DEALLOCATE PREPARE voucherActionStmt;
+  END IF;
+END;end
+CALL gibbonOdExpenseVoucher();end
+DROP PROCEDURE IF EXISTS gibbonOdExpenseVoucher;end
+INSERT INTO `gibbonAction` (`gibbonModuleID`, `name`, `precedence`, `category`, `description`, `helpURL`, `URLList`, `entryURL`, `entrySidebar`, `menuShow`, `defaultPermissionAdmin`, `defaultPermissionTeacher`, `defaultPermissionStudent`, `defaultPermissionParent`, `defaultPermissionSupport`, `categoryPermissionStaff`, `categoryPermissionStudent`, `categoryPermissionParent`, `categoryPermissionOther`)
+SELECT m.gibbonModuleID, 'Manage Expense Vouchers', 0, 'Expenses', 'Allows the user to see and update voucher progress on the expense list.', NULL, 'expenses_manage_voucher.php,expenses_manage_voucherProcess.php', 'expenses_manage_voucher.php', 'N', 'N', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N'
+FROM `gibbonModule` m
+WHERE m.name = 'Finance'
+AND NOT EXISTS (SELECT 1 FROM `gibbonAction` a WHERE a.gibbonModuleID = m.gibbonModuleID AND a.name = 'Manage Expense Vouchers');end
+INSERT INTO `gibbonPermission` (`gibbonRoleID`, `gibbonActionID`)
+SELECT '001', a.gibbonActionID
+FROM `gibbonAction` a
+JOIN `gibbonModule` m ON m.gibbonModuleID = a.gibbonModuleID
+WHERE m.name = 'Finance' AND a.name = 'Manage Expense Vouchers'
+AND NOT EXISTS (SELECT 1 FROM `gibbonPermission` p WHERE p.gibbonRoleID = '001' AND p.gibbonActionID = a.gibbonActionID);end
+";
