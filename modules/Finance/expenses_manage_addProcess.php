@@ -73,6 +73,17 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                 $URL .= '&return=error1';
                 header("Location: {$URL}");
             } else {
+                $budgetTx = false;
+                if (expenseCountsAgainstBudget($countAgainstBudget, $status)) {
+                    $pdo->beginTransaction();
+                    $budgetTx = true;
+                    $balance = budgetBalanceBefore($pdo, $gibbonFinanceBudgetCycleID, $gibbonFinanceBudgetID, '', true);
+                    if (!budgetAmountFits($balance, $countAgainstBudget, $status, $cost, $paymentAmount)) {
+                        $pdo->rollBack();
+                        redirectBudgetDenied($URL, $balance);
+                    }
+                }
+
                 //Write to database
                 // XXX: added by wxz — new paid expenses start invoice tracking
                 $voucherStart = ($status == 'Paid') ? expenseVoucherStartValues('', null) : null;
@@ -88,9 +99,16 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                     $result = $connection2->prepare($sql);
                     $result->execute($data);
                 } catch (PDOException $e) {
+                    if ($budgetTx) {
+                        $pdo->rollBack();
+                    }
                     $URL .= '&return=error2';
                     header("Location: {$URL}");
                     exit();
+                }
+
+                if ($budgetTx) {
+                    $pdo->commit();
                 }
 
                 $gibbonFinanceExpenseID = $connection2->lastInsertID();

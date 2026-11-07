@@ -2186,7 +2186,8 @@ CREATE TABLE `gibbonFinanceExpense` (
   `voucherReissueCount` int UNSIGNED NOT NULL DEFAULT 0,
   `gibbonPersonIDCreator` int(10) UNSIGNED ZEROFILL NOT NULL,
   `timestampCreator` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `statusApprovalBudgetCleared` enum('N','Y') NOT NULL DEFAULT 'N'
+  `statusApprovalBudgetCleared` enum('N','Y') NOT NULL DEFAULT 'N',
+  `budgetEncumbered` enum('Y','N') NOT NULL DEFAULT 'N'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------

@@ -284,23 +284,9 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_pr
 											</td>
 											<td class="right">
 												<?php
-                                                $budgetAllocated = 0;
-												$budgetAllocatedFail = false;
-												try {
-													$dataCheck = array('gibbonFinanceBudgetCycleID' => $gibbonFinanceBudgetCycleID, 'gibbonFinanceBudgetID' => $row['gibbonFinanceBudgetID']);
-													$sqlCheck = "(SELECT cost FROM gibbonFinanceExpense WHERE countAgainstBudget='Y' AND gibbonFinanceBudgetCycleID=:gibbonFinanceBudgetCycleID AND gibbonFinanceBudgetID=:gibbonFinanceBudgetID AND FIELD(status, 'Approved', 'Order'))
-															UNION
-															(SELECT paymentAmount AS cost FROM gibbonFinanceExpense WHERE countAgainstBudget='Y' AND gibbonFinanceBudgetCycleID=:gibbonFinanceBudgetCycleID AND gibbonFinanceBudgetID=:gibbonFinanceBudgetID AND FIELD(status, 'Paid'))
-															";
-													$resultCheck = $connection2->prepare($sqlCheck);
-													$resultCheck->execute($dataCheck);
-												} catch (PDOException $e) {
-													$budgetAllocatedFail = true;
-												}
+                                                $budgetAllocated = getBudgetAllocated($pdo, $gibbonFinanceBudgetCycleID, $row['gibbonFinanceBudgetID']);
+												$budgetAllocatedFail = !is_numeric($budgetAllocated);
 												if ($budgetAllocatedFail == false) {
-													while ($rowCheck = $resultCheck->fetch()) {
-														$budgetAllocated = $budgetAllocated + $rowCheck['cost'];
-													}
 													?>
 															<input readonly name="name" id="name" maxlength=60 value="<?php echo number_format($budgetAllocated, 2, '.', ',');
 													?>" type="text" class="standardWidth">
@@ -331,13 +317,11 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_pr
 											</td>
 											<td class="right">
 												<?php
-                                                $color = 'red';
-                                            if (($budgetAllocation - $budgetAllocated) - $row['cost'] > 0) {
-                                                $color = 'green';
-                                            }
+                                                $budgetRemaining = (float) $budgetAllocation - (float) $budgetAllocated;
+                                                $color = (round($budgetRemaining, 2) >= round((float) $row['cost'], 2)) ? 'green' : 'red';
+                                                $budgetRemainingLabel = number_format($budgetRemaining, 2, '.', ',');
                                             ?>
-												<input readonly name="name" id="name" maxlength=60 value="<?php echo number_format(($budgetAllocation - $budgetAllocated), 2, '.', ',');
-                                            ?>" type="text" style="width: 300px; font-weight: bold; color: <?php echo $color ?>">
+												<input readonly name="budgetRemaining" maxlength="60" value="<?php echo htmlspecialchars($budgetRemainingLabel, ENT_QUOTES, 'UTF-8'); ?>" type="text" style="width: 100%; max-width: 100%; box-sizing: border-box; text-align: left; direction: ltr; font-weight: bold; color: <?php echo $color; ?>">
 											</td>
 										</tr>
 										<?php

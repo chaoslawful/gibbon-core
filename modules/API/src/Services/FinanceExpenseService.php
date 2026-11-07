@@ -214,6 +214,7 @@ class FinanceExpenseService
         $data['timestampCreator'] = date('Y-m-d H:i:s');
         $data['statusApprovalBudgetCleared'] = $this->canSelfClearBudget($data['gibbonFinanceBudgetID']) ? 'Y' : 'N';
         $data['paymentReimbursementReceipt'] = '';
+        $data['budgetEncumbered'] = 'N';
         $row = RestTable::create($this->expenses, $data);
         $this->addLog($row['gibbonFinanceExpenseID'], 'Request', '');
 
@@ -246,6 +247,12 @@ class FinanceExpenseService
 
         $this->db->beginTransaction();
         try {
+            if ($decision === 'approve') {
+                $this->assertBudgetFits($row['gibbonFinanceBudgetCycleID'], $row['gibbonFinanceBudgetID'], $id, $row['countAgainstBudget'], $row['status'], $row['cost'], $row['paymentAmount'] ?? null);
+                if (($row['countAgainstBudget'] ?? '') === 'Y') {
+                    $this->expenses->update($id, ['budgetEncumbered' => 'Y']);
+                }
+            }
             $logId = $this->addLog($id, $action, $comment);
             if ($decision === 'reject') {
                 $this->expenses->update($id, ['status' => 'Rejected']);
@@ -304,10 +311,26 @@ class FinanceExpenseService
         } else {
             $data['paymentReimbursementReceipt'] = (string) $body['paymentReimbursementReceipt'];
         }
-        $this->expenses->update($id, $data);
-        $this->addLog($id, 'Reimbursement', (string) ($body['comment'] ?? ''));
-        if (!empty($voucherStart)) {
-            $this->addLog($id, $voucherStart['logAction'], '');
+        if (expenseCountsAgainstBudget($row['countAgainstBudget'], 'Paid')) {
+            $this->db->beginTransaction();
+            try {
+                $this->assertBudgetFits($row['gibbonFinanceBudgetCycleID'], $row['gibbonFinanceBudgetID'], $id, $row['countAgainstBudget'], 'Paid', $row['cost'], $data['paymentAmount']);
+                $this->expenses->update($id, $data);
+                $this->addLog($id, 'Reimbursement', (string) ($body['comment'] ?? ''));
+                if (!empty($voucherStart)) {
+                    $this->addLog($id, $voucherStart['logAction'], '');
+                }
+                $this->db->commit();
+            } catch (\Throwable $e) {
+                $this->db->rollBack();
+                throw $e;
+            }
+        } else {
+            $this->expenses->update($id, $data);
+            $this->addLog($id, 'Reimbursement', (string) ($body['comment'] ?? ''));
+            if (!empty($voucherStart)) {
+                $this->addLog($id, $voucherStart['logAction'], '');
+            }
         }
 
         return $this->get($id);
@@ -341,13 +364,50 @@ class FinanceExpenseService
             'gibbonPersonIDCreator' => $this->session->get('gibbonPersonID'),
             'timestampCreator' => date('Y-m-d H:i:s'),
         ]);
-        $row = RestTable::create($this->expenses, $data);
-        $this->addLog($row['gibbonFinanceExpenseID'], $data['status'] === 'Paid' ? 'Payment' : 'Request', '');
-        if ($data['status'] === 'Paid') {
-            $this->addLog($row['gibbonFinanceExpenseID'], 'Voucher - Started', '');
+        $this->assertIncomingBudget($data['gibbonFinanceBudgetCycleID'], $data['gibbonFinanceBudgetID'], '', $data['countAgainstBudget'], $data['status'], $data['cost'], $data['paymentAmount'] ?? null);
+        try {
+            $row = RestTable::create($this->expenses, $data);
+            $this->addLog($row['gibbonFinanceExpenseID'], $data['status'] === 'Paid' ? 'Payment' : 'Request', '');
+            if ($data['status'] === 'Paid') {
+                $this->addLog($row['gibbonFinanceExpenseID'], 'Voucher - Started', '');
+            }
+            $this->commitIncomingBudget();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
         }
 
         return $this->get($row['gibbonFinanceExpenseID']);
+    }
+
+    protected function assertIncomingBudget($cycleId, $budgetId, $excludeId, $countAgainstBudget, $status, $cost, $paymentAmount): void
+    {
+        if (!expenseCountsAgainstBudget($countAgainstBudget, $status)) {
+            return;
+        }
+        $this->db->beginTransaction();
+        try {
+            $this->assertBudgetFits($cycleId, $budgetId, $excludeId, $countAgainstBudget, $status, $cost, $paymentAmount);
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    protected function commitIncomingBudget(): void
+    {
+        $this->db->commit();
+    }
+
+    protected function assertBudgetFits($cycleId, $budgetId, $excludeId, $countAgainstBudget, $status, $cost, $paymentAmount): void
+    {
+        if (!expenseCountsAgainstBudget($countAgainstBudget, $status)) {
+            return;
+        }
+        $balance = budgetBalanceBefore($this->db, $cycleId, $budgetId, $excludeId, true);
+        if (!budgetAmountFits($balance, $countAgainstBudget, $status, $cost, $paymentAmount)) {
+            throw new ApiException(budgetOverspendMessage($balance), 422);
+        }
     }
 
     protected function assertCanSeeExpense(array $row): void

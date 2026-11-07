@@ -1460,19 +1460,125 @@ function getBudgetAllocation($pdo, $gibbonFinanceBudgetCycleID, $gibbonFinanceBu
 function getBudgetAllocated($pdo, $gibbonFinanceBudgetCycleID, $gibbonFinanceBudgetID)
 {
     $data = array('gibbonFinanceBudgetCycleID' => $gibbonFinanceBudgetCycleID, 'gibbonFinanceBudgetID' => $gibbonFinanceBudgetID);
-    $sql = "(SELECT cost FROM gibbonFinanceExpense WHERE countAgainstBudget='Y' AND gibbonFinanceBudgetCycleID=:gibbonFinanceBudgetCycleID AND gibbonFinanceBudgetID=:gibbonFinanceBudgetID AND FIELD(status, 'Approved', 'Order'))
-        UNION
-        (SELECT paymentAmount AS cost FROM gibbonFinanceExpense WHERE countAgainstBudget='Y' AND gibbonFinanceBudgetCycleID=:gibbonFinanceBudgetCycleID AND gibbonFinanceBudgetID=:gibbonFinanceBudgetID AND FIELD(status, 'Paid'))";
+    $sql = "SELECT COALESCE(SUM(CASE WHEN status='Paid' THEN paymentAmount ELSE cost END), 0)
+        FROM gibbonFinanceExpense
+        WHERE countAgainstBudget='Y' AND gibbonFinanceBudgetCycleID=:gibbonFinanceBudgetCycleID AND gibbonFinanceBudgetID=:gibbonFinanceBudgetID
+        AND status IN ('Approved', 'Ordered', 'Paid')";
     $result = $pdo->executeQuery($data, $sql);
 
-    $budgetAllocated = 0;
-    if ($result->rowCount() > 0) {
-        $budgetAllocated = array_reduce($result->fetchAll(), function($sum, $item) {
-            $sum += $item['cost'];
-            return $sum;
-        }, 0);
+    return ($result->rowCount() == 1) ? (float) $result->fetchColumn(0) : 0;
+}
+
+function getBudgetRequested($pdo, $gibbonFinanceBudgetCycleID, $gibbonFinanceBudgetID, $excludeExpenseID = '')
+{
+    $data = array('gibbonFinanceBudgetCycleID' => $gibbonFinanceBudgetCycleID, 'gibbonFinanceBudgetID' => $gibbonFinanceBudgetID);
+    $sql = "SELECT COALESCE(SUM(cost), 0)
+        FROM gibbonFinanceExpense
+        WHERE countAgainstBudget='Y' AND gibbonFinanceBudgetCycleID=:gibbonFinanceBudgetCycleID AND gibbonFinanceBudgetID=:gibbonFinanceBudgetID
+        AND status='Requested' AND budgetEncumbered='Y'";
+    if ($excludeExpenseID != '') {
+        $data['gibbonFinanceExpenseID'] = $excludeExpenseID;
+        $sql .= ' AND gibbonFinanceExpenseID<>:gibbonFinanceExpenseID';
     }
-    return $budgetAllocated;
+    $result = $pdo->executeQuery($data, $sql);
+
+    return ($result->rowCount() == 1) ? (float) $result->fetchColumn(0) : 0;
+}
+
+function expenseCountsAgainstBudget($countAgainstBudget, $status)
+{
+    return $countAgainstBudget == 'Y' && in_array($status, array('Requested', 'Approved', 'Ordered', 'Paid'), true);
+}
+
+function expenseCountedAmount($countAgainstBudget, $status, $cost, $paymentAmount)
+{
+    if (!expenseCountsAgainstBudget($countAgainstBudget, $status)) {
+        return 0.0;
+    }
+    if ($status == 'Paid') {
+        return round((float) $paymentAmount, 2);
+    }
+
+    return round((float) $cost, 2);
+}
+
+function budgetPosition($pdo, $gibbonFinanceBudgetCycleID, $gibbonFinanceBudgetID, $excludeExpenseID = '', $lock = false)
+{
+    $data = array('gibbonFinanceBudgetCycleID' => $gibbonFinanceBudgetCycleID, 'gibbonFinanceBudgetID' => $gibbonFinanceBudgetID);
+    $lockSql = $lock ? ' FOR UPDATE' : '';
+    $allocationResult = $pdo->executeQuery($data, "SELECT value FROM gibbonFinanceBudgetCycleAllocation WHERE gibbonFinanceBudgetCycleID=:gibbonFinanceBudgetCycleID AND gibbonFinanceBudgetID=:gibbonFinanceBudgetID".$lockSql);
+    $allocation = ($allocationResult->rowCount() == 1) ? round((float) $allocationResult->fetchColumn(0), 2) : 0.0;
+
+    $excludeSql = '';
+    if ($excludeExpenseID != '') {
+        $data['gibbonFinanceExpenseID'] = $excludeExpenseID;
+        $excludeSql = ' AND gibbonFinanceExpenseID<>:gibbonFinanceExpenseID';
+    }
+    $where = "countAgainstBudget='Y' AND gibbonFinanceBudgetCycleID=:gibbonFinanceBudgetCycleID AND gibbonFinanceBudgetID=:gibbonFinanceBudgetID".$excludeSql;
+    $spentResult = $pdo->executeQuery($data, "SELECT COALESCE(SUM(CASE WHEN status='Paid' THEN paymentAmount ELSE cost END), 0) FROM gibbonFinanceExpense WHERE status IN ('Approved', 'Ordered', 'Paid') AND ".$where);
+    $requestedResult = $pdo->executeQuery($data, "SELECT COALESCE(SUM(cost), 0) FROM gibbonFinanceExpense WHERE status='Requested' AND budgetEncumbered='Y' AND ".$where);
+    $unfundedResult = $pdo->executeQuery($data, "SELECT COALESCE(SUM(cost), 0) FROM gibbonFinanceExpense WHERE status='Requested' AND budgetEncumbered='N' AND ".$where);
+
+    return array(
+        'allocation' => $allocation,
+        'spent' => ($spentResult->rowCount() == 1) ? round((float) $spentResult->fetchColumn(0), 2) : 0.0,
+        'requested' => ($requestedResult->rowCount() == 1) ? round((float) $requestedResult->fetchColumn(0), 2) : 0.0,
+        'unfunded' => ($unfundedResult->rowCount() == 1) ? round((float) $unfundedResult->fetchColumn(0), 2) : 0.0,
+    );
+}
+
+function lockBudgetAllocations($pdo, $gibbonFinanceBudgetCycleID, array $budgetIds)
+{
+    $budgetIds = array_values(array_unique(array_filter($budgetIds)));
+    sort($budgetIds, SORT_STRING);
+    foreach ($budgetIds as $budgetId) {
+        $pdo->executeQuery(
+            array('gibbonFinanceBudgetCycleID' => $gibbonFinanceBudgetCycleID, 'gibbonFinanceBudgetID' => $budgetId),
+            "SELECT value FROM gibbonFinanceBudgetCycleAllocation WHERE gibbonFinanceBudgetCycleID=:gibbonFinanceBudgetCycleID AND gibbonFinanceBudgetID=:gibbonFinanceBudgetID FOR UPDATE"
+        );
+    }
+}
+
+function budgetBalanceBefore($pdo, $gibbonFinanceBudgetCycleID, $gibbonFinanceBudgetID, $excludeExpenseID = '', $lock = false)
+{
+    $position = budgetPosition($pdo, $gibbonFinanceBudgetCycleID, $gibbonFinanceBudgetID, $excludeExpenseID, $lock);
+
+    return round($position['allocation'] - $position['spent'] - $position['requested'], 2);
+}
+
+function budgetAmountFits($balance, $countAgainstBudget, $status, $cost, $paymentAmount)
+{
+    if (!expenseCountsAgainstBudget($countAgainstBudget, $status)) {
+        return true;
+    }
+
+    return round((float) $balance, 2) >= expenseCountedAmount($countAgainstBudget, $status, $cost, $paymentAmount);
+}
+
+function budgetOverspendMessage($balance)
+{
+    return sprintf(__('This expense would exceed the budget. Budget before this expense: %1$s.'), number_format((float) $balance, 2, '.', ','));
+}
+
+function budgetSubmitWarning($balance)
+{
+    return sprintf(__('The request was saved and does not reserve budget yet. Budget before this expense is %1$s, which is less than this expense.'), number_format((float) $balance, 2, '.', ','));
+}
+
+function redirectBudgetDenied($url, $available)
+{
+    $url .= '&return=errorBudget&budgetAvailable='.rawurlencode(sprintf('%.2f', round((float) $available, 2)));
+    header('Location: '.$url);
+    exit;
+}
+
+if (isset($page, $_GET['return']) && $_GET['return'] === 'errorBudget') {
+    $budgetAvailable = $_GET['budgetAvailable'] ?? '';
+    $page->return->addReturn('errorBudget', budgetOverspendMessage(is_scalar($budgetAvailable) ? $budgetAvailable : 0));
+}
+if (isset($page, $_GET['return']) && $_GET['return'] === 'warningBudget') {
+    $budgetAvailable = $_GET['budgetAvailable'] ?? '';
+    $page->return->addReturn('warningBudget', budgetSubmitWarning(is_scalar($budgetAvailable) ? $budgetAvailable : 0));
 }
 
 function getInvoiceTotalFee($pdo, $gibbonFinanceInvoiceID, $status)

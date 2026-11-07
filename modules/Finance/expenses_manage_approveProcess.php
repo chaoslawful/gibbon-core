@@ -153,6 +153,30 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                     $URL .= '&return=error7';
                                     header("Location: {$URL}");
                                 } else {
+                                    $budgetTx = false;
+                                    if ($approval != 'Rejection' && $approval != 'Comment') {
+                                        if (approvalRequired($guid, $session->get('gibbonPersonID'), $row['gibbonFinanceExpenseID'], $gibbonFinanceBudgetCycleID, $connection2, true) == false) {
+                                            $URL .= '&return=error0';
+                                            header("Location: {$URL}");
+                                            exit();
+                                        }
+                                        if ($row['countAgainstBudget'] == 'Y') {
+                                            $pdo->beginTransaction();
+                                            $budgetTx = true;
+                                            $balance = budgetBalanceBefore($pdo, $gibbonFinanceBudgetCycleID, $gibbonFinanceBudgetID, $gibbonFinanceExpenseID, true);
+                                            if (!budgetAmountFits($balance, $row['countAgainstBudget'], $row['status'], $row['cost'], $row['paymentAmount'])) {
+                                                $pdo->rollBack();
+                                                redirectBudgetDenied($URL, $balance);
+                                            }
+                                            $encumber = $connection2->prepare("UPDATE gibbonFinanceExpense SET budgetEncumbered='Y' WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID");
+                                            $encumber->execute(array('gibbonFinanceExpenseID' => $gibbonFinanceExpenseID));
+                                        }
+                                    } elseif ($approval == 'Comment' || $approval == 'Rejection') {
+                                        $pdo->beginTransaction();
+                                        $budgetTx = true;
+                                        lockBudgetAllocations($pdo, $gibbonFinanceBudgetCycleID, array($row['gibbonFinanceBudgetID'], $gibbonFinanceBudgetID));
+                                    }
+
                                     //Write budget change
                                     try {
                                         $dataBudgetChange = array('gibbonFinanceBudgetID' => $gibbonFinanceBudgetID, 'gibbonFinanceExpenseID' => $gibbonFinanceExpenseID);
@@ -160,6 +184,9 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                         $resultBudgetChange = $connection2->prepare($sqlBudgetChange);
                                         $resultBudgetChange->execute($dataBudgetChange);
                                     } catch (PDOException $e) {
+                                        if ($budgetTx) {
+                                            $pdo->rollBack();
+                                        }
                                         $URL .= '&return=error2';
                                         header("Location: {$URL}");
                                         exit();
@@ -188,6 +215,9 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                             $result = $connection2->prepare($sql);
                                             $result->execute($data);
                                         } catch (PDOException $e) {
+                                            if ($budgetTx) {
+                                                $pdo->rollBack();
+                                            }
                                             $URL .= '&return=error2';
                                             header("Location: {$URL}");
                                             exit();
@@ -200,9 +230,16 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                             $result = $connection2->prepare($sql);
                                             $result->execute($data);
                                         } catch (PDOException $e) {
+                                            if ($budgetTx) {
+                                                $pdo->rollBack();
+                                            }
                                             $URL .= '&return=error2';
                                             header("Location: {$URL}");
                                             exit();
+                                        }
+
+                                        if ($budgetTx) {
+                                            $pdo->commit();
                                         }
 
                                         //Notify original creator that it is rejected
@@ -220,9 +257,16 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                             $result = $connection2->prepare($sql);
                                             $result->execute($data);
                                         } catch (PDOException $e) {
+                                            if ($budgetTx) {
+                                                $pdo->rollBack();
+                                            }
                                             $URL .= '&return=error2';
                                             header("Location: {$URL}");
                                             exit();
+                                        }
+
+                                        if ($budgetTx) {
+                                            $pdo->commit();
                                         }
 
                                         //Notify original creator that it is commented upon
@@ -236,8 +280,12 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                         header("Location: {$URLApprove}");
                                     } else { //APPROVE!
                                         if (approvalRequired($guid, $session->get('gibbonPersonID'), $row['gibbonFinanceExpenseID'], $gibbonFinanceBudgetCycleID, $connection2, true) == false) {
+                                            if ($budgetTx) {
+                                                $pdo->rollBack();
+                                            }
                                             $URL .= '&return=error0';
                                             header("Location: {$URL}");
+                                            exit();
                                         } else {
                                             //Add log entry
                                             try {
@@ -246,6 +294,9 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                                 $result = $connection2->prepare($sql);
                                                 $result->execute($data);
                                             } catch (PDOException $e) {
+                                                if ($budgetTx) {
+                                                    $pdo->rollBack();
+                                                }
                                                 $URL .= '&return=error2';
                                                 header("Location: {$URL}");
                                                 exit();
@@ -258,6 +309,9 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                                     $result = $connection2->prepare($sql);
                                                     $result->execute($data);
                                                 } catch (PDOException $e) {
+                                                    if ($budgetTx) {
+                                                        $pdo->rollBack();
+                                                    }
                                                     $URL .= '&return=error2';
                                                     header("Location: {$URL}");
                                                     exit();
@@ -268,10 +322,16 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                             $partialFail = false;
                                             $completion = checkLogForApprovalComplete($guid, $gibbonFinanceExpenseID, $connection2);
                                             if ($completion == false) { //If false
+                                                if ($budgetTx) {
+                                                    $pdo->rollBack();
+                                                }
                                                 $URL .= '&return=error2';
                                                 header("Location: {$URL}");
                                                 exit();
                                             } elseif ($completion == 'none') { //If none
+                                                if ($budgetTx) {
+                                                    $pdo->rollBack();
+                                                }
                                                 $URL .= '&return=error2';
                                                 header("Location: {$URL}");
                                                 exit();
@@ -288,11 +348,17 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                                     $result = $connection2->prepare($sql);
                                                     $result->execute($data);
                                                 } catch (PDOException $e) {
+                                                    if ($budgetTx) {
+                                                        $pdo->rollBack();
+                                                    }
                                                     $URL .= '&return=error2';
                                                     header("Location: {$URL}");
                                                     exit();
                                                 }
 
+                                                if ($budgetTx) {
+                                                    $pdo->commit();
+                                                }
                                                 if ($partialFail == true) {
                                                     $URLApprove .= '&return=success1';
                                                     header("Location: {$URLApprove}");
@@ -308,6 +374,9 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                                     $result = $connection2->prepare($sql);
                                                     $result->execute($data);
                                                 } catch (PDOException $e) {
+                                                    if ($budgetTx) {
+                                                        $pdo->rollBack();
+                                                    }
                                                     $URL .= '&return=error2';
                                                     header("Location: {$URL}");
                                                     exit();
@@ -320,6 +389,9 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                                     $result = $connection2->prepare($sql);
                                                     $result->execute($data);
                                                 } catch (PDOException $e) {
+                                                    if ($budgetTx) {
+                                                        $pdo->rollBack();
+                                                    }
                                                     $URL .= '&return=error2';
                                                     header("Location: {$URL}");
                                                     exit();
@@ -341,6 +413,9 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                                                 $notificationSender->addNotification($row['gibbonPersonIDCreator'], $notificationText, 'Finance', "/index.php?q=/modules/Finance/expenses_manage_view.php&gibbonFinanceExpenseID=$gibbonFinanceExpenseID&gibbonFinanceBudgetCycleID=$gibbonFinanceBudgetCycleID&status2=&gibbonFinanceBudgetID2=".$row['gibbonFinanceBudgetID']);
                                                 $notificationSender->sendNotifications();
 
+                                                if ($budgetTx) {
+                                                    $pdo->commit();
+                                                }
                                                 $URLApprove .= '&return=success0';
                                                 header("Location: {$URLApprove}");
                                             }

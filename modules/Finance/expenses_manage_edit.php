@@ -117,10 +117,12 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_ed
                                 $page->navigator->addSearchResultsAction(Url::fromModuleRoute('Finance', 'expenses_manage.php')->withQueryParams($params));
                             }
 
-                            // Get budget allocation & allocated amounts
-                            $budgetAllocation = getBudgetAllocation($pdo, $gibbonFinanceBudgetCycleID, $values['gibbonFinanceBudgetID']);
-                            $budgetAllocated = getBudgetAllocated($pdo, $gibbonFinanceBudgetCycleID, $values['gibbonFinanceBudgetID']);
-                            $budgetRemaining = (is_numeric($budgetAllocation) && is_numeric($budgetAllocated))? ($budgetAllocation - $budgetAllocated) : __('N/A');
+                            // Balance before this expense, using the same comparison as the save.
+                            $budgetPosition = budgetPosition($pdo, $gibbonFinanceBudgetCycleID, $values['gibbonFinanceBudgetID'], $gibbonFinanceExpenseID);
+                            $budgetAllocation = $budgetPosition['allocation'];
+                            $budgetAllocated = $budgetPosition['spent'];
+                            $budgetRemaining = round($budgetPosition['allocation'] - $budgetPosition['spent'] - $budgetPosition['requested'], 2);
+                            $thisAmount = expenseCountedAmount($values['countAgainstBudget'], $values['status'], $values['cost'], $values['paymentAmount'] ?? null);
 
 							$form = Form::create('expenseManage', $session->get('absoluteURL').'/modules/'.$session->get('module').'/expenses_manage_editProcess.php');
 							$form->setFactory(DatabaseFormFactory::create($pdo));
@@ -191,30 +193,38 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_ed
                                 $row->addLabel('cost', __('Total Cost'));
                                 $row->addCurrency('cost')->required()->readonly()->setValue(number_format($values['cost'], 2, '.', ','));
 
+							$budgetChoiceLocked = in_array($values['status'], array('Approved', 'Ordered', 'Paid'), true);
 							$row = $form->addRow();
 								$row->addLabel('countAgainstBudget', __('Count Against Budget'))->description(__('For tracking purposes, should the item be counted against the budget? If immediately offset by some revenue, perhaps not.'));
-                                $row->addYesNo('countAgainstBudget')->required();
+							if ($budgetChoiceLocked) {
+								$form->addHiddenValue('countAgainstBudget', $values['countAgainstBudget']);
+								$row->addTextField('countAgainstBudgetDisplay')->readonly()->setValue(Format::yesNo($values['countAgainstBudget']));
+							} else {
+								$row->addYesNo('countAgainstBudget')->required();
+								$form->toggleVisibilityByClass('budgetInfo')->onSelect('countAgainstBudget')->when('Y');
+							}
 
-                            $form->toggleVisibilityByClass('budgetInfo')->onSelect('countAgainstBudget')->when('Y');
-
+                            $budgetInfoClass = ($budgetChoiceLocked && $values['countAgainstBudget'] == 'Y') ? '' : 'budgetInfo';
+                            if (!$budgetChoiceLocked or $values['countAgainstBudget'] == 'Y') {
                             $budgetAllocationLabel = (is_numeric($budgetAllocation))? number_format($budgetAllocation, 2, '.', ',') : $budgetAllocation;
-                            $row = $form->addRow()->addClass('budgetInfo');
+                            $row = $form->addRow()->addClass($budgetInfoClass);
 								$row->addLabel('budgetAllocation', __('Budget For Cycle'))->description(__('Numeric value of the fee.'));
                                 $row->addCurrency('budgetAllocation')->required()->readonly()->setValue($budgetAllocationLabel);
 
                             $budgetAllocatedLabel = (is_numeric($budgetAllocated))? number_format($budgetAllocated, 2, '.', ',') : $budgetAllocated;
-							$row = $form->addRow()->addClass('budgetInfo');
+							$row = $form->addRow()->addClass($budgetInfoClass);
 								$row->addLabel('budgetForCycle', __('Amount already approved or spent'))->description(__('Numeric value of the fee.'));
                                 $row->addCurrency('budgetForCycle')->required()->readonly()->setValue($budgetAllocatedLabel);
 
                             $budgetRemainingLabel = (is_numeric($budgetRemaining))? number_format($budgetRemaining, 2, '.', ',') : $budgetRemaining;
-							$row = $form->addRow()->addClass('budgetInfo');
-								$row->addLabel('budgetRemaining', __('Budget Remaining For Cycle'))->description(__('Numeric value of the fee.'));
+							$row = $form->addRow()->addClass($budgetInfoClass);
+								$row->addLabel('budgetRemaining', __('Budget before this expense'))->description(__('Budget remaining before this expense. Other requests reserve budget only after someone has approved them. This expense is not included.'));
                                 $row->addCurrency('budgetRemaining')
                                     ->required()
                                     ->readonly()
                                     ->setValue($budgetRemainingLabel)
-                                    ->addClass( (is_numeric($budgetRemaining) && $budgetRemaining - $values['cost'] > 0)? 'textUnderBudget' : 'textOverBudget' );
+                                    ->addClass($budgetRemaining >= $thisAmount ? 'textUnderBudget' : 'textOverBudget');
+                            }
 
                             $form->addRow()->addHeading('Log', __('Log'));
 

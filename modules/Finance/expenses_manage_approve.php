@@ -128,10 +128,14 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_ap
                                 $page->navigator->addSearchResultsAction(Url::fromModuleRoute('Finance', 'expenses_manage.php')->withQueryParams($params));
                             }
 
-                            // Get budget allocation & allocated amounts
-                            $budgetAllocation = getBudgetAllocation($pdo, $gibbonFinanceBudgetCycleID, $values['gibbonFinanceBudgetID']);
-                            $budgetAllocated = getBudgetAllocated($pdo, $gibbonFinanceBudgetCycleID, $values['gibbonFinanceBudgetID']);
-                            $budgetRemaining = (is_numeric($budgetAllocation) && is_numeric($budgetAllocated))? ($budgetAllocation - $budgetAllocated) : __('N/A');
+                            // Balance before this expense. Other requests count only after someone has approved them.
+                            $budgetPosition = budgetPosition($pdo, $gibbonFinanceBudgetCycleID, $values['gibbonFinanceBudgetID'], $gibbonFinanceExpenseID);
+                            $budgetAllocation = $budgetPosition['allocation'];
+                            $budgetAllocated = $budgetPosition['spent'];
+                            $budgetRequested = $budgetPosition['requested'];
+                            $budgetUnfunded = $budgetPosition['unfunded'];
+                            $budgetBalance = round($budgetAllocation - $budgetAllocated - $budgetRequested, 2);
+                            $thisAmount = expenseCountedAmount($values['countAgainstBudget'], $values['status'], $values['cost'], $values['paymentAmount'] ?? null);
 
                             $form = Form::create('expenseManage', $session->get('absoluteURL').'/modules/'.$session->get('module').'/expenses_manage_approveProcess.php');
 
@@ -196,24 +200,70 @@ if (isActionAccessible($guid, $connection2, '/modules/Finance/expenses_manage_ap
                                 $row->addTextField('countAgainstBudgetLabel')->setValue(Format::yesNo($values['countAgainstBudget']))->required()->readonly();
 
                             if ($values['countAgainstBudget'] == 'Y') {
-                                $budgetAllocationLabel = (is_numeric($budgetAllocation))? number_format($budgetAllocation, 2, '.', ',') : $budgetAllocation;
                                 $row = $form->addRow();
                                     $row->addLabel('budgetAllocation', __('Budget For Cycle'))->description(__('Numeric value of the fee.'));
-                                    $row->addTextField('budgetAllocation')->required()->readonly()->setValue($budgetAllocationLabel);
+                                    $row->addTextField('budgetAllocation')->required()->readonly()->setValue(number_format($budgetAllocation, 2, '.', ','));
 
-                                $budgetAllocatedLabel = (is_numeric($budgetAllocated))? number_format($budgetAllocated, 2, '.', ',') : $budgetAllocated;
                                 $row = $form->addRow();
                                     $row->addLabel('budgetForCycle', __('Amount already approved or spent'))->description(__('Numeric value of the fee.'));
-                                    $row->addTextField('budgetForCycle')->required()->readonly()->setValue($budgetAllocatedLabel);
+                                    $row->addTextField('budgetForCycle')->required()->readonly()->setValue(number_format($budgetAllocated, 2, '.', ','));
 
-                                $budgetRemainingLabel = (is_numeric($budgetRemaining))? number_format($budgetRemaining, 2, '.', ',') : $budgetRemaining;
                                 $row = $form->addRow();
-                                    $row->addLabel('budgetRemaining', __('Budget Remaining For Cycle'))->description(__('Numeric value of the fee.'));
+                                    $row->addLabel('budgetRequested', __('Other requests already approved but not finished'))->description(__('Other requests in this budget that someone has approved, which still count against the budget. This request is not included.'));
+                                    $row->addTextField('budgetRequested')->required()->readonly()->setValue(number_format($budgetRequested, 2, '.', ','));
+
+                                $row = $form->addRow();
+                                    $row->addLabel('budgetUnfunded', __('Other requests not yet approved by anyone'))->description(__('Submitted requests that do not reserve budget yet. They are not included in the balance above. This request is not included.'));
+                                    $row->addTextField('budgetUnfunded')->required()->readonly()->setValue(number_format($budgetUnfunded, 2, '.', ','));
+
+                                $row = $form->addRow();
+                                    $row->addLabel('budgetRemaining', __('Budget before this expense'))->description(__('Budget remaining before this expense. Other requests reserve budget only after someone has approved them. This expense is not included.'));
                                     $row->addTextField('budgetRemaining')
                                         ->required()
                                         ->readonly()
-                                        ->setValue($budgetRemainingLabel)
-                                        ->addClass( (is_numeric($budgetRemaining) && $budgetRemaining - $values['cost'] > 0)? 'textUnderBudget' : 'textOverBudget' );
+                                        ->setValue(number_format($budgetBalance, 2, '.', ','))
+                                        ->addClass($budgetBalance >= $thisAmount ? 'textUnderBudget' : 'textOverBudget');
+                                if (($values['budgetEncumbered'] ?? 'N') != 'Y') {
+                                    $form->addRow()->addAlert(__('This request does not reserve budget until it is approved.'), 'message');
+                                }
+
+                                if ($highestAction == 'Manage Expenses_all' and $values['statusApprovalBudgetCleared'] == 'Y') {
+                                    $budgetFigures = array();
+                                    $budgetResult = $pdo->executeQuery(array(), "SELECT gibbonFinanceBudgetID FROM gibbonFinanceBudget WHERE active='Y'");
+                                    while ($budgetRow = $budgetResult->fetch()) {
+                                        $position = budgetPosition($pdo, $gibbonFinanceBudgetCycleID, $budgetRow['gibbonFinanceBudgetID'], $gibbonFinanceExpenseID);
+                                        $available = round($position['allocation'] - $position['spent'] - $position['requested'], 2);
+                                        $budgetFigures[$budgetRow['gibbonFinanceBudgetID']] = array(
+                                            'allocation' => number_format($position['allocation'], 2, '.', ','),
+                                            'spent' => number_format($position['spent'], 2, '.', ','),
+                                            'requested' => number_format($position['requested'], 2, '.', ','),
+                                            'unfunded' => number_format($position['unfunded'], 2, '.', ','),
+                                            'available' => number_format($available, 2, '.', ','),
+                                            'over' => $available < $thisAmount,
+                                        );
+                                    }
+                                    $budgetFiguresJson = json_encode($budgetFigures, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+                                    $form->addRow()->addContent('<script>
+                                        document.addEventListener("DOMContentLoaded", function () {
+                                            var figures = '.$budgetFiguresJson.';
+                                            var select = document.querySelector("[name=\\"gibbonFinanceBudgetID\\"]");
+                                            if (!select || !figures) return;
+                                            var fields = {budgetAllocation: "allocation", budgetForCycle: "spent", budgetRequested: "requested", budgetUnfunded: "unfunded", budgetRemaining: "available"};
+                                            select.addEventListener("change", function () {
+                                                var row = figures[select.value];
+                                                if (!row) return;
+                                                Object.keys(fields).forEach(function (name) {
+                                                    var input = document.querySelector("[name=\\"" + name + "\\"]");
+                                                    if (input) input.value = row[fields[name]];
+                                                });
+                                                var remaining = document.querySelector("[name=\\"budgetRemaining\\"]");
+                                                if (!remaining) return;
+                                                remaining.classList.toggle("textOverBudget", row.over);
+                                                remaining.classList.toggle("textUnderBudget", !row.over);
+                                            });
+                                        });
+                                    </script>');
+                                }
                             }
 
                             $form->addRow()->addHeading('Log', __('Log'));

@@ -20,11 +20,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 .textOverBudget {
-    color: red;
+    color: red !important;
     font-weight: bold;
 }
 
 .textUnderBudget {
-    color: green;
+    color: green !important;
     font-weight: bold;
 }

@@ -28621,13 +28621,63 @@ msgid "Amount already approved or spent"
 msgstr "已经批准或花费的金额"
 
 #: modules/Finance/expenses_manage_edit.php:212
-#: modules/Finance/expenses_manage_approve.php:211
-#: modules/Finance/expenses_manage_print_print.php:319
+#: modules/Finance/expenses_manage_print_print.php:305
 #: modules/Finance/expenses_manage_edit.php:212
-#: modules/Finance/expenses_manage_approve.php:211
-#: modules/Finance/expenses_manage_print_print.php:319
+#: modules/Finance/expenses_manage_print_print.php:305
 msgid "Budget Remaining For Cycle"
 msgstr "本周期剩余预算"
+
+#: modules/Finance/expenses_manage_approve.php:212
+msgid "Other requested expenses not yet approved"
+msgstr "其他已提交未完成审批"
+
+#: modules/Finance/expenses_manage_approve.php:212
+msgid "Other expenses in this budget that are submitted or partly approved, and count against the budget. This request is not included."
+msgstr "同一预算科目中其他已提交或仅部分审批通过、且计入预算的费用。不含本笔。"
+
+#: modules/Finance/expenses_manage_approve.php:217
+msgid "Reference budget remaining"
+msgstr "参考剩余预算"
+
+#: modules/Finance/expenses_manage_approve.php:217
+msgid "Budget remaining after approved, ordered, paid, and other not-yet-approved expenses. This request is not yet subtracted."
+msgstr "已扣除已批准、已下单、已付款以及其他未完成审批的费用。尚未扣除本笔。"
+
+msgid "Available after this expense"
+msgstr "批准本笔之后的可用额"
+
+msgid "Budget remaining after approved, ordered, paid, other not-yet-approved expenses, and this expense."
+msgstr "已扣除已批准、已下单、已付款、其他未完成审批的费用，以及本笔。"
+
+msgid "This expense would exceed the budget. Available after this expense: %1$s."
+msgstr "这笔费用会超出预算。批准或保存之后的可用额：%1$s。"
+
+msgid "Other requests already approved but not finished"
+msgstr "其他已有人批准、尚未完成的申请"
+
+msgid "Other requests in this budget that someone has approved, which still count against the budget. This request is not included."
+msgstr "同一科目中已有人批准、仍计入预算的其他申请。不含本笔。"
+
+msgid "Other requests not yet approved by anyone"
+msgstr "其他还没有人批准的申请"
+
+msgid "Submitted requests that do not reserve budget yet. They are not included in the balance above. This request is not included."
+msgstr "已提交但还没有人批准的申请，目前不占用余额，也没有从上面的数字里扣除。不含本笔。"
+
+msgid "Budget before this expense"
+msgstr "批准本笔之前的余额"
+
+msgid "Budget remaining before this expense. Other requests reserve budget only after someone has approved them. This expense is not included."
+msgstr "额度减去已批准、已下单、已付款，再减去其他已经有人批准、仍待审批的申请。不含本笔。"
+
+msgid "This request does not reserve budget until it is approved."
+msgstr "本笔还没有占用预算。点批准通过后才会占用。"
+
+msgid "This expense would exceed the budget. Budget before this expense: %1$s."
+msgstr "这笔费用会超出预算。批准本笔之前的余额：%1$s。"
+
+msgid "The request was saved and does not reserve budget yet. Budget before this expense is %1$s, which is less than this expense."
+msgstr "申请已保存，尚未占用预算。批准本笔之前的余额是 %1$s，小于本笔金额，现在批准不会通过。"
 
 #: modules/Finance/expenses_manage_edit.php:219
 #: modules/Finance/expenses_manage_view.php:188

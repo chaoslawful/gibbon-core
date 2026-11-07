@@ -95,17 +95,25 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                         } else {
                             $row = $result->fetch();
                             $statusOld = $row['status'];
+                            if (in_array($statusOld, array('Approved', 'Ordered', 'Paid'), true)) {
+                                $countAgainstBudget = $row['countAgainstBudget'];
+                            }
                             // XXX: added by wxz — start invoice tracking only when payment is new
                             $voucherStart = ($status == 'Paid') ? expenseVoucherStartValues($statusOld, $row['voucherStatus'] ?? null) : null;
                             // XXX: ends here
 
                             //Check if params are specified
-                            if ($status == 'Paid' and ($row['status'] == 'Approved' or $row['status'] == 'Ordered')) {
+                            if ($status == 'Paid' and $statusOld != 'Paid') {
                                 $paymentDate = !empty($_POST['paymentDate']) ? Format::dateConvert($_POST['paymentDate']) : null;
                                 $paymentAmount = $_POST['paymentAmount'] ?? '';
                                 $gibbonPersonIDPayment = $_POST['gibbonPersonIDPayment'] ?? '';
                                 $paymentMethod = $_POST['paymentMethod'] ?? '';
                                 $paymentID = $_POST['paymentID'] ?? '';
+                                if ($paymentDate == '' or $paymentAmount == '' or $gibbonPersonIDPayment == '' or $paymentMethod == '') {
+                                    $URL .= '&return=error1';
+                                    header("Location: {$URL}");
+                                    exit();
+                                }
                             } else {
                                 $paymentDate = $row['paymentDate'];
                                 $paymentAmount = $row['paymentAmount'];
@@ -115,6 +123,20 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                             }
                             
                             $notificationSender = $container->get(NotificationSender::class);
+
+                            $oldCounted = expenseCountedAmount($row['countAgainstBudget'], $statusOld, $row['cost'], $row['paymentAmount']);
+                            $newCounted = expenseCountedAmount($countAgainstBudget, $status, $row['cost'], $paymentAmount);
+                            $promoting = in_array($status, array('Approved', 'Ordered', 'Paid'), true) && !in_array($statusOld, array('Approved', 'Ordered', 'Paid'), true);
+                            $budgetTx = false;
+                            if ($promoting || $newCounted > $oldCounted + 0.001) {
+                                $pdo->beginTransaction();
+                                $budgetTx = true;
+                                $balance = budgetBalanceBefore($pdo, $gibbonFinanceBudgetCycleID, $row['gibbonFinanceBudgetID'], $gibbonFinanceExpenseID, true);
+                                if (!budgetAmountFits($balance, $countAgainstBudget, $status, $row['cost'], $paymentAmount)) {
+                                    $pdo->rollBack();
+                                    redirectBudgetDenied($URL, $balance);
+                                }
+                            }
 
                             //Do Reimbursement work
                             $paymentReimbursementStatus = null;
@@ -129,6 +151,9 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                                     if ($paymentReimbursementStatus == 'Complete') {
                                         $paymentDate = !empty($_POST['paymentDate']) ? Format::dateConvert($_POST['paymentDate']) : null;
                                         if (empty($paymentDate)) {
+                                            if ($budgetTx) {
+                                                $pdo->rollBack();
+                                            }
                                             $URL .= '&return=error1';
                                             header("Location: {$URL}");
                                             exit();
@@ -151,6 +176,9 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                                         $result = $connection2->prepare($sql);
                                         $result->execute($data);
                                     } catch (PDOException $e) {
+                                        if ($budgetTx) {
+                                            $pdo->rollBack();
+                                        }
                                         $URL .= '&return=error2';
                                         header("Location: {$URL}");
                                         exit();
@@ -168,14 +196,24 @@ if ($gibbonFinanceBudgetCycleID == '') { echo 'Fatal error loading this page!';
                                     $data['voucherReissueCount'] = $voucherStart['voucherReissueCount'];
                                     $sql .= ', voucherStatus=:voucherStatus, voucherReissueCount=:voucherReissueCount';
                                 }
+                                if ($status == 'Requested' && $countAgainstBudget != 'Y') {
+                                    $sql .= ", budgetEncumbered='N'";
+                                }
                                 // XXX: ends here
                                 $sql .= ' WHERE gibbonFinanceExpenseID=:gibbonFinanceExpenseID';
                                 $result = $connection2->prepare($sql);
                                 $result->execute($data);
                             } catch (PDOException $e) {
+                                if ($budgetTx) {
+                                    $pdo->rollBack();
+                                }
                                 $URL .= '&return=error2';
                                 header("Location: {$URL}");
                                 exit();
+                            }
+
+                            if ($budgetTx) {
+                                $pdo->commit();
                             }
 
                             if ($statusOld != $status) {

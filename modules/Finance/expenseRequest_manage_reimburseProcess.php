@@ -116,6 +116,17 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                             exit();
                         }
 
+                        $budgetTx = false;
+                        if (expenseCountsAgainstBudget($row['countAgainstBudget'], 'Paid')) {
+                            $pdo->beginTransaction();
+                            $budgetTx = true;
+                            $balance = budgetBalanceBefore($pdo, $gibbonFinanceBudgetCycleID, $row['gibbonFinanceBudgetID'], $gibbonFinanceExpenseID, true);
+                            if (!budgetAmountFits($balance, $row['countAgainstBudget'], 'Paid', $row['cost'], $paymentAmount)) {
+                                $pdo->rollBack();
+                                redirectBudgetDenied($URL, $balance);
+                            }
+                        }
+
                         $fileUploader = new Gibbon\FileUploader($pdo, $session);
 
                         $file = (isset($_FILES['file']))? $_FILES['file'] : null;
@@ -124,6 +135,9 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                         $attachment = $fileUploader->uploadFromPost($file, $row['title']);
 
                         if (empty($attachment)) {
+                            if ($budgetTx) {
+                                $pdo->rollBack();
+                            }
                             $URL .= '&return=error5';
                             header("Location: {$URL}");
                             exit();
@@ -145,9 +159,17 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '') { echo 'F
                             $result = $connection2->prepare($sql);
                             $result->execute($data);
                         } catch (PDOException $e) {
+                            if ($budgetTx) {
+                                $pdo->rollBack();
+                            }
                             $URL .= '&return=error2';
                             header("Location: {$URL}");
                             exit();
+                        }
+
+                        if ($budgetTx) {
+                            $pdo->commit();
+                            $budgetTx = false;
                         }
 
                         //Notify reimbursement officer that action is required

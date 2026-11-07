@@ -73,6 +73,14 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '' or $status
                 }
             }
 
+            $budgetWarning = null;
+            if (expenseCountsAgainstBudget($countAgainstBudget, $status)) {
+                $balance = budgetBalanceBefore($pdo, $gibbonFinanceBudgetCycleID, $gibbonFinanceBudgetID, '');
+                if (!budgetAmountFits($balance, $countAgainstBudget, $status, $cost, null)) {
+                    $budgetWarning = $balance;
+                }
+            }
+
             //Write to database
             try {
                 $data = array('gibbonFinanceBudgetCycleID' => $gibbonFinanceBudgetCycleID, 'gibbonFinanceBudgetID' => $gibbonFinanceBudgetID, 'title' => $title, 'body' => $body, 'status' => $status, 'statusApprovalBudgetCleared' => $statusApprovalBudgetCleared, 'cost' => $cost, 'countAgainstBudget' => $countAgainstBudget, 'purchaseBy' => $purchaseBy, 'purchaseDetails' => $purchaseDetails, 'gibbonPersonIDCreator' => $session->get('gibbonPersonID'));
@@ -108,7 +116,10 @@ if ($gibbonFinanceBudgetCycleID == '' or $gibbonFinanceBudgetID == '' or $status
                 $partialFail = true;
             }
 
-            if ($partialFail == true) {
+            if ($budgetWarning !== null) {
+                $URL .= '&return=warningBudget&budgetAvailable='.rawurlencode(sprintf('%.2f', $budgetWarning))."&editID=$AI";
+                header("Location: {$URL}");
+            } elseif ($partialFail == true) {
                 $URL .= "&return=success1&editID=$AI";
                 header("Location: {$URL}");
             } else {
