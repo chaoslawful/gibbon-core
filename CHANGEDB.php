@@ -1169,3 +1169,32 @@ AND NOT EXISTS (SELECT 1 FROM `gibbonPermission` p WHERE p.gibbonRoleID = '001' 
 ++$count;
 $sql[$count][0] = '30.0.01.2-od';
 $sql[$count][1] = "";
+
+//v30.0.01.3-od
+++$count;
+$sql[$count][0] = '30.0.01.3-od';
+$sql[$count][1] = "
+DROP PROCEDURE IF EXISTS gibbonOdExpenseEncumber;end
+CREATE PROCEDURE gibbonOdExpenseEncumber()
+BEGIN
+  IF (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gibbonFinanceExpense' AND COLUMN_NAME = 'budgetEncumbered') = 0 THEN
+    ALTER TABLE `gibbonFinanceExpense` ADD `budgetEncumbered` enum('Y','N') NOT NULL DEFAULT 'N' AFTER `statusApprovalBudgetCleared`;
+  END IF;
+  UPDATE `gibbonFinanceExpense`
+  SET `budgetEncumbered`='Y'
+  WHERE `status`='Requested'
+  AND `budgetEncumbered`='N'
+  AND EXISTS (
+    SELECT 1 FROM `gibbonFinanceExpenseLog`
+    WHERE `gibbonFinanceExpenseLog`.`gibbonFinanceExpenseID`=`gibbonFinanceExpense`.`gibbonFinanceExpenseID`
+    AND `gibbonFinanceExpenseLog`.`action` IN (
+      'Approval - Partial - Budget',
+      'Approval - Partial - School',
+      'Approval - Final',
+      'Approval - Exempt'
+    )
+  );
+END;end
+CALL gibbonOdExpenseEncumber();end
+DROP PROCEDURE IF EXISTS gibbonOdExpenseEncumber;end
+";
